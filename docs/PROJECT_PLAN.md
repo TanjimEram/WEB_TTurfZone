@@ -7,8 +7,8 @@
 | Field | Value |
 |---|---|
 | Phase | M3 homepage complete. **CR-1 recorded** (self-sufficient: online payments, auto-confirm, SMS/email, holds, cron jobs). Scaffold done locally; waiting on hosting money for real deploy |
-| Last completed | Docs: CR-1 written into CLAUDE.md + this plan (documentation only, no code). Before that: M3.1/M3.2/M3.3 homepage, 51 passed, 4 skipped (2026-09-11) |
-| Next task | Build continues on the frontend, unaffected by CR-1: M4.1 `/api/availability` tests → M4.2 `static/js/booking.js` slot grid → M2.2, M2.3, then CR-1 M2.6/M2.7 → M4.3–M4.5. See "Execution order (CR-1)" at the end of §6. **Wait for developer go-ahead.** |
+| Last completed | M4.1: `/api/availability` hardened (`no-store`, missing-date 400) + tests. 54 passed, 4 skipped (2026-09-11). Before that: CR-1 docs; M3.1/M3.2/M3.3 homepage |
+| Next task | M4.2 `static/js/booking.js`: date chips for the booking window, fetch `/api/availability`, render slot states, disabled slots not selectable, loading + retry, animated selection. Then M2.2, M2.3, CR-1 M2.6/M2.7 → M4.3–M4.5. See "Execution order (CR-1)" at the end of §6. |
 | Blocked by | Hosting/domain purchase blocks M1.3b and W3–W6 (postponed). PostgreSQL-only bugs uncaught until W5. **CR-1: M10 blocked by repricing agreement (C-27); M12 blocked by bKash merchant approval (C-21).** |
 | Dev environment | Windows + PowerShell. venv: `.venv\Scripts\Activate.ps1`. |
 | Live URL | not deployed |
@@ -382,7 +382,7 @@ Done when: layout works at 360px, 768px and 1280px, and every `TODO(owner)` maps
 
 ### M4 Booking flow (Day 1, 14:30 to 18:00)
 
-- [ ] M4.1 `routes/api.py` `/api/availability` + tests (bad date → 400; response has no names or phones).
+- [x] M4.1 `routes/api.py` `/api/availability` + `tests/test_availability_api.py`: bad date and missing date → 400; response is `Cache-Control: no-store`; slot shape is `time/label/state/price_bdt` only; no customer name or phone in the body; each state (available/pending/booked/blocked) shown. Booking-window rejection waits on M2.2. 54 passed, 4 skipped. (2026-09-11)
 - [ ] M4.2 `static/js/booking.js`: date chips for the booking window, fetch availability, distinct slot states, disabled slots not selectable, loading skeleton, retry on error, animated selection.
 - [ ] M4.3 Details and review step; POST `/book` with CSRF; server re-validates; slot-taken error refreshes the grid with a clear message.
 - [ ] M4.4 `booking_success.html`: BOOKING REQUEST RECEIVED, booking ID, date, time, name, PENDING owner confirmation, `confirm_time_text`, CHAT ON WHATSAPP button.
@@ -653,6 +653,7 @@ Needed by: D0 = before Day 1 starts, D1-AM = Day 1 09:00, D1-PM = Day 1 18:00.
 | 2026-09-11 | Build (Claude Code, Windows) | M3.1 done: design system in `static/css/main.css` (tokens, buttons, cards, `.ph` placeholders, hero, slot grid, nav, footer, sticky actions, reduced-motion). `base.html` gained skip link, meta description, scripts block. 42 passed, 4 skipped. | M3.2 homepage sections |
 | 2026-09-11 | Build (Claude Code, Windows) | M3.2 done: full homepage (`index.html` + `partials/_macros.html`, `partials/footer.html`), all 9 sections, content from `turf_settings` with visible TODO(owner) notes for every gap. `TurfSettings.current_or_default()` added. Reveal animation made progressive-enhancement (`.reveal-on`) so content is visible without JS. Fixed mobile horizontal overflow (grid `minmax(0,1fr)`, `.ph` min-width:0). 49 passed, 4 skipped. | M3.3 nav + sticky mobile bar |
 | 2026-09-11 | Build (Claude Code, Windows) | M3.3 done: `partials/nav.html`, `partials/sticky_actions.html`, `static/js/main.js` (header state, mobile menu). Verified at 375px in the browser: hamburger + full-screen menu (open/close/Esc/link-close, scroll lock), persistent WHATSAPP+BOOK NOW bar, no horizontal scroll. Dev server now runs with `--debug` for template/code reload. 51 passed, 4 skipped. M3 complete. | M4.1/M4.2 |
+| 2026-09-11 | Build (Claude Code, Windows) | M4.1: `/api/availability` returns `Cache-Control: no-store`, missing `date` now 400. `tests/test_availability_api.py` +3 (missing date, not cached, slot shape). 54 passed, 4 skipped. | M4.2 booking.js slot grid |
 | 2026-09-11 | Docs (Claude Code, Windows) | CR-1 recorded (self-sufficient: bKash payments, auto-confirm, SMS/email outbox, slot holds, cron jobs, admin manual bookings + refunds). Documentation only — no code touched. Updated CLAUDE.md (what this is, 6 payment/notification hard rules, per-milestone push rule) and the plan: §2 constraints, D-05/D-08/D-11 updated, D-15–D-17 marked superseded, D-24…D-33 added, §4 accounts, §5 file map / data model / service contracts / routes / env names, M2.6–M2.7, M5.6–M5.7, M8.5–M8.7, M9.7–M9.8, new M10/M11/M12, execution order, §7 QA, §8 handover, C-21…C-27, Appendix B, Backlog, Risks. | Repricing agreement (C-27) then M4.2; M10 gated on C-27, M12 on merchant approval (C-21) |
 
 ---

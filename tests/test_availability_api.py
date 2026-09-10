@@ -50,3 +50,19 @@ def test_bad_date_returns_400(client):
     response = client.get("/api/availability?date=not-a-date")
     assert response.status_code == 400
     assert "error" in response.get_json()
+
+
+def test_missing_date_returns_400(client):
+    response = client.get("/api/availability")
+    assert response.status_code == 400
+    assert "error" in response.get_json()
+
+
+def test_response_is_not_cached(client):
+    response = client.get(f"/api/availability?date={DAY}")
+    assert response.headers.get("Cache-Control") == "no-store"
+
+
+def test_slot_shape_is_state_only(client):
+    slot = client.get(f"/api/availability?date={DAY}").get_json()["slots"][0]
+    assert set(slot) == {"time", "label", "state", "price_bdt"}

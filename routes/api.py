@@ -9,10 +9,16 @@ bp = Blueprint("api", __name__, url_prefix="/api")
 
 @bp.get("/availability")
 def availability():
-    """GET /api/availability?date=YYYY-MM-DD -> slot states for that day."""
+    """GET /api/availability?date=YYYY-MM-DD -> slot states for that day.
+
+    Public: never includes customer names or phone numbers (only slot states).
+    Not cached: slot states change the moment a booking is made.
+    """
     raw = request.args.get("date", "")
     try:
         day = date.fromisoformat(raw)
     except ValueError:
         return jsonify(error="Use ?date=YYYY-MM-DD"), 400
-    return jsonify(date=day.isoformat(), slots=get_day_availability(day))
+    response = jsonify(date=day.isoformat(), slots=get_day_availability(day))
+    response.headers["Cache-Control"] = "no-store"
+    return response
