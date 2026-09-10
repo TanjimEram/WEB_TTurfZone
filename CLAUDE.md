@@ -58,7 +58,6 @@ Keep this list current when commands change.
 
 ```bash
 # setup (macOS/Linux)
-<<<<<<< HEAD
 python -m venv .venv && source .venv/bin/activate && pip install -r requirements-dev.txt
 # setup (Windows PowerShell)
 python -m venv .venv; .venv\Scripts\Activate.ps1; pip install -r requirements-dev.txt
@@ -82,18 +81,3 @@ APP_ENV=production SECRET_KEY=... DATABASE_URL=... python scripts/serve_like_pas
 - SQLite ignores VARCHAR lengths; PostgreSQL enforces them. Run `pytest -m postgres` before deploying model or seed changes.
 - Fake data and the `/dev` pages exist only when `ENABLE_DEV_TOOLS` is true (development). Never enable it in production.
 - `database/migrations/env.py` was edited to use `db.engine` (the generated `get_engine()` is deprecated). Keep it that way.
-=======
-python -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
-# setup (Windows PowerShell)
-python -m venv .venv; .venv\Scripts\Activate.ps1; pip install -r requirements.txt
-
-flask --app app run --debug                      # run locally
-pytest -q                                        # unit + route tests (SQLite)
-TEST_DATABASE_URL=... pytest -q -m postgres      # concurrency test on a Postgres dev database
-flask --app app db migrate -m "message"          # create migration (check the partial index WHERE clause is present)
-flask --app app db upgrade                       # apply migrations
-flask --app app create-admin                     # create owner login, prints generated password once
-flask --app app seed-settings                    # insert/refresh turf_settings row from database/seed_data.py
-flask --app app db-check                         # SELECT 1 against DATABASE_URL
-```
->>>>>>> 4e783dfad03513aada3f7da9453a8f415491efc6

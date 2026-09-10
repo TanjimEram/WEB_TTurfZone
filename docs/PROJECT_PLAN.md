@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 # TTURFZONE project plan (living document)
-=======
-  # TTURFZONE project plan (living document)
->>>>>>> 4e783dfad03513aada3f7da9453a8f415491efc6
 
 > For Claude: this file is the project's memory across sessions and accounts. Read "Resume here" first. Update it in the same commit as the work (rules in CLAUDE.md). Never write passwords, API keys or connection strings in this file.
 
@@ -10,10 +6,11 @@
 
 | Field | Value |
 |---|---|
-| Phase | M1/M2 scaffold done locally; waiting on hosting money for real deploy |
-| Last completed | Scaffold + fake-module wiring: app factory, config, models, migration, availability API, dev wiring page, CLI, Passenger simulation. 46 tests pass on SQLite + PostgreSQL (2026-09-10) |
-| Next task | Developer: run W1–W6 locally (section 6, "Wiring check"), connect Neon dev DB. Then M2.2 slots rules. In parallel: M0.1/M0.2 client approval and payments |
-| Blocked by | Hosting/domain purchase (payment expected in 1–2 days) blocks M1.3b only |
+| Phase | Frontend build starting (M3). Scaffold done locally; waiting on hosting money for real deploy |
+| Last completed | W1 + W2 done on Windows: `pytest -q` shows 42 passed, 4 skipped; `/dev/wiring` works on local SQLite. Merge-conflict markers in CLAUDE.md and docs/PROJECT_PLAN.md resolved; stale root `PROJECT_PLAN.md` duplicate removed (2026-09-11) |
+| Next task | M3.1 design system, then M3.2 homepage sections, then M3.3 sticky mobile bar. Design approach approved by developer before M3.1 code. |
+| Blocked by | Hosting/domain purchase blocks M1.3b and W3–W6 (postponed, not dropped). PostgreSQL-only bugs stay uncaught until W5 runs. |
+| Dev environment | Windows + PowerShell. venv: `.venv\Scripts\Activate.ps1`. |
 | Live URL | not deployed |
 | Repo | created by developer (private GitHub) |
 
@@ -70,6 +67,7 @@ Status keys: `[ ]` to do, `[x]` done, `~~struck through~~ (CR-n)` dropped by a c
 | D-20 | `requirements-dev.txt` adds pytest on top of `requirements.txt`; production installs only `requirements.txt` | Keep production minimal | Final |
 | D-21 | `config.normalize_database_url()` converts `postgres://`/`postgresql://` to `postgresql+psycopg://` | Paste Neon/cPanel URLs unchanged | Final |
 | D-22 | Short seed fields (phone, whatsapp: 20 chars) seed as empty strings; the TODO lives in a comment | PostgreSQL rejected long placeholder text (caught by testing on Postgres) | Final |
+| D-23 | Admin scope: the owner manages bookings, blocks slots, and edits basic settings (phone, WhatsApp, address, hours, booking rules, prices). Photos, page text, colours and layout are changed by the developer. A content editor (gallery upload, hero photo, about text, reviews, facilities) is a paid phase 2, in the Backlog. | Keeps the 2-day MVP small; media handling and rich text are their own project | Final (developer, 2026-09-11) |
 | D-17 | Payments: (1) Tk 5,000 development advance before build; (2) hosting + domain actual cost (up to Tk 7,000) before build, paid by owner directly or sent with receipts; (3) Tk 5,000 balance at handover after owner tests live site. Unused infra money returned or deducted from payment 3. 2-day clock starts after payments 1–2 and Day-1 inputs. 7 days of free fixes after handover. | Protects developer from funding infra out of the advance; protects deadline from late assets | Sent to client for approval |
 
 ## 4. Infrastructure and accounts (no secrets here)
@@ -278,10 +276,12 @@ Done when: `pytest -q` passes; host URL (temporary URL is fine) returns `ok` at 
 
 - [ ] W1 Unzip scaffold into repo, `pip install -r requirements-dev.txt`, `pytest -q` shows 42 passed, 4 skipped.
 - [ ] W2 SQLite: copy `.env.example` to `.env`, set SECRET_KEY, `flask db upgrade`, `seed-settings`, `run --debug`, open `/dev/wiring`, press all three buttons.
-- [ ] W3 Neon: create project (region nearest Bangladesh, Singapore), branches `dev` and `test`. Put `dev` URL in `DATABASE_URL`, `test` URL in `TEST_DATABASE_URL`.
-- [ ] W4 Neon: `flask db-check` (expect missing tables), `flask db upgrade`, `db-check` shows Database OK, `seed-settings`, `fake-bookings`, `fake-conflict-test`, `/dev/wiring` shows postgresql.
-- [ ] W5 `pytest -q -m postgres` against Neon `test` branch: 4 passed.
-- [ ] W6 `serve_like_passenger.py` in production mode against Neon `dev`: `/healthz` ok, `/dev/wiring` 404.
+- [x] W1 done (2026-09-11): `pytest -q` shows 42 passed, 4 skipped on Windows.
+- [x] W2 done (2026-09-11): local SQLite, `/dev/wiring` works, all three buttons pressed.
+- [ ] W3 POSTPONED until hosting/DB is bought. Neon: create project (region nearest Bangladesh, Singapore), branches `dev` and `test`. Put `dev` URL in `DATABASE_URL`, `test` URL in `TEST_DATABASE_URL`.
+- [ ] W4 POSTPONED. Neon: `flask db-check` (expect missing tables), `flask db upgrade`, `db-check` shows Database OK, `seed-settings`, `fake-bookings`, `fake-conflict-test`, `/dev/wiring` shows postgresql.
+- [ ] W5 POSTPONED. `pytest -q -m postgres` against Neon `test` branch: 4 passed. Until this runs, PostgreSQL-only problems are not caught (see Risks).
+- [ ] W6 POSTPONED. `serve_like_passenger.py` in production mode against Neon `dev`: `/healthz` ok, `/dev/wiring` 404.
 
 ### M2 Data model and booking rules (Day 1, 10:30 to 12:30)
 
@@ -442,7 +442,7 @@ No change requests yet.
 - Auto-expire PENDING requests after X hours
 - Customer self-cancel with a code
 - Login rate limiting and lockout
-- Admin editing for about, facilities, gallery and reviews
+- Admin content editor (paid phase 2, D-23): gallery upload, hero photo, about text, reviews, facilities editing behind the admin login
 - Settings-driven slot templates (different durations, special days)
 - Bangla / English language toggle
 - Recurring team bookings, tournaments, coupons
@@ -461,6 +461,7 @@ No change requests yet.
 | Fake PENDING requests block slots | Per-phone cap (D-05), owner rejects; auto-expiry in Backlog |
 | Owner slow to confirm | Show `confirm_time_text`; WhatsApp button on success page |
 | Scope creep during the 2 days | Every change goes through section 10 with time and price impact |
+| PostgreSQL-only problems (VARCHAR length limits, partial-index behaviour, timezone/`timestamptz` handling, JSON columns, concurrency) are not caught while all local work runs on SQLite | W5 (`pytest -q -m postgres`) and W3–W6 are postponed until hosting/DB is bought. Keep model, migration and seed changes conservative until then; run `pytest -m postgres` against Neon the moment it exists and before any deploy (M8). SQLite is treated as UX-only, never as proof. |
 
 ## 13. Known issues
 
@@ -474,6 +475,7 @@ No change requests yet.
 | 2026-09-10 | Planning (claude.ai) | Reviewed brief; researched hosting/DB options; wrote CLAUDE.md and this plan | M0.1 |
 | 2026-09-10 | Planning (claude.ai) | Created client-facing summary + budget docx; added D-16, D-17; updated M0.2 and Appendix A | M0.1 |
 | 2026-09-10 | Build (claude.ai) | Scaffold with fake modules: M1.1, M1.2, M1.3a, M1.4, M2.1, M2.4, M2.5. Initial migration 13a53e9a5687. Verified on SQLite and PostgreSQL 16; fixed seed values too long for VARCHAR(20) (D-22) and deprecated get_engine in env.py. 46 tests pass. | W1–W6 locally, then M2.2 |
+| 2026-09-11 | Build (Claude Code, Windows) | Resolved merge-conflict markers left in CLAUDE.md and docs/PROJECT_PLAN.md by commit `6647a22 mergeAll`; removed the stale root `PROJECT_PLAN.md` duplicate (docs/ copy is the single living doc). W1/W2 confirmed done (42 passed, 4 skipped; `/dev/wiring` OK on SQLite). W3–W6 marked POSTPONED. Added D-23 (admin scope), Backlog content-editor phase 2, and a Risk that PostgreSQL-only bugs stay uncaught until W5. | M3.1 design system after developer approves the design approach |
 
 ---
 
