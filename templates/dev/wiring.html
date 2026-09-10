@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Wiring check · TTURFZONE{% endblock %}
+{% block content %}
+<main class="wiring">
+  <h1>Wiring check <small>({{ env_name }})</small></h1>
+  <p class="muted">Development only. Dhaka time now: {{ now.strftime("%Y-%m-%d %I:%M %p") }}</p>
+
+  <h2>Database</h2>
+  <table>
+    <tr><th>Status</th><td class="{{ 'good' if health.ok else 'bad' }}">
+      {% if health.ok %}Connected, tables ready{% elif health.connected %}Connected, tables missing: {{ health.missing_tables | join(", ") }}{% else %}Not connected{% endif %}
+    </td></tr>
+    <tr><th>Driver</th><td>{{ health.dialect }}</td></tr>
+    <tr><th>Host</th><td>{{ health.host }}</td></tr>
+    <tr><th>Database</th><td>{{ health.database }}</td></tr>
+    <tr><th>Round trip</th><td>{{ health.latency_ms }} ms</td></tr>
+    <tr><th>Migration</th><td>{{ health.migration_revision or "none (run flask db upgrade)" }}</td></tr>
+    {% if health.error %}<tr><th>Error</th><td class="bad">{{ health.error }}</td></tr>{% endif %}
+  </table>
+
+  {% if counts %}
+  <h2>Rows</h2>
+  <table>{% for name, value in counts.items() %}<tr><th>{{ name }}</th><td>{{ value }}</td></tr>{% endfor %}</table>
+
+  <h2>Fake data tests</h2>
+  <div class="actions">
+    <form method="post" action="{{ url_for('dev.fake_bookings') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button>Create 10 fake bookings</button></form>
+    <form method="post" action="{{ url_for('dev.double_booking') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button>Try a double booking</button></form>
+    <form method="post" action="{{ url_for('dev.clear_fake') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button>Delete fake bookings</button></form>
+  </div>
+
+  {% if upcoming %}
+  <h2>First bookings in the database</h2>
+  <table>
+    <tr><th>Code</th><th>Date</th><th>Time</th><th>Status</th></tr>
+    {% for b in upcoming %}<tr><td>{{ b.booking_code }}</td><td>{{ b.booking_date }}</td><td>{{ b.slot_time.strftime("%I:%M %p") }}</td><td>{{ b.status }}</td></tr>{% endfor %}
+  </table>
+
+  <h2>Availability API for {{ sample_day }}</h2>
+  <p><a href="{{ url_for('api.availability', date=sample_day.isoformat()) }}">/api/availability?date={{ sample_day }}</a></p>
+  <ul class="slots">{% for s in sample_slots %}<li class="{{ s.state }}">{{ s.label }}: {{ s.state }}</li>{% endfor %}</ul>
+  {% endif %}
+  {% endif %}
+</main>
+{% endblock %}

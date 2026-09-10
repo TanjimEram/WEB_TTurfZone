@@ -1,0 +1,16 @@
+/* Placeholder styles. The real design system is built in M3.1. */
+:root { --bg: #0b0f0d; --text: #f2f5f3; --muted: #9aa5a0; --accent: #22c55e; --bad: #ef4444; }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
+a { color: var(--accent); }
+.placeholder, .wiring { max-width: 760px; margin: 0 auto; padding: 24px 16px; }
+.muted { color: var(--muted); }
+.flash { background: #14532d; margin: 0; padding: 10px 16px; }
+table { border-collapse: collapse; width: 100%; margin-bottom: 16px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #1f2a25; }
+.good { color: var(--accent); } .bad { color: var(--bad); }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+button { background: var(--accent); color: #04130a; border: 0; padding: 10px 14px; border-radius: 8px; font-weight: 600; cursor: pointer; }
+.slots { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 6px; }
+.slots li { padding: 6px 8px; border-radius: 6px; background: #14532d; }
+.slots .pending { background: #713f12; } .slots .booked { background: #7f1d1d; } .slots .blocked { background: #374151; }

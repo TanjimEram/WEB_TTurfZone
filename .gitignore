@@ -1,0 +1,21 @@
+# secrets and local data
+.env
+instance/
+*.sqlite
+*.sqlite3
+
+# python
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# personal Claude notes
+CLAUDE.local.md

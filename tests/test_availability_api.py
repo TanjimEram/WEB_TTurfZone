@@ -1,0 +1,52 @@
+from datetime import date, time
+
+from models import Booking
+from services.bookings import generate_booking_code, save_booking
+from services.slots import SLOT_TIMES, slot_label
+
+DAY = "2030-03-10"
+
+
+def add(slot, status):
+    save_booking(Booking(booking_code=generate_booking_code(), customer_name="Secret Name",
+                         phone="01799999999", booking_date=date(2030, 3, 10), slot_time=slot, status=status))
+
+
+def test_there_are_twelve_ninety_minute_slots():
+    assert len(SLOT_TIMES) == 12
+    assert SLOT_TIMES[0] == time(6, 0) and SLOT_TIMES[-1] == time(22, 30)
+
+
+def test_slot_label_uses_12_hour_clock():
+    assert slot_label(time(13, 30)) == "01:30 PM"
+
+
+def test_availability_returns_all_slots(client):
+    body = client.get(f"/api/availability?date={DAY}").get_json()
+    assert body["date"] == DAY
+    assert len(body["slots"]) == 12
+    assert {s["state"] for s in body["slots"]} == {"available"}
+
+
+def test_availability_shows_each_state(app, client):
+    add(time(6, 0), Booking.PENDING)
+    add(time(7, 30), Booking.CONFIRMED)
+    add(time(9, 0), Booking.BLOCKED)
+    add(time(10, 30), Booking.REJECTED)
+    states = {s["time"]: s["state"] for s in client.get(f"/api/availability?date={DAY}").get_json()["slots"]}
+    assert states["06:00"] == "pending"
+    assert states["07:30"] == "booked"
+    assert states["09:00"] == "blocked"
+    assert states["10:30"] == "available"
+
+
+def test_availability_never_exposes_customer_data(app, client):
+    add(time(6, 0), Booking.CONFIRMED)
+    text = client.get(f"/api/availability?date={DAY}").get_data(as_text=True)
+    assert "Secret Name" not in text and "01799999999" not in text
+
+
+def test_bad_date_returns_400(client):
+    response = client.get("/api/availability?date=not-a-date")
+    assert response.status_code == 400
+    assert "error" in response.get_json()

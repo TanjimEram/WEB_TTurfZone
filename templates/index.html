@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="placeholder">
+  <h1>{{ settings.turf_name if settings else "TTURFZONE" }}</h1>
+  <p>Website under construction. The homepage is built in M3.</p>
+  {% if config.ENABLE_DEV_TOOLS %}<p><a href="{{ url_for('dev.wiring') }}">Open wiring check</a></p>{% endif %}
+</main>
+{% endblock %}
