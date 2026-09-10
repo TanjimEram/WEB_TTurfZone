@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # TTURFZONE project plan (living document)
+=======
+  # TTURFZONE project plan (living document)
+>>>>>>> 4e783dfad03513aada3f7da9453a8f415491efc6
 
 > For Claude: this file is the project's memory across sessions and accounts. Read "Resume here" first. Update it in the same commit as the work (rules in CLAUDE.md). Never write passwords, API keys or connection strings in this file.
 
