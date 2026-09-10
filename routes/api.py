@@ -2,7 +2,7 @@ from datetime import date
 
 from flask import Blueprint, jsonify, request
 
-from services.slots import get_day_availability
+from services.slots import get_day_availability, is_within_window
 
 bp = Blueprint("api", __name__, url_prefix="/api")
 
@@ -13,12 +13,16 @@ def availability():
 
     Public: never includes customer names or phone numbers (only slot states).
     Not cached: slot states change the moment a booking is made.
+    Dates outside the booking window are rejected (400) - the client is
+    never trusted to stay inside it.
     """
     raw = request.args.get("date", "")
     try:
         day = date.fromisoformat(raw)
     except ValueError:
         return jsonify(error="Use ?date=YYYY-MM-DD"), 400
+    if not is_within_window(day):
+        return jsonify(error="Date is outside the booking window"), 400
     response = jsonify(date=day.isoformat(), slots=get_day_availability(day))
     response.headers["Cache-Control"] = "no-store"
     return response

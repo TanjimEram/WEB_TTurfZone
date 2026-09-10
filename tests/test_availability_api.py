@@ -1,15 +1,17 @@
-from datetime import date, time
+from datetime import time, timedelta
 
 from models import Booking
 from services.bookings import generate_booking_code, save_booking
-from services.slots import SLOT_TIMES, slot_label
+from services.slots import SLOT_TIMES, slot_label, today_dhaka
 
-DAY = "2030-03-10"
+# A date a few days out: inside the 14-day window, and every slot is still future.
+DAY_DATE = today_dhaka() + timedelta(days=5)
+DAY = DAY_DATE.isoformat()
 
 
 def add(slot, status):
     save_booking(Booking(booking_code=generate_booking_code(), customer_name="Secret Name",
-                         phone="01799999999", booking_date=date(2030, 3, 10), slot_time=slot, status=status))
+                         phone="01799999999", booking_date=DAY_DATE, slot_time=slot, status=status))
 
 
 def test_there_are_twelve_ninety_minute_slots():
@@ -54,6 +56,18 @@ def test_bad_date_returns_400(client):
 
 def test_missing_date_returns_400(client):
     response = client.get("/api/availability")
+    assert response.status_code == 400
+    assert "error" in response.get_json()
+
+
+def test_date_before_today_returns_400(client):
+    yesterday = (today_dhaka() - timedelta(days=1)).isoformat()
+    assert client.get(f"/api/availability?date={yesterday}").status_code == 400
+
+
+def test_date_past_window_returns_400(client):
+    far = (today_dhaka() + timedelta(days=90)).isoformat()
+    response = client.get(f"/api/availability?date={far}")
     assert response.status_code == 400
     assert "error" in response.get_json()
 
