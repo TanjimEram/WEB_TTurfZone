@@ -2,6 +2,7 @@
 import datetime as dt
 
 import pytest
+from werkzeug.security import generate_password_hash
 
 from extensions import db
 from models import Admin, Booking
@@ -9,14 +10,15 @@ from services.slots import today_dhaka
 
 USERNAME = "owner"
 PASSWORD = "correct-horse-staple"
+# Cheap hash, computed once - the default scrypt is deliberately slow and this
+# test file creates an admin per test.
+_FAST_HASH = generate_password_hash(PASSWORD, method="pbkdf2:sha256:1000", salt_length=8)
 
 
 @pytest.fixture
 def admin_user(app):
     with app.app_context():
-        admin = Admin(username=USERNAME)
-        admin.set_password(PASSWORD)
-        db.session.add(admin)
+        db.session.add(Admin(username=USERNAME, password_hash=_FAST_HASH))
         db.session.commit()
     return USERNAME
 
@@ -131,3 +133,71 @@ def test_dashboard_next_seven_days(as_admin, app):
     html = as_admin.get("/admin/").get_data(as_text=True)
     assert "Next Week Guy" in html
     assert "Next 7 days" in html
+
+
+# --- M5.3 bookings list + actions -----------------------------------
+
+def test_bookings_list_shows_customer_and_wa_link(as_admin, app):
+    _add(app, customer_name="Rafi Ahmed", phone="01712345678")
+    html = as_admin.get("/admin/bookings").get_data(as_text=True)
+    assert "Rafi Ahmed" in html
+    assert "tel:01712345678" in html
+    assert "wa.me/8801712345678" in html
+
+
+def test_bookings_status_filter(as_admin, app):
+    _add(app, code="C1", customer_name="Confirmed One", status=Booking.CONFIRMED)
+    _add(app, code="P1", customer_name="Pending One", slot_time=dt.time(19, 30), status=Booking.PENDING)
+    html = as_admin.get("/admin/bookings?status=PENDING").get_data(as_text=True)
+    assert "Pending One" in html
+    assert "Confirmed One" not in html
+
+
+def test_bookings_date_filter(as_admin, app):
+    other = today_dhaka() + dt.timedelta(days=4)
+    _add(app, code="TODAY", customer_name="Today Person")
+    _add(app, code="OTHER", customer_name="Other Day Person", booking_date=other)
+    html = as_admin.get(f"/admin/bookings?date={other.isoformat()}").get_data(as_text=True)
+    assert "Other Day Person" in html
+    assert "Today Person" not in html
+
+
+def test_confirm_pending_booking(as_admin, app):
+    _add(app, code="CONF", status=Booking.PENDING)
+    with app.app_context():
+        bid = db.session.scalar(db.select(Booking.id))
+    resp = as_admin.post(f"/admin/bookings/{bid}/confirm")
+    assert resp.status_code == 302
+    with app.app_context():
+        assert db.session.get(Booking, bid).status == Booking.CONFIRMED
+
+
+def test_reject_frees_slot(as_admin, app):
+    _add(app, code="REJ", status=Booking.PENDING)
+    with app.app_context():
+        bid = db.session.scalar(db.select(Booking.id))
+    as_admin.post(f"/admin/bookings/{bid}/reject", data={"note": "spam"})
+    with app.app_context():
+        b = db.session.get(Booking, bid)
+        assert b.status == Booking.REJECTED
+        assert b.admin_note == "spam"
+
+
+def test_confirm_action_requires_login(client, app):
+    _add(app, code="X", status=Booking.PENDING)
+    with app.app_context():
+        bid = db.session.scalar(db.select(Booking.id))
+    resp = client.post(f"/admin/bookings/{bid}/confirm")
+    assert resp.status_code == 302
+    assert "/admin/login" in resp.headers["Location"]
+    with app.app_context():
+        assert db.session.get(Booking, bid).status == Booking.PENDING
+
+
+def test_confirm_bad_transition_flashes_not_crashes(as_admin, app):
+    _add(app, code="DONE", status=Booking.CONFIRMED)
+    with app.app_context():
+        bid = db.session.scalar(db.select(Booking.id))
+    resp = as_admin.post(f"/admin/bookings/{bid}/confirm", follow_redirects=True)
+    assert resp.status_code == 200
+    assert "Cannot confirm" in resp.get_data(as_text=True)

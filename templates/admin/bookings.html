@@ -3,5 +3,74 @@
 
 {% block content %}
 <h1>Bookings</h1>
-<p class="muted">Filterable list with confirm / reject / cancel lands here in M5.3.</p>
+
+<form class="admin-filters" method="get" action="{{ url_for('admin.bookings') }}">
+  <div class="form-field">
+    <label for="f-date">Date</label>
+    <input id="f-date" type="date" name="date" value="{{ filter_date }}">
+  </div>
+  <div class="form-field">
+    <label for="f-status">Status</label>
+    <select id="f-status" name="status">
+      <option value="">All</option>
+      {% for s in statuses %}
+        <option value="{{ s }}" {{ 'selected' if s == filter_status }}>{{ s | replace('_', ' ') | title }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button class="btn btn--primary" type="submit">Filter</button>
+  <a class="btn btn--ghost" href="{{ url_for('admin.bookings') }}">Clear</a>
+</form>
+
+{% if rows %}
+<div class="admin-table--scroll">
+  <table class="admin-table">
+    <thead>
+      <tr><th>Date</th><th>Time</th><th>Customer</th><th>Status</th><th>Code</th><th>Actions</th></tr>
+    </thead>
+    <tbody>
+      {% for b in rows %}
+      <tr>
+        <td>{{ b.booking_date.strftime('%a %d %b %Y') }}</td>
+        <td>{{ slot_label(b.slot_time) }}</td>
+        <td>
+          {% if b.status == "BLOCKED" %}
+            <span class="cal-slot__who">Owner block{% if b.admin_note %} &mdash; {{ b.admin_note }}{% endif %}</span>
+          {% else %}
+            {{ b.customer_name }}<br>
+            <a href="tel:{{ b.phone }}">{{ b.phone }}</a>
+            &middot; <a href="https://wa.me/{{ wa_number(b.phone) }}" rel="noopener" target="_blank">WhatsApp</a>
+            {% if b.admin_note %}<br><span class="cal-slot__who">Note: {{ b.admin_note }}</span>{% endif %}
+          {% endif %}
+        </td>
+        <td><span class="pill pill--{{ b.status | lower }}">{{ b.status | replace('_', ' ') | title }}</span></td>
+        <td>{{ b.booking_code }}</td>
+        <td>
+          <div class="admin-actions">
+            {% if b.status == "PENDING" %}
+              <form method="post" action="{{ url_for('admin.booking_confirm', booking_id=b.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="back" value="{{ request.full_path }}">
+                <button class="btn btn--primary" type="submit">Confirm</button>
+              </form>
+            {% endif %}
+            {% if b.status in ("PENDING", "CONFIRMED") %}
+              <form method="post" action="{{ url_for('admin.booking_reject', booking_id=b.id) }}"
+                    onsubmit="return confirm('Free this slot? The customer is not notified automatically.');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="back" value="{{ request.full_path }}">
+                <button class="btn btn--ghost" type="submit">{{ 'Reject' if b.status == 'PENDING' else 'Cancel' }}</button>
+              </form>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% if rows | length == 300 %}<p class="muted">Showing the first 300. Use the filters to narrow down.</p>{% endif %}
+{% else %}
+<p class="muted">No bookings match.</p>
+{% endif %}
 {% endblock %}
