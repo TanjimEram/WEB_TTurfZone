@@ -201,3 +201,62 @@ def test_confirm_bad_transition_flashes_not_crashes(as_admin, app):
     resp = as_admin.post(f"/admin/bookings/{bid}/confirm", follow_redirects=True)
     assert resp.status_code == 200
     assert "Cannot confirm" in resp.get_data(as_text=True)
+
+
+# --- M5.4 calendar + block/unblock ---------------------------------
+
+FUTURE = today_dhaka() + dt.timedelta(days=3)
+
+
+def test_calendar_shows_twelve_slots(as_admin):
+    html = as_admin.get(f"/admin/calendar?date={FUTURE.isoformat()}").get_data(as_text=True)
+    assert html.count("cal-slot__time") == 12
+
+
+def test_calendar_shows_booking_customer(as_admin, app):
+    _add(app, customer_name="Calendar Karim", booking_date=FUTURE, slot_time=dt.time(18, 0))
+    html = as_admin.get(f"/admin/calendar?date={FUTURE.isoformat()}").get_data(as_text=True)
+    assert "Calendar Karim" in html
+
+
+def test_block_then_unblock(as_admin, app):
+    as_admin.post("/admin/slots/block", data={
+        "date": FUTURE.isoformat(), "slot": "18:00", "reason": "Private match",
+    })
+    with app.app_context():
+        blocked = db.session.scalar(db.select(Booking).where(Booking.status == Booking.BLOCKED))
+        assert blocked is not None
+        assert blocked.admin_note == "Private match"
+        bid = blocked.id
+
+    as_admin.post(f"/admin/slots/{bid}/unblock")
+    with app.app_context():
+        assert db.session.get(Booking, bid) is None
+
+
+def test_block_taken_slot_flashes_error(as_admin, app):
+    _add(app, booking_date=FUTURE, slot_time=dt.time(18, 0), status=Booking.CONFIRMED)
+    resp = as_admin.post("/admin/slots/block", data={
+        "date": FUTURE.isoformat(), "slot": "18:00", "reason": "",
+    }, follow_redirects=True)
+    assert "already taken" in resp.get_data(as_text=True)
+    with app.app_context():
+        assert db.session.scalar(
+            db.select(db.func.count()).select_from(Booking).where(Booking.status == Booking.BLOCKED)
+        ) == 0
+
+
+def test_blocked_slot_not_bookable_by_public(as_admin, client, app):
+    as_admin.post("/admin/slots/block", data={"date": FUTURE.isoformat(), "slot": "18:00", "reason": ""})
+    resp = client.post("/book", data={
+        "name": "Late Comer", "phone": "01712345678",
+        "date": FUTURE.isoformat(), "slot": "18:00",
+    })
+    assert resp.status_code == 409
+
+
+def test_calendar_block_requires_login(client, app):
+    resp = client.post("/admin/slots/block", data={"date": FUTURE.isoformat(), "slot": "18:00"})
+    assert "/admin/login" in resp.headers["Location"]
+    with app.app_context():
+        assert db.session.scalar(db.select(Booking)) is None

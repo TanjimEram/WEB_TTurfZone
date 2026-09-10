@@ -1,5 +1,5 @@
 """Owner admin. Everything except /admin/login requires a session (login_required)."""
-from datetime import date
+from datetime import date, time, timedelta
 
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 
@@ -15,11 +15,15 @@ from services.auth import (
 )
 from services.bookings import (
     InvalidTransitionError,
+    SlotUnavailableError,
+    block_slot,
+    bookings_for_day,
     confirm_booking,
     dashboard_summary,
     reject_booking,
+    unblock_slot,
 )
-from services.slots import slot_label, today_dhaka
+from services.slots import SLOT_TIMES, get_day_availability, slot_label, today_dhaka
 
 bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -126,4 +130,58 @@ def booking_reject(booking_id):
 @bp.get("/calendar")
 @login_required
 def calendar():
-    return render_template("admin/calendar.html")
+    """One day, 12 slots, each with its state and the actions the owner can take."""
+    raw = request.args.get("date", "")
+    try:
+        day = date.fromisoformat(raw) if raw else today_dhaka()
+    except ValueError:
+        day = today_dhaka()
+
+    states = {s["time"]: s["state"] for s in get_day_availability(day)}
+    rows = {b.slot_time: b for b in bookings_for_day(day)}
+
+    slots = []
+    for t in SLOT_TIMES:
+        key = t.strftime("%H:%M")
+        slots.append({
+            "time": key,
+            "label": slot_label(t),
+            "state": states.get(key, "available"),
+            "booking": rows.get(t),
+        })
+
+    return render_template(
+        "admin/calendar.html",
+        day=day,
+        slots=slots,
+        prev_day=(day - timedelta(days=1)).isoformat(),
+        next_day=(day + timedelta(days=1)).isoformat(),
+    )
+
+
+@bp.post("/slots/block")
+@login_required
+def slot_block():
+    try:
+        booking_date = date.fromisoformat(request.form["date"])
+        slot_time = time.fromisoformat(request.form["slot"])
+    except (KeyError, ValueError):
+        flash("Could not read that slot.")
+        return redirect(_safe_back("admin.calendar"))
+    try:
+        block_slot(booking_date, slot_time, request.form.get("reason", ""))
+        flash(f"Blocked {slot_label(slot_time)} on {booking_date:%d %b}.")
+    except SlotUnavailableError:
+        flash("That slot is already taken - cancel the booking first.")
+    return redirect(_safe_back("admin.calendar"))
+
+
+@bp.post("/slots/<int:booking_id>/unblock")
+@login_required
+def slot_unblock(booking_id):
+    try:
+        unblock_slot(booking_id)
+        flash("Slot unblocked.")
+    except InvalidTransitionError as exc:
+        flash(str(exc))
+    return redirect(_safe_back("admin.calendar"))

@@ -3,5 +3,72 @@
 
 {% block content %}
 <h1>Calendar</h1>
-<p class="muted">Day view with block / unblock lands here in M5.4.</p>
+
+<form class="admin-filters" method="get" action="{{ url_for('admin.calendar') }}">
+  <a class="btn btn--ghost" href="{{ url_for('admin.calendar', date=prev_day) }}">&larr; Prev</a>
+  <div class="form-field">
+    <label for="c-date">{{ day.strftime('%A, %d %b %Y') }}</label>
+    <input id="c-date" type="date" name="date" value="{{ day.isoformat() }}" onchange="this.form.submit()">
+  </div>
+  <a class="btn btn--ghost" href="{{ url_for('admin.calendar', date=next_day) }}">Next &rarr;</a>
+</form>
+
+<div class="cal-grid">
+  {% for s in slots %}
+  {% set b = s.booking %}
+  <div class="card cal-slot">
+    <div class="cal-slot__head">
+      <span class="cal-slot__time">{{ s.label }}</span>
+      <span class="pill pill--{{ b.status | lower if b else s.state }}">
+        {{ (b.status | replace('_',' ') | title) if b else s.state | title }}
+      </span>
+    </div>
+
+    {% if b and b.status != "BLOCKED" %}
+      <div class="cal-slot__who">
+        {{ b.customer_name }} &middot;
+        <a href="tel:{{ b.phone }}">{{ b.phone }}</a> &middot;
+        <a href="https://wa.me/{{ wa_number(b.phone) }}" rel="noopener" target="_blank">WhatsApp</a><br>
+        {{ b.booking_code }}
+      </div>
+      <div class="admin-actions">
+        {% if b.status == "PENDING" %}
+        <form method="post" action="{{ url_for('admin.booking_confirm', booking_id=b.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="back" value="{{ request.full_path }}">
+          <button class="btn btn--primary" type="submit">Confirm</button>
+        </form>
+        {% endif %}
+        <form method="post" action="{{ url_for('admin.booking_reject', booking_id=b.id) }}"
+              onsubmit="return confirm('Free this slot?');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="back" value="{{ request.full_path }}">
+          <button class="btn btn--ghost" type="submit">{{ 'Reject' if b.status == 'PENDING' else 'Cancel' }}</button>
+        </form>
+      </div>
+
+    {% elif b and b.status == "BLOCKED" %}
+      <div class="cal-slot__who">{% if b.admin_note %}{{ b.admin_note }}{% else %}No reason given{% endif %}</div>
+      <form method="post" action="{{ url_for('admin.slot_unblock', booking_id=b.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="back" value="{{ request.full_path }}">
+        <button class="btn btn--ghost" type="submit">Unblock</button>
+      </form>
+
+    {% elif s.state == "past" %}
+      <div class="cal-slot__who">Past</div>
+
+    {% else %}
+      <form method="post" action="{{ url_for('admin.slot_block') }}" class="cal-slot__block">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="date" value="{{ day.isoformat() }}">
+        <input type="hidden" name="slot" value="{{ s.time }}">
+        <input type="hidden" name="back" value="{{ request.full_path }}">
+        <input type="text" name="reason" placeholder="Reason (optional)" maxlength="200">
+        <button class="btn btn--ghost" type="submit">Block</button>
+      </form>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
 {% endblock %}

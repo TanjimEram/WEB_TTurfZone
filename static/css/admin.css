@@ -95,3 +95,16 @@
 .cal-slot__head { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-2); }
 .cal-slot__time { font-weight: 700; }
 .cal-slot__who { font-size: var(--fs-300); color: var(--text-muted); }
+.cal-slot form { margin: 0; }
+.cal-slot__block { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+.cal-slot__block input[type="text"] {
+  flex: 1;
+  min-width: 8rem;
+  min-height: 36px;
+  padding: 6px var(--sp-2);
+  font: inherit;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
