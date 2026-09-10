@@ -1,5 +1,26 @@
-{% extends "base.html" %}
-{% block title %}Admin login · TTURFZONE{% endblock %}
+{% extends "admin/base_admin.html" %}
+{% block title %}Sign in · TTURFZONE admin{% endblock %}
+
 {% block content %}
-<main class="placeholder"><h1>Admin login</h1><p>Built in M5.</p></main>
+<div class="admin-login">
+  <h1>TTURFZONE admin</h1>
+  <p class="muted">Sign in to manage bookings.</p>
+
+  {% if error %}<p class="form-error" role="alert">{{ error }}</p>{% endif %}
+
+  <form method="post" action="{{ url_for('admin.login') }}" class="stack">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
+
+    <div class="form-field">
+      <label for="a-user">Username</label>
+      <input id="a-user" name="username" type="text" autocomplete="username" required autofocus>
+    </div>
+    <div class="form-field">
+      <label for="a-pass">Password</label>
+      <input id="a-pass" name="password" type="password" autocomplete="current-password" required>
+    </div>
+    <button class="btn btn--primary" type="submit">Sign in</button>
+  </form>
+</div>
 {% endblock %}
