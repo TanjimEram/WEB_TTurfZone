@@ -41,17 +41,10 @@
       <p class="section__label">Availability</p>
       <h2 class="section__title" id="book-title">Book a 90-minute slot</h2>
       <p class="muted">
-        Fixed slots, 06:00 AM to 12:00 AM. Pick a date and slot on the booking
-        page. Your request is confirmed by the owner.
+        Fixed slots, 06:00 AM to 12:00 AM. Pick a date, then a free slot.
       </p>
-      <ul class="quickbook__grid" aria-hidden="true">
-        {% for label in slot_labels %}
-          <li class="slot slot--available"><span class="slot__time">{{ label }}</span>
-            <span class="slot__meta">tap "Book now"</span></li>
-        {% endfor %}
-      </ul>
-      <p><a class="btn btn--primary" href="{{ url_for('public.home') }}#book">Book now</a></p>
-      <p class="muted"><small>Live slot availability opens here after the booking flow is built (M4).</small></p>
+      {% include "partials/slot_picker.html" %}
+      <p class="muted"><small>The name and phone step is added next (M4.3).</small></p>
     </div>
   </section>
 
@@ -208,4 +201,5 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/booking.js') }}" defer></script>
 {% endblock %}

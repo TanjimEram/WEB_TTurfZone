@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% from "partials/_macros.html" import owner_text %}
+
+{% block title %}Book a slot · {{ settings.turf_name or "TTURFZONE" }}{% endblock %}
+
+{% block content %}
+{% include "partials/nav.html" %}
+
+<main id="main">
+  <section class="section" aria-labelledby="book-title">
+    <div class="container stack">
+      <p class="section__label">Booking</p>
+      <h1 class="section__title" id="book-title">Book a 90-minute slot</h1>
+      <p class="muted">Pick a date, then a free slot. Payment and confirmation come after the owner reviews your request.</p>
+
+      {% set picker_continue = false %}
+      {% include "partials/slot_picker.html" %}
+
+      <p class="todo-note">Name and phone step, review, and submit are built in M4.3.</p>
+      <p>{{ owner_text(settings.booking_rules_text, "booking and cancellation rules (C-05)") }}</p>
+    </div>
+  </section>
+</main>
+
+{% include "partials/footer.html" %}
+{% include "partials/sticky_actions.html" %}
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/booking.js') }}" defer></script>
+{% endblock %}

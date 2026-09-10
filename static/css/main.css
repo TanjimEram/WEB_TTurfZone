@@ -415,6 +415,55 @@ a:hover { text-decoration: underline; }
   .hero { min-height: min(88vh, 760px); }
 }
 
+/* --------------------------------------------------- date + slot picker (M4.2) */
+.datechips {
+  display: flex;
+  gap: var(--sp-2);
+  overflow-x: auto;
+  padding-bottom: var(--sp-2);
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+.datechip {
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: var(--sp-2) var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color var(--transition), background-color var(--transition);
+}
+.datechip:hover { border-color: var(--accent); }
+.datechip[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+.slotpicker__status { color: var(--text-muted); font-size: var(--fs-300); min-height: 1.2em; margin: 0; }
+.slotpicker__summary { color: var(--accent-text); font-weight: 600; margin: 0; }
+
+.slot--selected {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.slot--skeleton {
+  min-height: 58px;
+  border-style: dashed;
+  opacity: 0.5;
+  animation: slot-pulse 1.2s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes slot-pulse { 0%, 100% { opacity: 0.35; } 50% { opacity: 0.6; } }
+@media (prefers-reduced-motion: reduce) {
+  .slot--skeleton { animation: none; }
+}
+
 /* ------------------------------------------------------------ quick booking */
 .quickbook__grid {
   display: grid;

@@ -7,8 +7,8 @@
 | Field | Value |
 |---|---|
 | Phase | M3 homepage complete. **CR-1 recorded** (self-sufficient: online payments, auto-confirm, SMS/email, holds, cron jobs). Scaffold done locally; waiting on hosting money for real deploy |
-| Last completed | M4.1: `/api/availability` hardened (`no-store`, missing-date 400) + tests. 54 passed, 4 skipped (2026-09-11). Before that: CR-1 docs; M3.1/M3.2/M3.3 homepage |
-| Next task | M4.2 `static/js/booking.js`: date chips for the booking window, fetch `/api/availability`, render slot states, disabled slots not selectable, loading + retry, animated selection. Then M2.2, M2.3, CR-1 M2.6/M2.7 → M4.3–M4.5. See "Execution order (CR-1)" at the end of §6. |
+| Last completed | M4.2: `static/js/booking.js` + `partials/slot_picker.html` — live date + slot picker on `/` and the new `/book` page. 64 passed, 4 skipped (2026-09-11). Before that: M4.1, CR-1 docs, M3 homepage |
+| Next task | M2.2 `services/slots.py`: `is_valid_slot`, `is_bookable` (past slot today not bookable, outside window not bookable, Dhaka time) + `tests/test_slots.py`; wire past/window state into `get_day_availability`. Then M2.3, CR-1 M2.6/M2.7 → M4.3–M4.5. See "Execution order (CR-1)" at the end of §6. |
 | Blocked by | Hosting/domain purchase blocks M1.3b and W3–W6 (postponed). PostgreSQL-only bugs uncaught until W5. **CR-1: M10 blocked by repricing agreement (C-27); M12 blocked by bKash merchant approval (C-21).** |
 | Dev environment | Windows + PowerShell. venv: `.venv\Scripts\Activate.ps1`. |
 | Live URL | not deployed |
@@ -231,7 +231,7 @@ CR-1 may add owner-tunable fields to `turf_settings` once the owner answers C-24
 ### 5.3 Service contracts
 
 `services/slots.py`
-- Built: `SLOT_TIMES`, `SLOT_MINUTES`, `TZ`, `now_dhaka()`, `today_dhaka()`, `slot_label()`, `get_day_availability()` (no past/window rules yet). M2.2 adds the rest.
+- Built: `SLOT_TIMES`, `SLOT_MINUTES`, `TZ`, `now_dhaka()`, `today_dhaka()`, `slot_label()`, `get_day_availability()` (no past/window rules yet), and (M4.2) `booking_window(today, days)` + `date_chip_label(d, today)`. M2.2 adds `is_valid_slot`, `is_bookable` and the past/window state.
 - `SLOT_TIMES: list[datetime.time]` (the 12 slots), `SLOT_MINUTES = 90`, `TZ = ZoneInfo("Asia/Dhaka")`
 - `now_dhaka() -> datetime`
 - `slot_label(t: time) -> str` returns `"06:00 AM"` style
@@ -383,7 +383,7 @@ Done when: layout works at 360px, 768px and 1280px, and every `TODO(owner)` maps
 ### M4 Booking flow (Day 1, 14:30 to 18:00)
 
 - [x] M4.1 `routes/api.py` `/api/availability` + `tests/test_availability_api.py`: bad date and missing date → 400; response is `Cache-Control: no-store`; slot shape is `time/label/state/price_bdt` only; no customer name or phone in the body; each state (available/pending/booked/blocked) shown. Booking-window rejection waits on M2.2. 54 passed, 4 skipped. (2026-09-11)
-- [ ] M4.2 `static/js/booking.js`: date chips for the booking window, fetch availability, distinct slot states, disabled slots not selectable, loading skeleton, retry on error, animated selection.
+- [x] M4.2 `static/js/booking.js` + `partials/slot_picker.html`: server-rendered date chips for the booking window (Dhaka time, D-10), fetch `/api/availability` per date, 12 slot buttons with states, disabled slots use the real `disabled` attribute (not focusable/clickable), loading skeleton, "Try again" on fetch error, `.slot--selected` highlight, stale-response guard. Progressive enhancement: `[data-fallback]` (link to `/book` + WhatsApp) shows without JS. Homepage `#book` mounts it with a Continue button → `/book?date=&slot=`; `/book` mounts it with `picker_continue=false` and preselects from the query string. New `GET /book` route + `booking.html` (details form body is a placeholder note pending M4.3). `services/slots.py` gained `booking_window()` + `date_chip_label()` (M2.2 still owns `is_valid_slot`/`is_bookable`). Tests: `tests/test_slots.py` (3), `tests/test_public_routes.py` (7), `tests/test_availability_api.py` (from M4.1). 64 passed, 4 skipped. (2026-09-11)
 - [ ] M4.3 Details and review step; POST `/book` with CSRF; server re-validates; slot-taken error refreshes the grid with a clear message.
 - [ ] M4.4 `booking_success.html`: BOOKING REQUEST RECEIVED, booking ID, date, time, name, PENDING owner confirmation, `confirm_time_text`, CHAT ON WHATSAPP button.
 - [ ] M4.5 `tests/test_public_routes.py`: happy path, invalid phone, taken slot, past slot, success page without session redirects home.
@@ -638,7 +638,7 @@ Needed by: D0 = before Day 1 starts, D1-AM = Day 1 09:00, D1-PM = Day 1 18:00.
 - `price_bdt` in the availability API is `null` until pricing is wired (M4).
 - Homepage verified by tests and a 375px browser pass. A visual pass at 768px and 1280px on a real browser is still pending (do at M6.1 / developer).
 - WhatsApp buttons (hero, sticky bar) render disabled and the desktop WhatsApp FAB is hidden until the owner gives the number (C-06). `tel:` link in the footer likewise waits on C-06.
-- Homepage quick-book grid is a static, non-interactive placeholder (12 slot labels) until M4.2 wires live availability.
+- (M4.2 done) Homepage `#book` and `/book` now show the live date + slot picker. `GET /book` renders the picker but the name/phone/review form and `POST /book` are placeholders until M4.3. Slot `past` state and booking-window rejection at the API are not wired until M2.2.
 - (CR-1) The footer disclaimer and the success page say "a booking is a request, no online payment" — correct for the launch (`PAYMENTS_ENABLED=false`). This copy must become flag-aware in M10 before M12 flips the flag.
 - (CR-1) No `payments` / `notifications` tables or new booking statuses yet — M2.6. All payment/notification tasks (M10–M12) are unstarted and gated (see CR-1 and Risks).
 
@@ -654,6 +654,7 @@ Needed by: D0 = before Day 1 starts, D1-AM = Day 1 09:00, D1-PM = Day 1 18:00.
 | 2026-09-11 | Build (Claude Code, Windows) | M3.2 done: full homepage (`index.html` + `partials/_macros.html`, `partials/footer.html`), all 9 sections, content from `turf_settings` with visible TODO(owner) notes for every gap. `TurfSettings.current_or_default()` added. Reveal animation made progressive-enhancement (`.reveal-on`) so content is visible without JS. Fixed mobile horizontal overflow (grid `minmax(0,1fr)`, `.ph` min-width:0). 49 passed, 4 skipped. | M3.3 nav + sticky mobile bar |
 | 2026-09-11 | Build (Claude Code, Windows) | M3.3 done: `partials/nav.html`, `partials/sticky_actions.html`, `static/js/main.js` (header state, mobile menu). Verified at 375px in the browser: hamburger + full-screen menu (open/close/Esc/link-close, scroll lock), persistent WHATSAPP+BOOK NOW bar, no horizontal scroll. Dev server now runs with `--debug` for template/code reload. 51 passed, 4 skipped. M3 complete. | M4.1/M4.2 |
 | 2026-09-11 | Build (Claude Code, Windows) | M4.1: `/api/availability` returns `Cache-Control: no-store`, missing `date` now 400. `tests/test_availability_api.py` +3 (missing date, not cached, slot shape). 54 passed, 4 skipped. | M4.2 booking.js slot grid |
+| 2026-09-11 | Build (Claude Code, Windows) | M4.2: date + slot picker (`booking.js`, `partials/slot_picker.html`) on `/` and new `/book` page; server-rendered chips (Dhaka time), fetch per date, skeleton, retry, stale-guard, no-JS fallback. `slots.booking_window()` + `date_chip_label()`. Verified at 375px in the browser (chips scroll, slots render, select → Continue link, chip switch reloads, no h-scroll, no console errors). `tests/test_slots.py` +3, `tests/test_public_routes.py` +7. 64 passed, 4 skipped. | M2.2 slot rules |
 | 2026-09-11 | Docs (Claude Code, Windows) | CR-1 recorded (self-sufficient: bKash payments, auto-confirm, SMS/email outbox, slot holds, cron jobs, admin manual bookings + refunds). Documentation only — no code touched. Updated CLAUDE.md (what this is, 6 payment/notification hard rules, per-milestone push rule) and the plan: §2 constraints, D-05/D-08/D-11 updated, D-15–D-17 marked superseded, D-24…D-33 added, §4 accounts, §5 file map / data model / service contracts / routes / env names, M2.6–M2.7, M5.6–M5.7, M8.5–M8.7, M9.7–M9.8, new M10/M11/M12, execution order, §7 QA, §8 handover, C-21…C-27, Appendix B, Backlog, Risks. | Repricing agreement (C-27) then M4.2; M10 gated on C-27, M12 on merchant approval (C-21) |
 
 ---

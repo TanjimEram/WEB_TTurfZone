@@ -1,8 +1,9 @@
 """Slot times and Dhaka time helpers.
 
-M2.2 adds: is_valid_slot, booking_window, is_bookable (past slots and booking window rules).
+M2.2 adds: is_valid_slot, is_bookable (past slots and booking-window rules).
+`booking_window` is built in M4.2 (the date chips need it).
 """
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from extensions import db
@@ -33,6 +34,24 @@ def today_dhaka() -> date:
 def slot_label(t: time) -> str:
     """time(13, 30) -> '01:30 PM'"""
     return t.strftime("%I:%M %p")
+
+
+def booking_window(today: date, days: int) -> list[date]:
+    """The bookable dates: `today` plus the next `days - 1` days.
+
+    `days` comes from turf_settings.booking_window_days (default 14). A value
+    below 1 still returns today so the picker is never empty.
+    """
+    return [today + timedelta(days=offset) for offset in range(max(days, 1))]
+
+
+def date_chip_label(d: date, today: date) -> str:
+    """Short label for a date chip: 'Today', 'Tomorrow', or 'Fri 12 Sep'."""
+    if d == today:
+        return "Today"
+    if d == today + timedelta(days=1):
+        return "Tomorrow"
+    return d.strftime("%a %d %b")
 
 
 def get_day_availability(day: date) -> list[dict]:

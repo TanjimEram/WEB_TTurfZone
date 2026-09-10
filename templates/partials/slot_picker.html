@@ -1,0 +1,43 @@
+{# Date + slot picker (M4.2). Progressive enhancement:
+   - without JS, `[data-fallback]` shows (a link to the booking page / WhatsApp);
+   - booking.js hides the fallback, reveals `[data-picker-ui]`, and fills the
+     slot grid from /api/availability.
+   Context: date_chips [{iso,label}], slot_labels [str], optional preselect_date,
+   preselect_slot, picker_continue (bool, default true). #}
+{% set _continue = picker_continue if picker_continue is defined else true %}
+{% set _selected_date = preselect_date or (date_chips[0].iso if date_chips else "") %}
+<div class="slotpicker" data-slotpicker
+     data-book-url="{{ url_for('public.book') }}"
+     {% if preselect_slot %}data-preselect-slot="{{ preselect_slot }}"{% endif %}>
+
+  <div class="slotpicker__fallback" data-fallback>
+    <p class="muted">
+      Pick a date and time below. If the picker does not load,
+      <a href="{{ url_for('public.book') }}">open the booking page</a>{% if wa_link %} or
+      <a href="{{ wa_link }}" rel="noopener" target="_blank">message us on WhatsApp</a>{% endif %}.
+    </p>
+    <ul class="quickbook__grid" aria-hidden="true">
+      {% for label in slot_labels %}
+        <li class="slot slot--available"><span class="slot__time">{{ label }}</span></li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <div class="slotpicker__ui" data-picker-ui hidden>
+    <div class="datechips" role="group" aria-label="Choose a date">
+      {% for chip in date_chips %}
+        <button type="button" class="datechip" data-date="{{ chip.iso }}"
+                aria-pressed="{{ 'true' if chip.iso == _selected_date else 'false' }}">{{ chip.label }}</button>
+      {% endfor %}
+    </div>
+
+    <p class="slotpicker__status" data-status role="status" aria-live="polite"></p>
+    <div class="quickbook__grid" data-slots></div>
+    <p class="slotpicker__summary" data-summary hidden></p>
+
+    {% if _continue %}
+      <a class="btn btn--primary" data-continue aria-disabled="true"
+         href="{{ url_for('public.book') }}">Continue</a>
+    {% endif %}
+  </div>
+</div>
