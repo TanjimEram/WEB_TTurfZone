@@ -3,13 +3,17 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b0f0d">
+  <meta name="description" content="{% block description %}{{ settings.tagline if settings and settings.tagline and 'TODO' not in settings.tagline else 'Book a slot at TTURFZONE turf ground.' }}{% endblock %}">
   <title>{% block title %}TTURFZONE{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
 </head>
 <body>
+  <a class="skip-link" href="#main">Skip to content</a>
   {% with messages = get_flashed_messages() %}
     {% for message in messages %}<p class="flash">{{ message }}</p>{% endfor %}
   {% endwith %}
   {% block content %}{% endblock %}
+  {% block scripts %}{% endblock %}
 </body>
 </html>

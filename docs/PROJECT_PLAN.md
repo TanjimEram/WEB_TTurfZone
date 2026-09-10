@@ -8,7 +8,7 @@
 |---|---|
 | Phase | Frontend build starting (M3). Scaffold done locally; waiting on hosting money for real deploy |
 | Last completed | W1 + W2 done on Windows: `pytest -q` shows 42 passed, 4 skipped; `/dev/wiring` works on local SQLite. Merge-conflict markers in CLAUDE.md and docs/PROJECT_PLAN.md resolved; stale root `PROJECT_PLAN.md` duplicate removed (2026-09-11) |
-| Next task | M3.1 design system, then M3.2 homepage sections, then M3.3 sticky mobile bar. Design approach approved by developer before M3.1 code. |
+| Next task | M3.2 homepage sections (index.html, all content from turf_settings), then M3.3 nav + sticky mobile bar. M3.1 design system done. |
 | Blocked by | Hosting/domain purchase blocks M1.3b and W3–W6 (postponed, not dropped). PostgreSQL-only bugs stay uncaught until W5 runs. |
 | Dev environment | Windows + PowerShell. venv: `.venv\Scripts\Activate.ps1`. |
 | Live URL | not deployed |
@@ -295,7 +295,7 @@ Done when: all tests pass, including the postgres marker.
 
 ### M3 Homepage (Day 1, 12:30 to 14:30)
 
-- [ ] M3.1 `static/css/main.css`: design tokens, type scale, buttons and cards with hover/press states, mobile-first grid, focus states.
+- [x] M3.1 `static/css/main.css`: design tokens (colour, type scale ~1.2, 4px spacing), buttons (primary/ghost/whatsapp, 44px touch, hover/press), cards + `.card--interactive`, `.ph` placeholder blocks (no stock images), header/nav, hero with scrim, slot grid states, footer, sticky mobile actions, `.wa-fab`, `.reveal` hooks, `prefers-reduced-motion` block. System fonts only. `base.html`: skip link, meta description, `{% block scripts %}`. Dev `/dev/wiring` styles ported. (2026-09-11)
 - [ ] M3.2 `index.html` sections: hero, quick booking placeholder, about, facilities, pricing, gallery grid, location (map embed + GET DIRECTIONS), reviews, Facebook, footer (address, phone, WhatsApp, Facebook, hours, quick links, copyright, booking disclaimer). All content from `turf_settings`.
 - [ ] M3.3 Nav with smooth scroll; sticky mobile bar (WHATSAPP + BOOK NOW); floating WhatsApp button on desktop.
 
@@ -476,6 +476,7 @@ No change requests yet.
 | 2026-09-10 | Planning (claude.ai) | Created client-facing summary + budget docx; added D-16, D-17; updated M0.2 and Appendix A | M0.1 |
 | 2026-09-10 | Build (claude.ai) | Scaffold with fake modules: M1.1, M1.2, M1.3a, M1.4, M2.1, M2.4, M2.5. Initial migration 13a53e9a5687. Verified on SQLite and PostgreSQL 16; fixed seed values too long for VARCHAR(20) (D-22) and deprecated get_engine in env.py. 46 tests pass. | W1–W6 locally, then M2.2 |
 | 2026-09-11 | Build (Claude Code, Windows) | Resolved merge-conflict markers left in CLAUDE.md and docs/PROJECT_PLAN.md by commit `6647a22 mergeAll`; removed the stale root `PROJECT_PLAN.md` duplicate (docs/ copy is the single living doc). W1/W2 confirmed done (42 passed, 4 skipped; `/dev/wiring` OK on SQLite). W3–W6 marked POSTPONED. Added D-23 (admin scope), Backlog content-editor phase 2, and a Risk that PostgreSQL-only bugs stay uncaught until W5. | M3.1 design system after developer approves the design approach |
+| 2026-09-11 | Build (Claude Code, Windows) | M3.1 done: design system in `static/css/main.css` (tokens, buttons, cards, `.ph` placeholders, hero, slot grid, nav, footer, sticky actions, reduced-motion). `base.html` gained skip link, meta description, scripts block. 42 passed, 4 skipped. | M3.2 homepage sections |
 
 ---
 
