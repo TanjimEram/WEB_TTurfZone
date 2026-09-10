@@ -32,6 +32,22 @@ def test_hero_and_footer_present(home):
     assert "06:00 AM" in html and "10:30 PM" in html
 
 
+def test_sticky_mobile_bar_present(home):
+    """Brief §11: persistent mobile WHATSAPP + BOOK NOW actions."""
+    html = home.get_data(as_text=True)
+    assert 'class="sticky-actions"' in html
+    bar = html.split('class="sticky-actions"', 1)[1].split("</div>", 1)[0]
+    assert "WhatsApp" in bar
+    assert "Book now" in bar
+
+
+def test_nav_has_mobile_menu_and_script(home):
+    html = home.get_data(as_text=True)
+    assert "nav__toggle" in html
+    assert 'id="nav-menu"' in html
+    assert "js/main.js" in html
+
+
 def test_missing_owner_content_shows_todo_notes(home):
     """With no seeded settings row, every gap is a visible TODO(owner) marker."""
     html = home.get_data(as_text=True)

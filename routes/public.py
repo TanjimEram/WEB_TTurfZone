@@ -6,10 +6,19 @@ from services.slots import SLOT_TIMES, slot_label, today_dhaka
 bp = Blueprint("public", __name__)
 
 
-@bp.app_context_processor
-def inject_year():
-    """`now_year` is available in every template (used in the footer)."""
-    return {"now_year": today_dhaka().year}
+@bp.context_processor
+def inject_common():
+    """Values every public template needs.
+
+    now_year: footer copyright.
+    wa_link:  wa.me deep link, or "" when the owner has not given a number (C-06).
+    """
+    settings = TurfSettings.current_or_default()
+    digits = (settings.whatsapp or "").strip()
+    return {
+        "now_year": today_dhaka().year,
+        "wa_link": f"https://wa.me/{digits}" if digits else "",
+    }
 
 
 @bp.get("/")

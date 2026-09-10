@@ -6,9 +6,9 @@
 
 | Field | Value |
 |---|---|
-| Phase | Frontend build starting (M3). Scaffold done locally; waiting on hosting money for real deploy |
-| Last completed | W1 + W2 done on Windows: `pytest -q` shows 42 passed, 4 skipped; `/dev/wiring` works on local SQLite. Merge-conflict markers in CLAUDE.md and docs/PROJECT_PLAN.md resolved; stale root `PROJECT_PLAN.md` duplicate removed (2026-09-11) |
-| Next task | M3.3 nav (mobile menu, smooth scroll, scrolled-state header) + sticky mobile action bar (WHATSAPP + BOOK NOW) + desktop WhatsApp FAB + `static/js/main.js`. M3.1 + M3.2 done. |
+| Phase | M3 homepage complete (design system + all sections + nav/sticky bar). Scaffold done locally; waiting on hosting money for real deploy |
+| Last completed | M3.1/M3.2/M3.3: full mobile-first homepage, all content from `turf_settings` with visible TODO(owner) notes, nav + persistent mobile actions, `static/js/main.js`. 51 passed, 4 skipped (2026-09-11) |
+| Next task | M4.1 `/api/availability` tests, then M4.2 `static/js/booking.js` slot grid. Then back to M2.2 (`services/slots.py` past/window rules) and M2.3 (`services/bookings.py`) before the M4.3 booking form. |
 | Blocked by | Hosting/domain purchase blocks M1.3b and W3–W6 (postponed, not dropped). PostgreSQL-only bugs stay uncaught until W5 runs. |
 | Dev environment | Windows + PowerShell. venv: `.venv\Scripts\Activate.ps1`. |
 | Live URL | not deployed |
@@ -297,7 +297,7 @@ Done when: all tests pass, including the postgres marker.
 
 - [x] M3.1 `static/css/main.css`: design tokens (colour, type scale ~1.2, 4px spacing), buttons (primary/ghost/whatsapp, 44px touch, hover/press), cards + `.card--interactive`, `.ph` placeholder blocks (no stock images), header/nav, hero with scrim, slot grid states, footer, sticky mobile actions, `.wa-fab`, `.reveal` hooks, `prefers-reduced-motion` block. System fonts only. `base.html`: skip link, meta description, `{% block scripts %}`. Dev `/dev/wiring` styles ported. (2026-09-11)
 - [x] M3.2 `index.html` sections: hero, quick-booking placeholder grid (12 slot labels, static until M4.2), about, facilities, pricing, gallery (6 labelled placeholders), location (map embed placeholder + Get directions), reviews, Facebook, footer. All content via `TurfSettings.current_or_default()` (new: returns a transient TODO-placeholder row when unseeded). Partials: `partials/_macros.html` (photo/owner_text/camera), `partials/footer.html`. Every gap renders a visible `TODO(owner)` note naming its C-nn row. `tests/test_home_page.py` (7 tests): every section renders, no customer name/phone on `/` or `/api/availability`. 49 passed, 4 skipped. (2026-09-11)
-- [ ] M3.3 Nav with smooth scroll; sticky mobile bar (WHATSAPP + BOOK NOW); floating WhatsApp button on desktop.
+- [x] M3.3 `partials/nav.html` (brand, desktop links >=900px, hamburger + full-screen menu below), `partials/sticky_actions.html` (WHATSAPP + BOOK NOW, hidden >=900px) + desktop WhatsApp FAB (only when a number is set), `static/js/main.js` (header `.at-top` over hero then solid; menu open/close/Esc/link-close, body scroll lock, focus return). Smooth scroll + header offset via CSS (`scroll-behavior`, `scroll-padding-top`), reduced-motion honoured. `tests/test_home_page.py` +2. 51 passed, 4 skipped. (2026-09-11) M3 complete.
 
 Done when: layout works at 360px, 768px and 1280px, and every `TODO(owner)` maps to a Client inputs row.
 
@@ -467,6 +467,9 @@ No change requests yet.
 
 - Admin login page is a placeholder until M5; `/admin/login` renders static text.
 - `price_bdt` in the availability API is `null` until pricing is wired (M4).
+- Homepage verified by tests and a 375px browser pass. A visual pass at 768px and 1280px on a real browser is still pending (do at M6.1 / developer).
+- WhatsApp buttons (hero, sticky bar) render disabled and the desktop WhatsApp FAB is hidden until the owner gives the number (C-06). `tel:` link in the footer likewise waits on C-06.
+- Homepage quick-book grid is a static, non-interactive placeholder (12 slot labels) until M4.2 wires live availability.
 
 ## 14. Session log
 
@@ -478,6 +481,7 @@ No change requests yet.
 | 2026-09-11 | Build (Claude Code, Windows) | Resolved merge-conflict markers left in CLAUDE.md and docs/PROJECT_PLAN.md by commit `6647a22 mergeAll`; removed the stale root `PROJECT_PLAN.md` duplicate (docs/ copy is the single living doc). W1/W2 confirmed done (42 passed, 4 skipped; `/dev/wiring` OK on SQLite). W3–W6 marked POSTPONED. Added D-23 (admin scope), Backlog content-editor phase 2, and a Risk that PostgreSQL-only bugs stay uncaught until W5. | M3.1 design system after developer approves the design approach |
 | 2026-09-11 | Build (Claude Code, Windows) | M3.1 done: design system in `static/css/main.css` (tokens, buttons, cards, `.ph` placeholders, hero, slot grid, nav, footer, sticky actions, reduced-motion). `base.html` gained skip link, meta description, scripts block. 42 passed, 4 skipped. | M3.2 homepage sections |
 | 2026-09-11 | Build (Claude Code, Windows) | M3.2 done: full homepage (`index.html` + `partials/_macros.html`, `partials/footer.html`), all 9 sections, content from `turf_settings` with visible TODO(owner) notes for every gap. `TurfSettings.current_or_default()` added. Reveal animation made progressive-enhancement (`.reveal-on`) so content is visible without JS. Fixed mobile horizontal overflow (grid `minmax(0,1fr)`, `.ph` min-width:0). 49 passed, 4 skipped. | M3.3 nav + sticky mobile bar |
+| 2026-09-11 | Build (Claude Code, Windows) | M3.3 done: `partials/nav.html`, `partials/sticky_actions.html`, `static/js/main.js` (header state, mobile menu). Verified at 375px in the browser: hamburger + full-screen menu (open/close/Esc/link-close, scroll lock), persistent WHATSAPP+BOOK NOW bar, no horizontal scroll. Dev server now runs with `--debug` for template/code reload. 51 passed, 4 skipped. M3 complete. | M4.1/M4.2 |
 
 ---
 

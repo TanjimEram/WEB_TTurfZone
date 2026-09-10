@@ -9,12 +9,7 @@
 {%- set has_map_embed = settings.map_embed_url and settings.map_embed_url|trim -%}
 
 {% block content %}
-<header class="site-header" id="top">
-  <div class="container nav">
-    <a class="nav__brand" href="#top">{{ settings.turf_name or "TTURFZONE" }}</a>
-    <a class="btn btn--primary" href="{{ url_for('public.home') }}#book">Book now</a>
-  </div>
-</header>
+{% include "partials/nav.html" %}
 
 <main id="main">
 
@@ -208,4 +203,9 @@
 </main>
 
 {% include "partials/footer.html" %}
+{% include "partials/sticky_actions.html" %}
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
 {% endblock %}
