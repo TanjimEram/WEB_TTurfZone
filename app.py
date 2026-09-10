@@ -33,6 +33,7 @@ def create_app(env_name: str | None = None, overrides: dict | None = None) -> Fl
 
     _register_blueprints(app)
     _register_security_headers(app)
+    _register_error_pages(app)
 
     from cli import register_cli
     register_cli(app)
@@ -88,3 +89,16 @@ def _register_security_headers(app: Flask) -> None:
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
         return response
+
+
+def _register_error_pages(app: Flask) -> None:
+    """Friendly 404 / 500 pages. The 500 template touches no database."""
+    from flask import render_template
+
+    @app.errorhandler(404)
+    def not_found(_error):
+        return render_template("errors/404.html"), 404
+
+    @app.errorhandler(500)
+    def server_error(_error):
+        return render_template("errors/500.html"), 500

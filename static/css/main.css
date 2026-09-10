@@ -595,7 +595,7 @@ a:hover { text-decoration: underline; }
   font-size: var(--fs-300);
   color: var(--text-muted);
 }
-.site-footer h4 { color: var(--text); font-size: var(--fs-400); }
+.site-footer h3 { color: var(--text); font-size: var(--fs-400); margin-bottom: var(--sp-3); }
 .site-footer a { color: var(--text-muted); }
 .site-footer a:hover { color: var(--accent-text); }
 .footer__grid {
@@ -678,12 +678,22 @@ a:hover { text-decoration: underline; }
 }
 
 /* ------------------------------------------------------------------ flash */
+.flash-region { margin: 0; }
 .flash {
   background: #14532d;
   color: var(--text);
   margin: 0;
   padding: var(--sp-3) var(--gutter);
   text-align: center;
+}
+
+/* ------------------------------------------------------------- error pages */
+.error-page {
+  min-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
 }
 
 /* -------------------------------------------------- restrained motion

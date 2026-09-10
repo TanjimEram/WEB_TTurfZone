@@ -24,20 +24,22 @@
 
         <h2 class="section__title">Your details</h2>
 
-        {% if errors.slot %}<p class="form-error" role="alert">{{ errors.slot }}</p>{% endif %}
+        {% if errors.slot %}<p class="form-error" id="err-slot" role="alert">{{ errors.slot }}</p>{% endif %}
 
         <div class="form-field">
           <label for="f-name">Your name</label>
-          <input id="f-name" name="name" type="text" maxlength="80" autocomplete="name"
-                 required value="{{ form.name }}">
-          {% if errors.name %}<p class="field-error">{{ errors.name }}</p>{% endif %}
+          <input id="f-name" name="name" type="text" maxlength="80" autocomplete="name" required
+                 value="{{ form.name }}"
+                 {% if errors.name %}aria-invalid="true" aria-describedby="err-name"{% endif %}>
+          {% if errors.name %}<p class="field-error" id="err-name">{{ errors.name }}</p>{% endif %}
         </div>
 
         <div class="form-field">
           <label for="f-phone">Mobile number (used for WhatsApp)</label>
           <input id="f-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel"
-                 placeholder="01XXXXXXXXX" required value="{{ form.phone }}">
-          {% if errors.phone %}<p class="field-error">{{ errors.phone }}</p>{% endif %}
+                 placeholder="01XXXXXXXXX" required value="{{ form.phone }}"
+                 {% if errors.phone %}aria-invalid="true" aria-describedby="err-phone"{% endif %}>
+          {% if errors.phone %}<p class="field-error" id="err-phone">{{ errors.phone }}</p>{% endif %}
         </div>
 
         <button class="btn btn--primary" type="submit" data-submit>Send booking request</button>

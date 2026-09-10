@@ -24,6 +24,7 @@
 .admin-nav { display: flex; gap: var(--sp-4); flex: 1; flex-wrap: wrap; }
 .admin-nav a { color: var(--text); font-weight: 600; }
 .admin-nav a:hover { color: var(--accent-text); text-decoration: none; }
+.admin-nav a[aria-current="page"] { color: var(--accent-text); border-bottom: 2px solid var(--accent); }
 .admin-logout { margin: 0; }
 .admin-logout .btn { min-height: 38px; padding: var(--sp-2) var(--sp-3); }
 

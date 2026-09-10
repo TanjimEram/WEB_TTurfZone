@@ -46,20 +46,22 @@
         <td><span class="pill pill--{{ b.status | lower }}">{{ b.status | replace('_', ' ') | title }}</span></td>
         <td>{{ b.booking_code }}</td>
         <td>
+          {% set who = (b.customer_name ~ ', ' ~ slot_label(b.slot_time) ~ ' ' ~ b.booking_date.strftime('%d %b')) %}
           <div class="admin-actions">
             {% if b.status == "PENDING" %}
               <form method="post" action="{{ url_for('admin.booking_confirm', booking_id=b.id) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="back" value="{{ request.full_path }}">
-                <button class="btn btn--primary" type="submit">Confirm</button>
+                <button class="btn btn--primary" type="submit" aria-label="Confirm {{ who }}">Confirm</button>
               </form>
             {% endif %}
             {% if b.status in ("PENDING", "CONFIRMED") %}
+              {% set verb = 'Reject' if b.status == 'PENDING' else 'Cancel' %}
               <form method="post" action="{{ url_for('admin.booking_reject', booking_id=b.id) }}"
                     onsubmit="return confirm('Free this slot? The customer is not notified automatically.');">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="back" value="{{ request.full_path }}">
-                <button class="btn btn--ghost" type="submit">{{ 'Reject' if b.status == 'PENDING' else 'Cancel' }}</button>
+                <button class="btn btn--ghost" type="submit" aria-label="{{ verb }} {{ who }}">{{ verb }}</button>
               </form>
             {% endif %}
           </div>

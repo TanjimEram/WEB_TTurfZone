@@ -32,8 +32,8 @@
     </div>
 
     <p class="slotpicker__status" data-status role="status" aria-live="polite"></p>
-    <div class="quickbook__grid" data-slots></div>
-    <p class="slotpicker__summary" data-summary hidden></p>
+    <div class="quickbook__grid" data-slots role="group" aria-label="Available time slots"></div>
+    <p class="slotpicker__summary" data-summary role="status" aria-live="polite" hidden></p>
 
     {% if _continue %}
       <a class="btn btn--primary" data-continue aria-disabled="true"

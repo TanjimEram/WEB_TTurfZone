@@ -2,14 +2,15 @@
 {% set wa_digits = settings.whatsapp if settings.whatsapp and settings.whatsapp|trim else '' %}
 <footer class="site-footer" id="contact">
   <div class="container">
+    <h2 class="sr-only">More about {{ settings.turf_name or "TTURFZONE" }}</h2>
     <div class="footer__grid">
       <div>
-        <h4>{{ settings.turf_name or "TTURFZONE" }}</h4>
+        <h3>{{ settings.turf_name or "TTURFZONE" }}</h3>
         <p>{{ owner_text(settings.tagline, "short tagline (C-17)") }}</p>
       </div>
 
       <div>
-        <h4>Contact</h4>
+        <h3>Contact</h3>
         <p>
           {% if settings.phone and settings.phone|trim %}
             <a href="tel:{{ settings.phone|trim }}">{{ settings.phone|trim }}</a>
@@ -30,13 +31,13 @@
       </div>
 
       <div>
-        <h4>Visit</h4>
+        <h3>Visit</h3>
         <p>{{ owner_text(settings.address, "exact address (C-07)") }}</p>
         <p>{{ owner_text(settings.opening_hours_text, "opening hours (C-15)") }}</p>
       </div>
 
       <div>
-        <h4>Quick links</h4>
+        <h3>Quick links</h3>
         <p><a href="#book">Book a slot</a></p>
         <p><a href="#about">About</a></p>
         <p><a href="#pricing">Pricing</a></p>

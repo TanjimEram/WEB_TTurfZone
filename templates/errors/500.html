@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Something went wrong · TTURFZONE{% endblock %}
+
+{% block content %}
+<main id="main" class="section">
+  <div class="container stack error-page">
+    <p class="section__label">Error</p>
+    <h1 class="section__title">Something went wrong on our side</h1>
+    <p class="muted">Your booking was not lost if you already have a booking ID. Please try again in a moment.</p>
+    <p><a class="btn btn--primary" href="{{ url_for('public.home') }}">Back to the homepage</a></p>
+  </div>
+</main>
+{% endblock %}

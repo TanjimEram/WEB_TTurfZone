@@ -14,10 +14,11 @@
   <header class="admin-top">
     <div class="admin-top__inner">
       <a class="admin-brand" href="{{ url_for('admin.dashboard') }}">TTURFZONE admin</a>
+      {% set here = request.endpoint %}
       <nav class="admin-nav" aria-label="Admin">
-        <a href="{{ url_for('admin.dashboard') }}">Dashboard</a>
-        <a href="{{ url_for('admin.bookings') }}">Bookings</a>
-        <a href="{{ url_for('admin.calendar') }}">Calendar</a>
+        <a href="{{ url_for('admin.dashboard') }}"{% if here == 'admin.dashboard' %} aria-current="page"{% endif %}>Dashboard</a>
+        <a href="{{ url_for('admin.bookings') }}"{% if here in ('admin.bookings', 'admin.booking_confirm', 'admin.booking_reject') %} aria-current="page"{% endif %}>Bookings</a>
+        <a href="{{ url_for('admin.calendar') }}"{% if here in ('admin.calendar', 'admin.slot_block', 'admin.slot_unblock') %} aria-current="page"{% endif %}>Calendar</a>
       </nav>
       <form method="post" action="{{ url_for('admin.logout') }}" class="admin-logout">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -30,7 +31,11 @@
   <main class="admin-main" id="main">
     <div class="admin-wrap">
       {% with messages = get_flashed_messages() %}
-        {% for message in messages %}<p class="flash">{{ message }}</p>{% endfor %}
+        {% if messages %}
+        <div class="flash-region" role="status" aria-live="polite">
+          {% for message in messages %}<p class="flash">{{ message }}</p>{% endfor %}
+        </div>
+        {% endif %}
       {% endwith %}
       {% block content %}{% endblock %}
     </div>

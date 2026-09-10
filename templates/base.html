@@ -11,7 +11,11 @@
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
   {% with messages = get_flashed_messages() %}
-    {% for message in messages %}<p class="flash">{{ message }}</p>{% endfor %}
+    {% if messages %}
+    <div class="flash-region" role="status" aria-live="polite">
+      {% for message in messages %}<p class="flash">{{ message }}</p>{% endfor %}
+    </div>
+    {% endif %}
   {% endwith %}
   {% block content %}{% endblock %}
   {% block scripts %}{% endblock %}
