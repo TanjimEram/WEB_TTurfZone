@@ -1,0 +1,55 @@
+{% from "partials/_macros.html" import owner_text %}
+{% set wa_digits = settings.whatsapp if settings.whatsapp and settings.whatsapp|trim else '' %}
+<footer class="site-footer" id="contact">
+  <div class="container">
+    <div class="footer__grid">
+      <div>
+        <h4>{{ settings.turf_name or "TTURFZONE" }}</h4>
+        <p>{{ owner_text(settings.tagline, "short tagline (C-17)") }}</p>
+      </div>
+
+      <div>
+        <h4>Contact</h4>
+        <p>
+          {% if settings.phone and settings.phone|trim %}
+            <a href="tel:{{ settings.phone|trim }}">{{ settings.phone|trim }}</a>
+          {% else %}
+            <span class="todo-note">TODO(owner): phone number (C-06)</span>
+          {% endif %}
+        </p>
+        <p>
+          {% if wa_digits %}
+            <a href="https://wa.me/{{ wa_digits }}">WhatsApp</a>
+          {% else %}
+            <span class="todo-note">TODO(owner): WhatsApp number (C-06)</span>
+          {% endif %}
+        </p>
+        {% if settings.facebook_url and settings.facebook_url|trim %}
+          <p><a href="{{ settings.facebook_url|trim }}" rel="noopener" target="_blank">Facebook</a></p>
+        {% endif %}
+      </div>
+
+      <div>
+        <h4>Visit</h4>
+        <p>{{ owner_text(settings.address, "exact address (C-07)") }}</p>
+        <p>{{ owner_text(settings.opening_hours_text, "opening hours (C-15)") }}</p>
+      </div>
+
+      <div>
+        <h4>Quick links</h4>
+        <p><a href="#book">Book a slot</a></p>
+        <p><a href="#about">About</a></p>
+        <p><a href="#pricing">Pricing</a></p>
+        <p><a href="#location">Location</a></p>
+      </div>
+    </div>
+
+    <div class="footer__bottom">
+      <p>&copy; {{ now_year }} {{ settings.turf_name or "TTURFZONE" }}. All rights reserved.</p>
+      <p class="footer__disclaimer">
+        A booking made here is a <strong>request</strong>. Your slot is confirmed only
+        after the owner accepts it. There is no online payment.
+      </p>
+    </div>
+  </div>
+</footer>

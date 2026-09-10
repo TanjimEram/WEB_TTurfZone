@@ -8,7 +8,7 @@
 |---|---|
 | Phase | Frontend build starting (M3). Scaffold done locally; waiting on hosting money for real deploy |
 | Last completed | W1 + W2 done on Windows: `pytest -q` shows 42 passed, 4 skipped; `/dev/wiring` works on local SQLite. Merge-conflict markers in CLAUDE.md and docs/PROJECT_PLAN.md resolved; stale root `PROJECT_PLAN.md` duplicate removed (2026-09-11) |
-| Next task | M3.2 homepage sections (index.html, all content from turf_settings), then M3.3 nav + sticky mobile bar. M3.1 design system done. |
+| Next task | M3.3 nav (mobile menu, smooth scroll, scrolled-state header) + sticky mobile action bar (WHATSAPP + BOOK NOW) + desktop WhatsApp FAB + `static/js/main.js`. M3.1 + M3.2 done. |
 | Blocked by | Hosting/domain purchase blocks M1.3b and W3–W6 (postponed, not dropped). PostgreSQL-only bugs stay uncaught until W5 runs. |
 | Dev environment | Windows + PowerShell. venv: `.venv\Scripts\Activate.ps1`. |
 | Live URL | not deployed |
@@ -296,7 +296,7 @@ Done when: all tests pass, including the postgres marker.
 ### M3 Homepage (Day 1, 12:30 to 14:30)
 
 - [x] M3.1 `static/css/main.css`: design tokens (colour, type scale ~1.2, 4px spacing), buttons (primary/ghost/whatsapp, 44px touch, hover/press), cards + `.card--interactive`, `.ph` placeholder blocks (no stock images), header/nav, hero with scrim, slot grid states, footer, sticky mobile actions, `.wa-fab`, `.reveal` hooks, `prefers-reduced-motion` block. System fonts only. `base.html`: skip link, meta description, `{% block scripts %}`. Dev `/dev/wiring` styles ported. (2026-09-11)
-- [ ] M3.2 `index.html` sections: hero, quick booking placeholder, about, facilities, pricing, gallery grid, location (map embed + GET DIRECTIONS), reviews, Facebook, footer (address, phone, WhatsApp, Facebook, hours, quick links, copyright, booking disclaimer). All content from `turf_settings`.
+- [x] M3.2 `index.html` sections: hero, quick-booking placeholder grid (12 slot labels, static until M4.2), about, facilities, pricing, gallery (6 labelled placeholders), location (map embed placeholder + Get directions), reviews, Facebook, footer. All content via `TurfSettings.current_or_default()` (new: returns a transient TODO-placeholder row when unseeded). Partials: `partials/_macros.html` (photo/owner_text/camera), `partials/footer.html`. Every gap renders a visible `TODO(owner)` note naming its C-nn row. `tests/test_home_page.py` (7 tests): every section renders, no customer name/phone on `/` or `/api/availability`. 49 passed, 4 skipped. (2026-09-11)
 - [ ] M3.3 Nav with smooth scroll; sticky mobile bar (WHATSAPP + BOOK NOW); floating WhatsApp button on desktop.
 
 Done when: layout works at 360px, 768px and 1280px, and every `TODO(owner)` maps to a Client inputs row.
@@ -477,6 +477,7 @@ No change requests yet.
 | 2026-09-10 | Build (claude.ai) | Scaffold with fake modules: M1.1, M1.2, M1.3a, M1.4, M2.1, M2.4, M2.5. Initial migration 13a53e9a5687. Verified on SQLite and PostgreSQL 16; fixed seed values too long for VARCHAR(20) (D-22) and deprecated get_engine in env.py. 46 tests pass. | W1–W6 locally, then M2.2 |
 | 2026-09-11 | Build (Claude Code, Windows) | Resolved merge-conflict markers left in CLAUDE.md and docs/PROJECT_PLAN.md by commit `6647a22 mergeAll`; removed the stale root `PROJECT_PLAN.md` duplicate (docs/ copy is the single living doc). W1/W2 confirmed done (42 passed, 4 skipped; `/dev/wiring` OK on SQLite). W3–W6 marked POSTPONED. Added D-23 (admin scope), Backlog content-editor phase 2, and a Risk that PostgreSQL-only bugs stay uncaught until W5. | M3.1 design system after developer approves the design approach |
 | 2026-09-11 | Build (Claude Code, Windows) | M3.1 done: design system in `static/css/main.css` (tokens, buttons, cards, `.ph` placeholders, hero, slot grid, nav, footer, sticky actions, reduced-motion). `base.html` gained skip link, meta description, scripts block. 42 passed, 4 skipped. | M3.2 homepage sections |
+| 2026-09-11 | Build (Claude Code, Windows) | M3.2 done: full homepage (`index.html` + `partials/_macros.html`, `partials/footer.html`), all 9 sections, content from `turf_settings` with visible TODO(owner) notes for every gap. `TurfSettings.current_or_default()` added. Reveal animation made progressive-enhancement (`.reveal-on`) so content is visible without JS. Fixed mobile horizontal overflow (grid `minmax(0,1fr)`, `.ph` min-width:0). 49 passed, 4 skipped. | M3.3 nav + sticky mobile bar |
 
 ---
 

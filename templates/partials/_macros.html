@@ -1,0 +1,31 @@
+{# Shared template helpers for the public site. #}
+
+{# A small camera glyph for placeholder blocks. #}
+{% macro camera() -%}
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <path d="M4 8h3l1.5-2h7L18 8h2a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/>
+  <circle cx="12" cy="13" r="3.2"/>
+</svg>
+{%- endmacro %}
+
+{# Labelled placeholder for a photo the owner has not sent yet.
+   `label` should name the asset and its Client-inputs row, e.g.
+   "Owner photo: field at night (C-13)". Never use a stock image. #}
+{% macro photo(label, ratio='4x3') -%}
+<div class="ph ph--{{ ratio }}" role="img" aria-label="Placeholder. {{ label }}">
+  {{ camera() }}
+  <span>{{ label }}</span>
+</div>
+{%- endmacro %}
+
+{# Owner text, or a visible TODO note if it is missing or still a placeholder.
+   `todo` is the note text (without the "TODO(owner):" prefix). #}
+{% macro owner_text(value, todo) -%}
+  {%- set text = (value | string | trim) if value is not none else '' -%}
+  {%- if text and 'TODO' not in text -%}
+    {{ text }}
+  {%- else -%}
+    <span class="todo-note">TODO(owner): {{ todo }}</span>
+  {%- endif -%}
+{%- endmacro %}

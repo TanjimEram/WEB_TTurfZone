@@ -1,6 +1,8 @@
 from extensions import db
 from models._time import utcnow
 
+from database.seed_data import DEFAULT_SETTINGS
+
 
 class TurfSettings(db.Model):
     """Owner-editable business info. Always a single row with id = 1 (plan D-13)."""
@@ -31,3 +33,12 @@ class TurfSettings(db.Model):
     @classmethod
     def current(cls) -> "TurfSettings | None":
         return db.session.get(cls, 1)
+
+    @classmethod
+    def current_or_default(cls) -> "TurfSettings":
+        """The saved row, or a transient row of `TODO(owner)` placeholders.
+
+        Lets public pages render before `flask seed-settings` has been run.
+        The returned object is NOT added to the session when it is a default.
+        """
+        return cls.current() or cls(**DEFAULT_SETTINGS)
