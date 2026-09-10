@@ -6,6 +6,7 @@ reject_booking, block_slot, unblock_slot, plus phone normalisation.
 """
 import re
 import secrets
+from datetime import date, timedelta
 
 from sqlalchemy.exc import IntegrityError
 
@@ -191,3 +192,38 @@ def unblock_slot(booking_id: int) -> None:
         raise InvalidTransitionError("That booking is not a block.")
     db.session.delete(booking)
     db.session.commit()
+
+
+def bookings_for_day(day: date) -> list[Booking]:
+    """Every active row for one day (admin view - includes customer data)."""
+    return list(db.session.scalars(
+        db.select(Booking)
+        .where(Booking.booking_date == day, Booking.status.in_(Booking.ACTIVE_STATUSES))
+        .order_by(Booking.slot_time)
+    ))
+
+
+def dashboard_summary(today: date) -> dict:
+    """Numbers and lists for the admin dashboard."""
+    week_end = today + timedelta(days=6)
+    week = list(db.session.scalars(
+        db.select(Booking)
+        .where(
+            Booking.booking_date >= today,
+            Booking.booking_date <= week_end,
+            Booking.status.in_(Booking.ACTIVE_STATUSES),
+        )
+        .order_by(Booking.booking_date, Booking.slot_time)
+    ))
+    pending_count = db.session.scalar(
+        db.select(db.func.count())
+        .select_from(Booking)
+        .where(Booking.status == Booking.PENDING, Booking.booking_date >= today)
+    )
+    return {
+        "today": today,
+        "todays_bookings": [b for b in week if b.booking_date == today],
+        "week": week,
+        "pending_count": pending_count or 0,
+        "confirmed_this_week": sum(1 for b in week if b.status == Booking.CONFIRMED),
+    }

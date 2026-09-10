@@ -9,13 +9,15 @@ from services.auth import (
     safe_next,
     verify_admin,
 )
+from services.bookings import dashboard_summary
+from services.slots import slot_label, today_dhaka
 
 bp = Blueprint("admin", __name__, url_prefix="/admin")
 
 
 @bp.context_processor
 def inject_admin():
-    return {"admin": current_admin()}
+    return {"admin": current_admin(), "slot_label": slot_label}
 
 
 @bp.route("/login", methods=["GET", "POST"])
@@ -47,7 +49,7 @@ def logout():
 @bp.get("/")
 @login_required
 def dashboard():
-    return render_template("admin/dashboard.html")
+    return render_template("admin/dashboard.html", summary=dashboard_summary(today_dhaka()))
 
 
 # Filled in by M5.3 / M5.4. Present now so the admin nav resolves.

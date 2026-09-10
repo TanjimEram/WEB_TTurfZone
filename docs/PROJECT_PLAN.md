@@ -385,7 +385,7 @@ Done when: the whole flow takes under a minute on a phone-sized viewport, and a 
 ### M5 Admin (Day 1, 18:00 to 22:00)
 
 - [x] M5.1 `services/auth.py` (`verify_admin`, `login_admin`/`logout_admin` — `session.clear()` on both, `current_admin`, `safe_next`, `login_required`), `routes/admin.py` (GET/POST `/admin/login` generic error, `POST /admin/logout`, all pages `@login_required`, `?next=` limited to `/admin` paths), `templates/admin/base_admin.html` (own chrome, `noindex`), `login.html`, `static/css/admin.css`. Stub `dashboard`/`bookings`/`calendar` so the nav resolves. `tests/test_admin_routes.py` (15). 127 passed, 4 skipped. Browser-verified login → dashboard. (2026-09-11)
-- [ ] M5.2 Dashboard: today's bookings, pending count, next 7 days.
+- [x] M5.2 `bookings.dashboard_summary(today)` + `bookings_for_day(day)`. Dashboard: 3 stat cards (bookings today / awaiting confirmation / confirmed this week), today's bookings table, next-7-days table, links to bookings + calendar. Customer name + `tel:` shown (admin only, behind login). `tests/test_admin_routes.py` +3. 130 passed, 4 skipped. (2026-09-11)
 - [ ] M5.3 Bookings list with date and status filters; confirm / reject / cancel buttons (POST + CSRF); tap-to-call and WhatsApp links per customer. (CR-2: "confirm" is transitional — it disappears with M4.6; reject/cancel stay.)
 - [ ] M5.4 Calendar: pick a date, see 12 slots with state and actions; block with reason; unblock.
 - [ ] M5.5 `tests/test_admin_routes.py`: every admin route redirects when logged out; confirm, reject, block, unblock work.

@@ -1,7 +1,76 @@
 {% extends "admin/base_admin.html" %}
 {% block title %}Dashboard · TTURFZONE admin{% endblock %}
 
+{% macro booking_row(b) %}
+<tr>
+  <td>{{ slot_label(b.slot_time) }}</td>
+  <td>
+    {% if b.status == "BLOCKED" %}
+      <span class="cal-slot__who">Blocked{% if b.admin_note %} &mdash; {{ b.admin_note }}{% endif %}</span>
+    {% else %}
+      {{ b.customer_name }}<br>
+      <a href="tel:{{ b.phone }}">{{ b.phone }}</a>
+    {% endif %}
+  </td>
+  <td><span class="pill pill--{{ b.status | lower }}">{{ b.status | replace('_', ' ') | title }}</span></td>
+</tr>
+{% endmacro %}
+
 {% block content %}
 <h1>Dashboard</h1>
-<p class="muted">Today's bookings, pending count and the week ahead land here in M5.2.</p>
+
+<div class="stat-row">
+  <div class="card stat">
+    <div class="stat__value">{{ summary.todays_bookings | length }}</div>
+    <div class="stat__label">Bookings today</div>
+  </div>
+  <div class="card stat">
+    <div class="stat__value">{{ summary.pending_count }}</div>
+    <div class="stat__label">Awaiting confirmation</div>
+  </div>
+  <div class="card stat">
+    <div class="stat__value">{{ summary.confirmed_this_week }}</div>
+    <div class="stat__label">Confirmed this week</div>
+  </div>
+</div>
+
+<h2>Today &mdash; {{ summary.today.strftime('%A, %d %b %Y') }}</h2>
+{% if summary.todays_bookings %}
+<div class="admin-table--scroll">
+  <table class="admin-table">
+    <thead><tr><th>Time</th><th>Customer</th><th>Status</th></tr></thead>
+    <tbody>{% for b in summary.todays_bookings %}{{ booking_row(b) }}{% endfor %}</tbody>
+  </table>
+</div>
+{% else %}
+<p class="muted">No bookings today.</p>
+{% endif %}
+
+<h2>Next 7 days</h2>
+{% set week_ahead = summary.week | rejectattr('booking_date', 'equalto', summary.today) | list %}
+{% if week_ahead %}
+<div class="admin-table--scroll">
+  <table class="admin-table">
+    <thead><tr><th>Date</th><th>Time</th><th>Customer</th><th>Status</th></tr></thead>
+    <tbody>
+      {% for b in week_ahead %}
+      <tr>
+        <td>{{ b.booking_date.strftime('%a %d %b') }}</td>
+        <td>{{ slot_label(b.slot_time) }}</td>
+        <td>
+          {% if b.status == "BLOCKED" %}<span class="cal-slot__who">Blocked</span>
+          {% else %}{{ b.customer_name }} &middot; <a href="tel:{{ b.phone }}">{{ b.phone }}</a>{% endif %}
+        </td>
+        <td><span class="pill pill--{{ b.status | lower }}">{{ b.status | replace('_', ' ') | title }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<p class="muted">Nothing booked in the next 7 days yet.</p>
+{% endif %}
+
+<p><a class="btn btn--ghost" href="{{ url_for('admin.bookings') }}">All bookings</a>
+   <a class="btn btn--ghost" href="{{ url_for('admin.calendar') }}">Open calendar</a></p>
 {% endblock %}

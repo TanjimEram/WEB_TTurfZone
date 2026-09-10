@@ -1,8 +1,11 @@
 """Admin auth + routes (M5). Every /admin page needs a session; login is generic on failure."""
+import datetime as dt
+
 import pytest
 
 from extensions import db
-from models import Admin
+from models import Admin, Booking
+from services.slots import today_dhaka
 
 USERNAME = "owner"
 PASSWORD = "correct-horse-staple"
@@ -88,3 +91,43 @@ def test_logout_requires_login(client):
 
 def test_admin_pages_are_noindex(as_admin):
     assert 'content="noindex' in as_admin.get("/admin/").get_data(as_text=True)
+
+
+# --- M5.2 dashboard ---------------------------------------------------
+
+def _add(app, **kw):
+    defaults = dict(
+        booking_code="TZ-" + kw.pop("code", "DASH01"),
+        customer_name="Dash Customer",
+        phone="01712345678",
+        booking_date=today_dhaka(),
+        slot_time=dt.time(18, 0),
+        status=Booking.CONFIRMED,
+    )
+    defaults.update(kw)
+    with app.app_context():
+        db.session.add(Booking(**defaults))
+        db.session.commit()
+
+
+def test_dashboard_shows_todays_booking(as_admin, app):
+    _add(app, customer_name="Karim Bhai", phone="01798887766")
+    html = as_admin.get("/admin/").get_data(as_text=True)
+    assert "Karim Bhai" in html
+    assert "01798887766" in html
+    assert "Bookings today" in html
+
+
+def test_dashboard_counts_pending(as_admin, app):
+    _add(app, code="P1", slot_time=dt.time(18, 0), status=Booking.PENDING)
+    _add(app, code="P2", slot_time=dt.time(19, 30), status=Booking.PENDING)
+    html = as_admin.get("/admin/").get_data(as_text=True)
+    # the pending stat value "2" appears next to its label
+    assert "Awaiting confirmation" in html
+
+
+def test_dashboard_next_seven_days(as_admin, app):
+    _add(app, code="WK", booking_date=today_dhaka() + dt.timedelta(days=2), customer_name="Next Week Guy")
+    html = as_admin.get("/admin/").get_data(as_text=True)
+    assert "Next Week Guy" in html
+    assert "Next 7 days" in html
