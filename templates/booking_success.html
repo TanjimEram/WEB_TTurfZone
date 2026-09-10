@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% from "partials/_macros.html" import owner_text %}
+
+{% block title %}Booking request received · {{ settings.turf_name or "TTURFZONE" }}{% endblock %}
+
+{% block content %}
+{% include "partials/nav.html" %}
+
+<main id="main">
+  <section class="section" aria-labelledby="ok-title">
+    <div class="container stack">
+      <p class="section__label">Booking</p>
+      <h1 class="section__title" id="ok-title">Booking request received</h1>
+
+      <div class="card stack">
+        <p class="booking-code">Booking ID: <strong>{{ booking.booking_code }}</strong></p>
+        <dl class="booking-summary">
+          <div><dt>Date</dt><dd>{{ date_display }}</dd></div>
+          <div><dt>Time</dt><dd>{{ slot_display }} &ndash; 90 minutes</dd></div>
+          <div><dt>Name</dt><dd>{{ booking.customer_name }}</dd></div>
+          <div><dt>Status</dt><dd><span class="status-pill status-pill--pending">Pending</span> &mdash; awaiting owner confirmation</dd></div>
+        </dl>
+      </div>
+
+      <p>{{ owner_text(settings.confirm_time_text, "how quickly requests are confirmed (C-11)") }}</p>
+
+      <div class="stack">
+        {% if wa_link %}
+          <a class="btn btn--whatsapp" href="{{ wa_link }}?text={{ wa_text | urlencode }}"
+             rel="noopener" target="_blank">Chat on WhatsApp</a>
+        {% else %}
+          <p><span class="todo-note">TODO(owner): WhatsApp number so customers can follow up (C-06)</span></p>
+        {% endif %}
+        <a class="btn btn--ghost" href="{{ url_for('public.home') }}">Back to home</a>
+      </div>
+
+      <p class="muted"><small>Keep your booking ID. This page will not show again if you refresh.</small></p>
+    </div>
+  </section>
+</main>
+
+{% include "partials/footer.html" %}
+{% include "partials/sticky_actions.html" %}
+{% endblock %}

@@ -497,6 +497,51 @@ a:hover { text-decoration: underline; }
 .slot[disabled], .slot[aria-disabled="true"] { cursor: not-allowed; transform: none; }
 .slot[disabled]:hover, .slot[aria-disabled="true"]:hover { transform: none; }
 
+/* ------------------------------------------------------- booking form (M4.3) */
+.booking-form {
+  max-width: 32rem;
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-6);
+  border-top: 1px solid var(--border);
+}
+.form-field { display: flex; flex-direction: column; gap: var(--sp-2); }
+.form-field label { font-weight: 600; }
+.form-field input {
+  min-height: 44px;
+  padding: var(--sp-2) var(--sp-3);
+  font: inherit;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.form-field input:focus-visible { outline: 3px solid var(--focus); outline-offset: 1px; }
+.field-error { color: var(--danger); font-size: var(--fs-300); margin: 0; }
+.form-error {
+  color: var(--danger);
+  font-weight: 600;
+  padding: var(--sp-3);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-sm);
+  background: rgba(239, 68, 68, 0.08);
+  margin: 0;
+}
+
+/* --------------------------------------------------- booking success (M4.4) */
+.booking-code { font-size: var(--fs-500); }
+.booking-summary { margin: 0; display: grid; gap: var(--sp-3); }
+.booking-summary > div { display: grid; grid-template-columns: 6rem 1fr; gap: var(--sp-3); }
+.booking-summary dt { color: var(--text-muted); font-weight: 600; }
+.booking-summary dd { margin: 0; }
+.status-pill {
+  display: inline-block;
+  padding: 2px var(--sp-2);
+  border-radius: 999px;
+  font-size: var(--fs-300);
+  font-weight: 700;
+}
+.status-pill--pending { background: rgba(245, 158, 11, 0.18); color: var(--warn); }
+
 /* ------------------------------------------------------------------ facilities */
 .facility {
   display: flex;

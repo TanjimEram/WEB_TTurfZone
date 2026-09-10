@@ -6,6 +6,31 @@
   "use strict";
 
   document.querySelectorAll("[data-slotpicker]").forEach(setupPicker);
+  setupBookingForm();
+
+  /* M4.3: keep the details form's hidden date/slot in step with the picker,
+     and only enable submit once a slot is chosen. */
+  function setupBookingForm() {
+    var form = document.querySelector("[data-booking-form]");
+    if (!form) return;
+    var picker = document.querySelector("[data-slotpicker]");
+    var dateField = form.querySelector("[data-field-date]");
+    var slotField = form.querySelector("[data-field-slot]");
+    var submit = form.querySelector("[data-submit]");
+
+    function sync(date, slot) {
+      if (dateField) dateField.value = date || "";
+      if (slotField) slotField.value = slot || "";
+      if (submit) submit.disabled = !(date && slot);
+    }
+
+    if (picker) {
+      picker.addEventListener("slotpicker:change", function (event) {
+        sync(event.detail.date, event.detail.slot);
+      });
+    }
+    sync(dateField && dateField.value, slotField && slotField.value);
+  }
 
   function setupPicker(root) {
     var fallback = root.querySelector("[data-fallback]");

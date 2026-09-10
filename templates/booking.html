@@ -11,12 +11,39 @@
     <div class="container stack">
       <p class="section__label">Booking</p>
       <h1 class="section__title" id="book-title">Book a 90-minute slot</h1>
-      <p class="muted">Pick a date, then a free slot. Payment and confirmation come after the owner reviews your request.</p>
+      <p class="muted">Pick a date, then a free slot. Your request is confirmed by the owner &mdash; there is no online payment.</p>
 
       {% set picker_continue = false %}
       {% include "partials/slot_picker.html" %}
 
-      <p class="todo-note">Name and phone step, review, and submit are built in M4.3.</p>
+      <form class="booking-form stack" method="post" action="{{ url_for('public.book_submit') }}"
+            data-booking-form novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="date" value="{{ preselect_date }}" data-field-date>
+        <input type="hidden" name="slot" value="{{ preselect_slot }}" data-field-slot>
+
+        <h2 class="section__title">Your details</h2>
+
+        {% if errors.slot %}<p class="form-error" role="alert">{{ errors.slot }}</p>{% endif %}
+
+        <div class="form-field">
+          <label for="f-name">Your name</label>
+          <input id="f-name" name="name" type="text" maxlength="80" autocomplete="name"
+                 required value="{{ form.name }}">
+          {% if errors.name %}<p class="field-error">{{ errors.name }}</p>{% endif %}
+        </div>
+
+        <div class="form-field">
+          <label for="f-phone">Mobile number (used for WhatsApp)</label>
+          <input id="f-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel"
+                 placeholder="01XXXXXXXXX" required value="{{ form.phone }}">
+          {% if errors.phone %}<p class="field-error">{{ errors.phone }}</p>{% endif %}
+        </div>
+
+        <button class="btn btn--primary" type="submit" data-submit>Send booking request</button>
+        <p class="muted"><small>You will get a booking ID. The owner then confirms or declines it.</small></p>
+      </form>
+
       <p>{{ owner_text(settings.booking_rules_text, "booking and cancellation rules (C-05)") }}</p>
     </div>
   </section>
