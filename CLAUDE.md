@@ -73,6 +73,13 @@ Payments and notifications (CR-1):
 - Gateway, SMS and SMTP credentials live only in environment variables. Never log credentials, tokens, or full raw requests/responses that contain them.
 - Unit tests never call real gateways or SMS/email providers; use fakes. Real sandbox calls go only in tests marked `@pytest.mark.sandbox`, which skip without credentials.
 
+Customer accounts (CR-3):
+
+- Never store or log a plain OTP code. Only `code_hash` is stored; never write the code itself to logs, flash messages, or error text.
+- Always rate-limit OTP requests: at most 3 codes per phone per hour and 5 per day; at most 5 wrong verification attempts per code before it is invalidated.
+- A logged-in customer may only ever see their own bookings — never another customer's, by id guessing or otherwise.
+- Guest booking must never be blocked behind login. An account is always optional, never required to book.
+
 ## Commands
 
 Keep this list current when commands change.

@@ -6,10 +6,10 @@
 
 | Field | Value |
 |---|---|
-| Phase | M3 homepage complete. **CR-1 recorded** (self-sufficient: online payments, auto-confirm, SMS/email, holds, cron jobs). Scaffold done locally; waiting on hosting money for real deploy |
-| Last completed | **M7.5**: 404/500 pages + handlers, accessibility pass (aria on flash / form errors / slot grid / admin buttons, heading order, contrast). 145 passed, 4 skipped (2026-09-11). Before: M5 admin, CR-2, M4.3–M4.5 |
-| Next task | **Decision.** (a) **M4.6** — apply CR-2 (auto-confirm, drop PENDING) — needs C-28. (b) **M2.6** — CR-1 schema — needs C-27. (c) **M7.3** — SEO / OpenGraph / favicon / JSON-LD (confirmed info only, no assets needed). (d) **M6** — deploy current build (needs hosting). (e) **M7.1/M7.2** — real assets + lightbox (needs owner photos). |
-| Blocked by | Hosting/domain purchase blocks M1.3b and W3–W6 (postponed). PostgreSQL-only bugs uncaught until W5. **CR-1: M10 blocked by repricing agreement (C-27); M12 blocked by bKash merchant approval (C-21).** |
+| Phase | M3 homepage + M5 admin + M7.5 complete. **CR-1, CR-2 and CR-3 recorded** (self-sufficient: online payments, auto-confirm, SMS/email, holds, cron jobs, customer accounts with phone OTP). Scaffold done locally; waiting on hosting money for real deploy |
+| Last completed | **Docs: CR-3 recorded** (customer accounts, phone + OTP login, no passwords, guest booking preserved, 60-day sessions). Documentation only, no code touched (2026-09-16). Before: M7.5 (404/500 + accessibility), M5 admin, CR-2, M4.3–M4.5 |
+| Next task | **Decision.** (a) **M4.6** — apply CR-2 (auto-confirm, drop PENDING) — needs C-28. (b) **M2.6** — CR-1 schema — needs C-27. (c) **M13** — customer accounts — needs the client to sign v2 (D-40) + pay the advance, and needs M11 (notifications outbox) built first. (d) **M7.3** — SEO / OpenGraph / favicon / JSON-LD (no blockers). (e) **M6** — deploy current build (needs hosting). (f) **M7.1/M7.2** — real assets + lightbox (needs owner photos). |
+| Blocked by | Hosting/domain purchase blocks M1.3b and W3–W6 (postponed). PostgreSQL-only bugs uncaught until W5. **CR-1: M10 blocked by repricing agreement (C-27, folded into v2/D-40); M12 blocked by bKash merchant approval (C-21). CR-3: M13 blocked by v2 (D-40) sign-off + advance, and by M11 existing first.** |
 | Dev environment | Windows + PowerShell. venv: `.venv\Scripts\Activate.ps1`. |
 | Live URL | not deployed |
 | Repo | created by developer (private GitHub) |
@@ -24,7 +24,7 @@ Status keys: `[ ]` to do, `[x]` done, `~~struck through~~ (CR-n)` dropped by a c
 - Found online (confirm with owner): listed on Book My Turf BD as "T Turf Zone", 6-a-side futsal, Notin Rani ghat, New Jailkhana, inside Tripti Sporting Club.
 - Reference site, inspiration only, do not copy: https://turfxsonagazi.com
 - Brief: `docs/brief/TTURFZONE_Claude_Code_Project_Brief.pdf`
-- Budget: originally ৳10,000 / 2 days. **CR-1 reprices to ~Tk 25,000 / 4–5 days (not yet agreed with client).** Built with Claude Code.
+- Budget: originally ৳10,000 / 2 days. **CR-1 + CR-3 combined reprice to Tk 30,000 / 6 days (client summary v2, D-40, sent 2026-09-16, not yet signed).** Built with Claude Code.
 - Definition of done (CR-2): on a phone, a customer selects a date and an available 90-minute slot, submits name + phone, pays the Tk 500 bKash advance, and the booking is **confirmed by the site with no owner action**. A taken slot cannot be booked. The owner logs in securely and can cancel, block slots, and add phone/walk-in bookings, but is never required for a normal booking. Production runs on HTTPS with the production database connected; duplicate-booking conflicts tested. Interim before bKash (M10): auto-confirm free or form closed (C-28).
 - Original brief §19 (manual confirm) is superseded by CR-1 + CR-2.
 
@@ -42,7 +42,8 @@ Status keys: `[ ]` to do, `[x]` done, `~~struck through~~ (CR-n)` dropped by a c
 - Scheduled jobs (CR-1): cPanel cron once a minute runs Flask CLI commands to expire holds, send queued notifications and send reminders.
 - Secrets only in environment variables. Passwords hashed. Admin routes protected. HTTPS in production. Customer booking data never public.
 - Readable, beginner-friendly code. Separate config, models, routes, services and templates. No unnecessary dependencies.
-- Excluded (updated by CR-1): customer accounts, automated WhatsApp API, multiple branches, tournaments, coupons/loyalty, complex analytics, native app, AI chatbot, large CMS. (`online payments/bKash` and `SMS gateway` were removed from this list by CR-1 and are now in scope.)
+- Excluded (updated by CR-1, CR-3): automated WhatsApp API, multiple branches, tournaments, coupons/loyalty, complex analytics, native app, AI chatbot, large CMS. (`online payments/bKash` and `SMS gateway` were removed from this list by CR-1, and `customer accounts` by CR-3 — all now in scope.)
+- Customer accounts (CR-3): optional login by phone number + a one-time SMS code (no passwords stored for customers). Guest booking without an account must always remain available and is never blocked behind login — an account is never required to book.
 - Visual direction (unless the owner's brand says otherwise): dark base, energetic green accent, white typography, high-contrast CTAs, large real photos, clean cards, restrained motion.
 
 ## 3. Decisions
@@ -63,15 +64,15 @@ Status keys: `[ ]` to do, `[x]` done, `~~struck through~~ (CR-n)` dropped by a c
 | D-12 | `/healthz` does not touch the database | Uptime pings must not keep Neon awake and burn free compute hours | Final |
 | D-13 | Owner content (about, facilities, reviews, pricing, gallery list, contact, hours) lives in one `turf_settings` row, seeded from `database/seed_data.py` | One place to edit; admin settings page (M7.4) can edit it later | Final |
 | D-14 | Admin password generated by `create-admin` (20 random chars, shown once). Login rate limiting moved to Backlog. | Fits the 2-day window; strong generated password lowers brute-force risk | Final |
-| D-15 | ৳10,000 is the development fee. Domain and hosting are billed to the owner separately and registered in the owner's name. | Recurring costs belong to the owner; clean handover | **Superseded by CR-1 pending repricing** (developer estimate ~Tk 25,000). Not deleted. |
-| D-16 | Budget ranges shown to client: hosting Tk 3,000–4,000 (max 5,000)/yr, .com domain Tk 1,200–1,500 (max 2,000)/yr, DB/SSL/WhatsApp Tk 0. Running cost max Tk 7,000/yr; year-1 total max Tk 17,000. Nothing bought above the max without written approval. | Advance must not be spent on infrastructure | **Superseded by CR-1 pending repricing** — CR-1 adds bKash fees (1.5–2%/txn) and SMS cost (~Tk 0.25–0.40 each) to the owner's running costs. Not deleted. |
+| D-15 | ৳10,000 is the development fee. Domain and hosting are billed to the owner separately and registered in the owner's name. | Recurring costs belong to the owner; clean handover | **Superseded — see D-40 (client summary v2, Tk 30,000, sent 2026-09-16, not yet signed).** Not deleted. |
+| D-16 | Budget ranges shown to client: hosting Tk 3,000–4,000 (max 5,000)/yr, .com domain Tk 1,200–1,500 (max 2,000)/yr, DB/SSL/WhatsApp Tk 0. Running cost max Tk 7,000/yr; year-1 total max Tk 17,000. Nothing bought above the max without written approval. | Advance must not be spent on infrastructure | **Superseded — see D-40** (v2 running costs max Tk 12,000/yr, covers bKash fees, SMS incl. OTP). Not deleted. |
 | D-18 | Dev-only diagnostics: `/dev/wiring` page and `fake-*` CLI commands, fake rows use `FK-` codes. Registered only when `ENABLE_DEV_TOOLS` (development). | Test DB connection, migrations, conflict rule and API before real features and before hosting exists | Final |
 | D-19 | `scripts/serve_like_passenger.py` uses stdlib `wsgiref` to import `passenger_wsgi.application` in production mode | Rehearse cPanel loading without buying hosting; no new dependency | Final |
 | D-20 | `requirements-dev.txt` adds pytest on top of `requirements.txt`; production installs only `requirements.txt` | Keep production minimal | Final |
 | D-21 | `config.normalize_database_url()` converts `postgres://`/`postgresql://` to `postgresql+psycopg://` | Paste Neon/cPanel URLs unchanged | Final |
 | D-22 | Short seed fields (phone, whatsapp: 20 chars) seed as empty strings; the TODO lives in a comment | PostgreSQL rejected long placeholder text (caught by testing on Postgres) | Final |
 | D-23 | Admin scope: the owner manages bookings, blocks slots, and edits basic settings (phone, WhatsApp, address, hours, booking rules, prices). Photos, page text, colours and layout are changed by the developer. A content editor (gallery upload, hero photo, about text, reviews, facilities) is a paid phase 2, in the Backlog. | Keeps the 2-day MVP small; media handling and rich text are their own project | Final (developer, 2026-09-11) |
-| D-17 | Payments: (1) Tk 5,000 development advance before build; (2) hosting + domain actual cost (up to Tk 7,000) before build, paid by owner directly or sent with receipts; (3) Tk 5,000 balance at handover after owner tests live site. Unused infra money returned or deducted from payment 3. 2-day clock starts after payments 1–2 and Day-1 inputs. 7 days of free fixes after handover. | Protects developer from funding infra out of the advance; protects deadline from late assets | **Superseded by CR-1 pending repricing** — payment schedule and totals reissued in an updated client summary (the .docx is outside the repo; developer handles it). Not deleted. |
+| D-17 | Payments: (1) Tk 5,000 development advance before build; (2) hosting + domain actual cost (up to Tk 7,000) before build, paid by owner directly or sent with receipts; (3) Tk 5,000 balance at handover after owner tests live site. Unused infra money returned or deducted from payment 3. 2-day clock starts after payments 1–2 and Day-1 inputs. 7 days of free fixes after handover. | Protects developer from funding infra out of the advance; protects deadline from late assets | **Superseded — see D-40** (v2 schedule: Tk 12,000 advance + hosting/SMS + Tk 9,000 Day 3 + Tk 9,000 handover; 14 days free fixes). Not deleted. |
 | D-24 | `PAYMENTS_ENABLED` config flag (default `false`). **CR-2 changes the `false` meaning:** `false` = bookings auto-confirm with **no payment** (interim launch, cash on site — pending C-28); `true` = Tk 500 bKash advance holds then confirms. Never a manual owner-confirm step. Switches to `true` after bKash merchant approval (M12). | Ship an autonomous site before merchant approval; one switch to turn on the advance. | Final (CR-1, amended by CR-2) |
 | D-25 | bKash **direct** payment gateway (tokenized flow: grant token → create payment → execute payment → query payment). All gateway code sits behind one interface in `services/payments/` (`base.py` abstract class + `bkash.py`), so booking logic never imports a gateway directly and a second gateway can be added later. Fallback if bKash direct is not workable: an aggregator such as SSLCommerz (reported setup fee Tk 15,000–25,000 — get a written quote first). | No setup fee, ~1.5–2%/txn, widely used in BD. Interface keeps the coupling to one place. | Proposed (CR-1); confirm once the merchant application starts |
 | D-26 | Slot holds: new statuses `PENDING_PAYMENT` (hold while paying), `EXPIRED` (hold ran out), `CANCELLED` (cancelled after confirmation). `uq_active_slot` covers `PENDING_PAYMENT, PENDING, CONFIRMED, BLOCKED`. Holds last `HOLD_MINUTES` (default 10). Booking creation **must expire stale holds for that slot in the same transaction** before inserting; a per-minute cron job (`jobs-expire-holds`) is the backup. New booking fields: `hold_expires_at`, `amount_due_bdt`, `customer_email` (optional), `source` (`online`\|`phone`\|`walk_in`). | An unexpired-looking row still occupies the unique index, so lazy expiry at creation time is required for correctness; cron alone is not enough. | Final (CR-1) |
@@ -82,6 +83,13 @@ Status keys: `[ ]` to do, `[x]` done, `~~struck through~~ (CR-n)` dropped by a c
 | D-31 | SMS via a Bangladeshi SMS API provider (chosen later). Start with a **non-masking** sender (~Tk 0.25–0.40/SMS); register the branded `TTURFZONE` sender name later (a few working days). | Non-masking works immediately; masking needs registration lead time. | Proposed (CR-1); provider is C-2x |
 | D-32 | Deferred to Backlog: WhatsApp Business API, automatic refunds via bKash API, Nagad/card payments via an aggregator. v1 refunds are done in the bKash merchant dashboard and **recorded** in admin (M5.7). | Keeps CR-1 to a shippable size. | Final (CR-1) |
 | D-33 | HTTP client dependency: `requests` (for bKash and SMS API calls). Justification: readable, universally known, simple to fake in tests. | One obvious, well-documented client rather than raw `urllib` or an async stack. | Final (CR-1) |
+| D-34 | Customer login is phone number + a one-time SMS code (OTP). No passwords are stored anywhere for customers, so there is no password-reset flow and no password hashing on the customer side. | Fewer moving parts than passwords (no reset flow, no leaked-password risk); a verified phone is exactly what the booking system already keys on, and it doubles as fraud reduction (D-38 note). | Final (CR-3) |
+| D-35 | Guest booking is permanent, not a migration step. Accounts are optional forever — `/book` never checks for a session, and nothing in the booking flow requires a `customer_id`. | The client was explicit: an account must never be required to book. | Final (CR-3) |
+| D-36 | Customer login sessions last 60 days (vs the owner admin session's 12 hours, `PERMANENT_SESSION_LIFETIME`, unchanged). Flask has one global session lifetime, so the customer session needs either a `before_request` override keyed on which principal is logged in, or a separate long-lived cookie from the admin session. Implementation decided at build time (M13). | A customer should not have to re-verify by SMS every visit; the owner's admin session stays short for security. | Final (CR-3); implementation approach open, M13 |
+| D-37 | OTP rate limits, enforced server-side: at most 3 codes per phone per hour and 5 per day; at most 5 wrong verification attempts per code before it is invalidated. | Every code costs about Tk 0.35; an unlimited endpoint is an open SMS bill. | Final (CR-3) |
+| D-38 | When a guest later creates an account with the same phone number, their past guest bookings (`customer_id IS NULL`, matching phone) are linked to the new account on signup. | Booking history should not silently vanish just because the customer signed up after the fact. | Final (CR-3) |
+| D-39 | `login_codes.code_hash` stores a hash of the OTP, never the plain code, in the database or in any log line. The SMS itself is sent through the same `notifications` outbox as other messages (CR-1 D-28), so OTP delivery gets the same retry/failure handling. | Matches the "never log a secret" hard rule; reuses the outbox instead of a second sending path. | Final (CR-3); depends on the outbox existing (CR-1 M11) |
+| D-40 | Client summary v2 (outside the repo, reissued 2026-09-16): Tk 30,000 development; running costs max Tk 12,000/yr; payment schedule Tk 12,000 advance + hosting/SMS costs (owner pays directly) + Tk 9,000 at Day 3 + Tk 9,000 at handover; 14 days of free fixes after handover. Supersedes the CR-1 estimate (~Tk 25,000) and D-15/D-16/D-17 (v1). Status: **sent to client, not yet signed.** | CR-3 adds a day of work and ongoing SMS cost (OTP codes) on top of CR-1's repricing; one combined figure is clearer for the client than two separate revisions. | Sent to client 2026-09-16, pending signature |
 
 ## 4. Infrastructure and accounts (no secrets here)
 
@@ -119,20 +127,23 @@ tturfzone/
 │   ├── PROJECT_PLAN.md
 │   └── brief/TTURFZONE_Claude_Code_Project_Brief.pdf
 ├── models/
-│   ├── __init__.py           # exports Admin, Booking, TurfSettings; CR-1: Payment, Notification
+│   ├── __init__.py           # exports Admin, Booking, TurfSettings; CR-1: Payment, Notification; CR-3: Customer, LoginCode
 │   ├── _time.py              # utcnow()
 │   ├── admin.py
-│   ├── booking.py            # CR-1: new statuses + hold_expires_at, amount_due_bdt, customer_email, source
+│   ├── booking.py            # CR-1: new statuses + hold_expires_at, amount_due_bdt, customer_email, source; CR-3: customer_id
 │   ├── turf_settings.py
 │   ├── payment.py            # CR-1
-│   └── notification.py       # CR-1 (outbox)
+│   ├── notification.py       # CR-1 (outbox)
+│   ├── customer.py           # CR-3
+│   └── login_code.py         # CR-3
 ├── routes/
 │   ├── __init__.py
 │   ├── public.py             # blueprint "public": /, /book, /book/success, /healthz
 │   ├── dev.py                # blueprint "dev" (development only): /dev/wiring + fake-data buttons
 │   ├── api.py                # blueprint "api": /api/availability
 │   ├── payments.py           # CR-1 blueprint "payments": /pay/start, /pay/bkash/callback, /pay/result
-│   └── admin.py              # blueprint "admin": /admin/... (CR-1: manual booking, payments list, refunds)
+│   ├── account.py            # CR-3 blueprint "account": /account/login, /verify, /logout, /bookings, /profile
+│   └── admin.py              # blueprint "admin": /admin/... (CR-1: manual booking, payments list, refunds; CR-3: customers list)
 ├── services/
 │   ├── __init__.py
 │   ├── slots.py              # slot constants, Dhaka time, bookability, day availability
@@ -140,9 +151,11 @@ tturfzone/
 │   ├── payments/             # CR-1: base.py (PaymentGateway ABC), bkash.py, __init__.py (get_gateway())
 │   ├── notifications.py      # CR-1: queue_*, render templates, send_due() used by the job
 │   ├── jobs.py               # CR-1: expire_holds(), send_notifications(), send_reminders()
+│   ├── otp.py                 # CR-3: request_code, verify_code, rate limits, customer_login_required
+│   ├── customers.py           # CR-3: get_or_create_customer, link_guest_bookings, bookings_for_customer
 │   ├── fake_data.py          # FK- fake bookings, double-booking probe (development)
 │   └── db_health.py          # check_database() used by db-check and /dev/wiring
-│   └── auth.py               # login_required, verify_admin
+│   └── auth.py               # login_required, verify_admin (owner admin only - unchanged by CR-3)
 ├── templates/
 │   ├── base.html
 │   ├── partials/             # nav, footer, sticky_actions, slot_grid, flash
@@ -151,8 +164,10 @@ tturfzone/
 │   ├── booking_success.html
 │   ├── payment_result.html   # CR-1: paid / failed / cancelled / timed-out
 │   ├── errors/404.html, errors/500.html
+│   ├── account/ login.html, verify.html, bookings.html, profile.html   # CR-3
 │   └── admin/ base_admin.html, login.html, dashboard.html, bookings.html, calendar.html, settings.html,
-│              booking_new.html (CR-1 manual booking), payments.html (CR-1 list + refund record)
+│              booking_new.html (CR-1 manual booking), payments.html (CR-1 list + refund record),
+│              customers.html (CR-3 list + booking counts)
 ├── static/
 │   ├── css/ main.css, admin.css
 │   ├── js/ booking.js, gallery.js, reveal.js, admin.js
@@ -178,8 +193,10 @@ tturfzone/
     ├── test_notifications.py       # CR-1 M11: outbox queue, retries, failure never rolls back a booking
     ├── test_jobs.py                # CR-1 M11: expire_holds / send_notifications / send_reminders
     ├── test_sandbox.py             # CR-1: @pytest.mark.sandbox, real bKash sandbox, skipped without creds
+    ├── test_otp.py                  # CR-3 M13: rate limits, expiry, wrong-attempt lockout, hashed storage
+    ├── test_account_routes.py       # CR-3 M13: login/verify/logout/bookings/profile, guest booking unaffected
     ├── test_public_routes.py       # M4
-    └── test_admin_routes.py        # M5 (+ CR-1 M5.6/M5.7)
+    └── test_admin_routes.py        # M5 (+ CR-1 M5.6/M5.7; CR-3 admin customers list)
 ```
 
 ### 5.2 Data model
@@ -188,6 +205,7 @@ tturfzone/
 
 **bookings**: id (PK), booking_code (unique, e.g. `TZ-7K3M9Q`), customer_name (nullable for BLOCKED), phone (nullable for BLOCKED, normalized `01XXXXXXXXX`), booking_date (date), slot_time (time), status (see below), admin_note (text, nullable; block reason or rejection note), created_at, updated_at (timestamptz).
 CR-1 adds: `hold_expires_at` (timestamptz, nullable — set for PENDING_PAYMENT), `amount_due_bdt` (int, nullable), `customer_email` (string, nullable, optional), `source` (`online|phone|walk_in`, default `online`).
+CR-3 adds: `customer_id` (FK → customers, **nullable** — null for every guest booking; a guest booking is never required to link to an account).
 
 Status (CR-1): `PENDING` (manual mode), `PENDING_PAYMENT` (hold while paying), `CONFIRMED`, `REJECTED`, `EXPIRED`, `CANCELLED`, `BLOCKED`.
 
@@ -215,6 +233,10 @@ Alembic autogenerate can miss the WHERE clause. Always open the generated migrat
 **payments** (CR-1): id (PK), booking_id (FK bookings, not null), gateway (string, e.g. `bkash`), merchant_invoice (string, **unique** — our idempotency key), gateway_payment_id (string, **unique**, nullable until "create payment" succeeds), amount_bdt (int), status (`INITIATED|SUCCESS|FAILED|CANCELLED|REFUNDED`), raw_response (JSON, **no secrets/tokens**), created_at, updated_at (timestamptz).
 
 **notifications** (CR-1, outbox): id (PK), booking_id (FK, nullable), channel (`sms|email`), recipient (string), template (string, name under `notification_templates/`), body (text, rendered), status (`QUEUED|SENT|FAILED`), attempts (int, default 0), last_error (text, nullable), send_after (timestamptz — reminders and retry backoff), sent_at (timestamptz, nullable), created_at (timestamptz).
+
+**customers** (CR-3): id (PK), phone (string, **unique**, normalized `01XXXXXXXXX`), name (string, nullable), email (string, nullable, optional), phone_verified_at (timestamptz, nullable — set the first time an OTP is verified), created_at, last_login_at (timestamptz, nullable).
+
+**login_codes** (CR-3): id (PK), phone (string), code_hash (string, **the OTP is never stored in plain text**), expires_at (timestamptz — created_at + 5 minutes), attempts (int, default 0), consumed_at (timestamptz, nullable — set once verified, so a code can't be reused), created_at (timestamptz). Indexed on `(phone, created_at)` for the rate-limit counts (D-37).
 
 **turf_settings** (single row, id = 1): turf_name, tagline, about_text, phone, whatsapp (digits with country code, e.g. `8801XXXXXXXXX`), address, map_embed_url, map_link, facebook_url, opening_hours_text, booking_rules_text, confirm_time_text, booking_window_days (int, default 14), max_pending_per_phone (int, default 2), pricing (JSON), facilities (JSON), reviews (JSON), gallery (JSON), updated_at.
 
@@ -264,6 +286,19 @@ CR-1 may add owner-tunable fields to `turf_settings` once the owner answers C-24
 `services/auth.py`
 - `verify_admin(username: str, password: str) -> Admin | None`
 - `login_required` decorator; session key `admin_id`; `session.clear()` on login and logout
+- Owner admin login only. Unaffected by CR-3 — the owner never uses OTP, customers never use a password.
+
+`services/otp.py` (CR-3)
+- `request_code(phone: str) -> None` — normalizes the phone (reuses `bookings.normalize_phone`), enforces the rate limits (D-37: 3/hour, 5/day per phone, else `RateLimitError`), generates a 6-digit code, stores only `code_hash` + `expires_at` (+5 min), queues the SMS through `notifications.queue` (CR-1 D-28). Never returns or logs the plain code.
+- `verify_code(phone: str, code: str) -> Customer` — loads the latest non-consumed code for the phone; wrong code increments `attempts` and raises `InvalidCodeError` (after 5 wrong attempts the code is invalidated, `TooManyAttemptsError`); expired raises `CodeExpiredError`. On success: marks `consumed_at`, `services.customers.get_or_create_customer`, sets `phone_verified_at`/`last_login_at`, links past guest bookings (D-38), logs the customer in.
+- `customer_login_required` decorator; session key `customer_id`; 60-day session (D-36).
+- Exceptions: `RateLimitError`, `InvalidCodeError`, `CodeExpiredError`, `TooManyAttemptsError`.
+
+`services/customers.py` (CR-3)
+- `get_or_create_customer(phone: str) -> Customer`
+- `link_guest_bookings(customer: Customer) -> int` — sets `customer_id` on existing bookings with a matching phone and `customer_id IS NULL`; returns the count linked (D-38).
+- `bookings_for_customer(customer_id: int) -> list[Booking]` — **only** that customer's rows, ordered newest first. The one query the "my bookings" page is allowed to use.
+- `customers_with_counts() -> list[dict]` — for the admin customers list (name, phone, booking count, last login).
 
 ### 5.4 Routes
 
@@ -292,6 +327,14 @@ CR-1 may add owner-tunable fields to `turf_settings` once the owner answers C-24
 | GET | `/admin/payments?status=&date=` | CR-1 (M5.7): payments list |
 | POST | `/admin/payments/<id>/refund` | CR-1 (M5.7): record a refund done in the bKash dashboard (note + amount) |
 | GET, POST | `/admin/settings` | Basic settings (M7.4) |
+| GET | `/admin/customers` | CR-3 (M13.6): customers list with booking counts and last login |
+| GET, POST | `/account/login` | CR-3: enter phone number, request an OTP (rate-limited, D-37) |
+| GET, POST | `/account/verify` | CR-3: enter the code; on success, logs the customer in (60-day session, D-36) |
+| POST | `/account/logout` | CR-3 |
+| GET | `/account/bookings` | CR-3: `customer_login_required`; only the signed-in customer's own bookings |
+| GET, POST | `/account/profile` | CR-3: `customer_login_required`; edit name / optional email |
+
+Guest booking (`/book`, `POST /book`) is **unchanged by CR-3** — it never checks for a customer session and never requires one.
 
 WhatsApp link after booking: `https://wa.me/<whatsapp>?text=` + URL-encoded `"Hi, I requested a booking at TTURFZONE. Booking ID: TZ-XXXXXX, Date: ..., Time: ..."`.
 
@@ -391,6 +434,7 @@ Done when: the whole flow takes under a minute on a phone-sized viewport, and a 
 - [x] M5.5 `tests/test_admin_routes.py` now 25 → covers logged-out redirect on every page + action, generic login failure, safe `next`, dashboard stats, list filters, confirm/reject, calendar 12 slots, block → public API sees `blocked` → unblock frees it, block on a taken slot flashes. 143 passed, 4 skipped. Browser-verified the whole admin flow. (2026-09-11)
 - [ ] M5.6 (CR-1) `/admin/bookings/new`: manual booking for `phone` / `walk_in` customers (name, phone, optional email, date, slot; `source` set; no payment; goes straight to CONFIRMED or PENDING per owner choice). Uses `create_booking_request` so hold expiry + the unique index still apply.
 - [ ] M5.7 (CR-1) `/admin/payments` list (filter by status/date) and `/admin/payments/<id>/refund` to record a refund done in the bKash dashboard (amount + note; sets `payments.status = REFUNDED`; optionally cancels the booking). No refund API call in v1.
+- [ ] M5.8 (CR-3) `/admin/customers` list — name, phone, booking count, last login (built in M13.6, cross-referenced here).
 
 Done when: the owner flow works end to end at phone width.
 
@@ -432,6 +476,7 @@ Done when: `https://<domain>` loads, http redirects to https, admin login works 
 - [ ] M9.6 Tag `v1.0.0`; final plan update.
 - [ ] M9.7 Transfer the GitHub repo to the owner's account and re-add the developer as a collaborator.
 - [ ] M9.8 (CR-1) Owner training covers: manual booking (phone/walk-in), recording a refund, reading the payments list, topping up SMS balance. Handover pack (M9.4) lists the bKash, SMS and email accounts.
+- [ ] M9.9 (CR-3) Owner training covers: reading the customers list, that accounts are optional and customers can always still book as a guest, that there are no customer passwords to reset (OTP only), and that OTP codes add to the SMS bill.
 
 ### M10 Payments — sandbox (CR-1)
 
@@ -459,6 +504,20 @@ Done when: with `PAYMENTS_ENABLED=true` and `FakeGateway`, the full pay → veri
 
 Done when: booking confirmation, owner alert, reminder and cancellation are queued and sent by the jobs; a provider outage never breaks a booking.
 
+### M13 Customer accounts (CR-3)
+
+Blocked from starting by: client sign-off + advance payment on the client summary v2 (D-40). SMS sending depends on the notifications outbox existing (CR-1 M11) — build M11 first.
+
+- [ ] M13.1 `models/customer.py` (Customer), `models/login_code.py` (LoginCode) + migration; `bookings.customer_id` nullable FK + migration.
+- [ ] M13.2 `services/otp.py` `request_code`: rate limiting (3/hour, 5/day per phone, D-37), 6-digit code generation, `code_hash` only (D-39), queues the SMS through the notifications outbox.
+- [ ] M13.3 `services/otp.py` `verify_code`: 5-minute expiry, 5 wrong attempts then invalidate (D-37), creates/updates the Customer on success, `customer_login_required` decorator, session key `customer_id`, 60-day session (D-36).
+- [ ] M13.4 `services/customers.py`: `get_or_create_customer`, `link_guest_bookings` (D-38), `bookings_for_customer`, `customers_with_counts`.
+- [ ] M13.5 `routes/account.py`: `/account/login`, `/account/verify`, `/account/logout`, `/account/bookings` (only the signed-in customer's own rows), `/account/profile`. Confirm the guest `/book` flow is untouched — no session check anywhere in it.
+- [ ] M13.6 `/admin/customers`: list with phone, name, booking count, last login (M5.8 cross-reference); link from the admin nav.
+- [ ] M13.7 Tests: `tests/test_otp.py` (rate limits, expiry, wrong-attempt lockout, code never stored/logged in plain text), `tests/test_account_routes.py` (a customer never sees another customer's bookings, guest booking still works with no session, past guest bookings link on signup), `tests/test_admin_routes.py` additions for `/admin/customers`.
+
+Done when: a customer can sign in with just a phone number and an SMS code, sees only their own bookings, guest booking is completely unaffected, and a burst of OTP requests is rate-limited.
+
 ### M12 Live payments (CR-1)
 
 Blocked by: approved bKash merchant account in the owner's name (C-21).
@@ -471,9 +530,9 @@ Blocked by: approved bKash merchant account in the owner's name (C-21).
 
 Done when: a real customer can pay and get an auto-confirmed booking with notifications, and one real refund has been recorded.
 
-### Execution order (CR-1)
+### Execution order (CR-1, CR-3)
 
-M3 → M4.2 → M2.2, M2.3, M2.6, M2.7 → M4.3–M4.5 → M5 (incl. M5.6, M5.7) → M10 → M11 → M6 / M7 → M8 → M9 → M12.
+M3 → M4.2 → M2.2, M2.3, M2.6, M2.7 → M4.3–M4.5 → M5 (incl. M5.6, M5.7, M5.8) → M10 → M11 → M13 → M6 / M7 → M8 → M9 → M12.
 
 ## 7. QA checklist
 
@@ -502,6 +561,7 @@ M3 → M4.2 → M2.2, M2.3, M2.6, M2.7 → M4.3–M4.5 → M5 (incl. M5.6, M5.7)
 - [ ] Usable at phone width
 - [ ] (CR-1) Manual booking for phone / walk-in works and respects the unique index
 - [ ] (CR-1) Payments list shows attempts; recording a refund sets REFUNDED and (optionally) frees the slot
+- [ ] (CR-3) Customers list shows booking counts and last login
 
 **C2. Payments and notifications (CR-1, `PAYMENTS_ENABLED=true`)**
 - [ ] Successful payment → booking auto-CONFIRMED, slot taken, customer + owner notified
@@ -514,6 +574,15 @@ M3 → M4.2 → M2.2, M2.3, M2.6, M2.7 → M4.3–M4.5 → M5 (incl. M5.6, M5.7)
 - [ ] Reminder is sent once per booking, `reminder_hours_before` the slot
 - [ ] With `PAYMENTS_ENABLED=false` the site runs the manual PENDING → owner-confirm flow unchanged
 - [ ] No secret, token or auth header appears in logs or `payments.raw_response`
+
+**C3. Customer accounts (CR-3)**
+- [ ] Guest booking works end to end with no account, before and after CR-3 ships
+- [ ] OTP expires 5 minutes after it is requested
+- [ ] Wrong code attempts are capped at 5, then the code is invalidated
+- [ ] Rate limit blocks a 4th code request within an hour and a 6th within a day, for the same phone
+- [ ] A signed-in customer sees only their own bookings, never another customer's (try guessing another booking's id/url)
+- [ ] Past guest bookings (matching phone) link to the account automatically on signup
+- [ ] No plain OTP code appears anywhere in logs, the database, or an error message
 
 **D. Security**
 - [ ] No secrets in the repo (`git grep -i "password\|secret\|postgres://\|app_key\|api_key"` shows only names/placeholders)
@@ -577,13 +646,16 @@ Needed by: D0 = before Day 1 starts, D1-AM = Day 1 09:00, D1-PM = Day 1 18:00.
 | C-25 | Owner alert phone (SMS) and owner alert email | Before M11 | Pending | CR-1. `OWNER_ALERT_PHONE`, `OWNER_ALERT_EMAIL` |
 | C-26 | SMS provider preference / budget (or let developer choose) | Before M11 | Pending | CR-1. Non-masking first |
 | C-27 | Written agreement to the new development price and the new owner running costs (bKash fees, SMS) | Before M10 start | Pending | CR-1. Blocks M10. Reissued client summary handled by the developer (.docx outside the repo) |
+| C-29 | Is 60 days an OK length for a customer's login session, or does the owner want something shorter/longer? | Before M13 | Pending | CR-3. `D-36`. Planned default: 60 days |
+| C-30 | Confirm an account is never required to book — guest booking always stays available | Before M13 | Pending | CR-3. Planned answer: **never required** (D-35) |
 
 ## 10. Change requests
 
 | ID | Date | Request | Type (add/remove/modify) | Impact (time, scope, price) | Affected tasks | Status |
 |---|---|---|---|---|---|---|
+| CR-3 | 2026-09-16 | **Customer accounts.** Customers can create an account (phone number + a one-time SMS code, no password) and see their booking history. Guest booking without an account stays available and is never blocked. A verified phone number on a booking reduces fake bookings. Sessions last 60 days. The OTP goes through the same notification outbox as other SMS (~Tk 0.35/code). | add | **Time:** +1 day (6 days total). **Price:** Tk 30,000 development (reissued client summary v2, see D-40). **Owner costs:** SMS cost rises (OTP codes on top of booking notifications); no extra hosting or database cost. | Global constraints §2; §5 (models, services, routes); new M13; M5 (admin customers list); M9 (handover); §7 QA; §9 client inputs; §11 backlog; §12 risks; D-34…D-40 | Recorded 2026-09-16. Sent to client as version 2 of the client summary (Tk 30,000, outside the repo), **not yet signed**. M13 (and M10) blocked until v2 is signed and the advance paid. Frontend work continues. |
 | CR-2 | 2026-09-11 | **No manual confirmation at all.** The website decides every booking by itself: an empty slot can be booked, a taken slot cannot — the admin never has to intervene for a normal booking (but keeps full override: cancel, block, manual booking, refunds). Confirmation is by a **Tk 500 bKash advance** (bKash wired later — CR-1 M10); the balance is paid on site after the slot. Answers C-22 (advance = Tk 500 flat, not a percentage, not full payment). | modify | **Removes** the manual `PENDING → owner confirms` flow and CR-1's `PAYMENTS_ENABLED=false` "manual mode". `create_booking_request` will produce `CONFIRMED` (free/interim) or `PENDING_PAYMENT` (bKash), never `PENDING`. **Interim (before M10):** needs a call — auto-confirm free (cash on site) as a temporary launch mode, or keep the public booking form closed until bKash is live (open question, tracked as C-28). **Time:** small (mostly deletion) once M2.6/M10 land. **Price:** inside CR-1's repricing, no extra. | D-05 (superseded), D-24, CR-1 M2.6 / M4.3 / M4.4 / M10, C-22 (answered), new M4.6, M5.3 (confirm action now transitional) | Recorded 2026-09-11. Per developer: **M5 is built now against the current PENDING model and adapted when M2.6 lands** ("M5 now, adapt after"). |
-| CR-1 | 2026-09-11 | Make the website self-sufficient: online payment (bKash direct gateway, server-verified), automatic confirmation, SMS + email notifications, slot holds, scheduled jobs, admin manual bookings + payments/refunds. Overrides brief §2 ("no online payment"); removes "online payments/bKash" and "SMS gateway" from brief §15 exclusions. Still excluded: customer accounts, automated WhatsApp API, multiple branches, tournaments, coupons, complex analytics, native app, AI chatbot, large CMS. | add / modify | **Time:** +2–3 dev days (4–5 total). **Price:** development must be repriced — developer estimate ~Tk 25,000 at the original daily rate, **not yet agreed with the client**; D-15…D-17 superseded pending repricing. **Owner costs:** new running costs (bKash 1.5–2% per txn, SMS ~Tk 0.25–0.40 each, possible masking-sender registration). **Blockers:** live payments need an approved bKash merchant account in the owner's name (trade licence, TIN, business bank account, NID, live URL; ~1–3 weeks). | Global constraints §2; D-05, D-11, D-15–D-17; §5 (models, services, routes, env); new M2.6, M2.7, M5.6, M5.7, M10, M11, M12; M8; §7, §8, §9, §11, §12 | Recorded 2026-09-11. Repricing + owner running-cost agreement pending (blocks M10 start). Merchant approval pending (blocks M12). Frontend (M3, M4.2) continues unaffected. |
+| CR-1 | 2026-09-11 | Make the website self-sufficient: online payment (bKash direct gateway, server-verified), automatic confirmation, SMS + email notifications, slot holds, scheduled jobs, admin manual bookings + payments/refunds. Overrides brief §2 ("no online payment"); removes "online payments/bKash" and "SMS gateway" from brief §15 exclusions. Still excluded: customer accounts, automated WhatsApp API, multiple branches, tournaments, coupons, complex analytics, native app, AI chatbot, large CMS. | add / modify | **Time:** +2–3 dev days (4–5 total). **Price:** development must be repriced — developer estimate ~Tk 25,000 at the original daily rate; **superseded by the combined CR-1+CR-3 client summary v2, Tk 30,000 (D-40), not yet agreed**; D-15…D-17 superseded. **Owner costs:** new running costs (bKash 1.5–2% per txn, SMS ~Tk 0.25–0.40 each, possible masking-sender registration). **Blockers:** live payments need an approved bKash merchant account in the owner's name (trade licence, TIN, business bank account, NID, live URL; ~1–3 weeks). | Global constraints §2; D-05, D-11, D-15–D-17; §5 (models, services, routes, env); new M2.6, M2.7, M5.6, M5.7, M10, M11, M12; M8; §7, §8, §9, §11, §12 | Recorded 2026-09-11. Repricing + owner running-cost agreement pending (blocks M10 start). Merchant approval pending (blocks M12). Frontend (M3, M4.2) continues unaffected. |
 
 ## 11. Backlog (after MVP)
 
@@ -595,6 +667,8 @@ Needed by: D0 = before Day 1 starts, D1-AM = Day 1 09:00, D1-PM = Day 1 18:00.
 - SMS low-balance alert to the owner (CR-1)
 - Bangla notification templates (CR-1: English first)
 - Per-phone / per-IP booking rate limit (replaces the dropped D-05 pending cap; only if spam appears — CR-2)
+- Optional password login for customers, alongside OTP (CR-3: OTP-only for now, D-34)
+- Customer self-cancel from the account page (CR-3; distinct from the existing "self-cancel with a code" item below, which needs no account)
 - Customer self-cancel with a code
 - Login rate limiting and lockout
 - Admin content editor (paid phase 2, D-23): gallery upload, hero photo, about text, reviews, facilities editing behind the admin login
@@ -624,6 +698,9 @@ Needed by: D0 = before Day 1 starts, D1-AM = Day 1 09:00, D1-PM = Day 1 18:00.
 | (CR-1) SMS balance runs out | Owner is trained to top up (M9.8); low-balance alert is in the Backlog; email still works. |
 | (CR-1) Refund disputes / chargebacks | v1 refunds are manual and logged in admin with a note; cancellation/refund rules text (C-23) is shown to customers up front. |
 | (CR-1) Repricing not agreed | M10 does not start until C-27 is signed; frontend work (M3, M4.2) continues meanwhile. |
+| (CR-3) SMS cost abuse through the OTP endpoint (someone hammers `/account/login` to run up the bill) | Rate limits enforced server-side: 3 codes/phone/hour, 5/day, 5 wrong attempts per code (D-37). |
+| (CR-3) Customers drop off if account signup is ever forced or nagged | Guest booking is permanent and unconditional (D-35); accounts are offered, never required. |
+| (CR-3) Client summary v2 not signed | M13 (and M10) do not start until it is signed and the advance is paid; frontend and non-CR-3 work continue meanwhile. |
 | PostgreSQL-only problems (VARCHAR length limits, partial-index behaviour, timezone/`timestamptz` handling, JSON columns, concurrency) are not caught while all local work runs on SQLite | W5 (`pytest -q -m postgres`) and W3–W6 are postponed until hosting/DB is bought. Keep model, migration and seed changes conservative until then; run `pytest -m postgres` against Neon the moment it exists and before any deploy (M8). SQLite is treated as UX-only, never as proof. |
 
 ## 13. Known issues
@@ -640,6 +717,7 @@ Needed by: D0 = before Day 1 starts, D1-AM = Day 1 09:00, D1-PM = Day 1 18:00.
 - The `/book` name/phone form has no client-side validation beyond `required`; the server (`create_booking_request`) is the gate. Good enough; nicer inline JS validation is polish (M7.5).
 - (CR-1) The footer disclaimer and the success page say "a booking is a request, no online payment" — correct for the launch (`PAYMENTS_ENABLED=false`). This copy must become flag-aware in M10 before M12 flips the flag.
 - (CR-1) No `payments` / `notifications` tables or new booking statuses yet — M2.6. All payment/notification tasks (M10–M12) are unstarted and gated (see CR-1 and Risks).
+- (CR-3) No `customers` / `login_codes` tables, no `bookings.customer_id`, and no `/account/*` routes yet — all of M13 is unstarted and gated on the client signing v2 (D-40) and on M11 (notifications outbox) existing first.
 
 ## 14. Session log
 
@@ -661,6 +739,7 @@ Needed by: D0 = before Day 1 starts, D1-AM = Day 1 09:00, D1-PM = Day 1 18:00.
 | 2026-09-11 | Build (Claude Code, Windows) | **M5 admin complete**: M5.1 auth (`services/auth.py`, `routes/admin.py`, `base_admin.html`, `admin.css`), M5.2 dashboard (`dashboard_summary`, stat cards, today + week tables), M5.3 bookings list (date/status filters, tel:/wa.me, confirm/reject), M5.4 calendar (12-slot day view, block with reason / unblock, prev-next). `tests/test_admin_routes.py` (25). 143 passed, 4 skipped. Browser-verified: login → dashboard → filter bookings → block a slot (public API sees it) → unblock. | M4.6 / M2.6 / M7 / M6 — see Resume here |
 | 2026-09-11 | Build (Claude Code, Windows) | M7.5: `errors/404.html` + `500.html` + `@app.errorhandler` (500 is DB-free); `tests/test_error_pages.py` (2). Accessibility pass across public + admin: aria-live flash regions, `aria-invalid`/`aria-describedby` on form errors, `role=group` slot grid, contextual `aria-label` on admin action buttons, `aria-current` nav, footer heading levels fixed (no skips), contrast verified. 145 passed, 4 skipped. Browser-checked the 404 page + heading audit. | M7.3 / M4.6 / M6 — see Resume here |
 | 2026-09-11 | Docs (Claude Code, Windows) | CR-1 recorded (self-sufficient: bKash payments, auto-confirm, SMS/email outbox, slot holds, cron jobs, admin manual bookings + refunds). Documentation only — no code touched. Updated CLAUDE.md (what this is, 6 payment/notification hard rules, per-milestone push rule) and the plan: §2 constraints, D-05/D-08/D-11 updated, D-15–D-17 marked superseded, D-24…D-33 added, §4 accounts, §5 file map / data model / service contracts / routes / env names, M2.6–M2.7, M5.6–M5.7, M8.5–M8.7, M9.7–M9.8, new M10/M11/M12, execution order, §7 QA, §8 handover, C-21…C-27, Appendix B, Backlog, Risks. | Repricing agreement (C-27) then M4.2; M10 gated on C-27, M12 on merchant approval (C-21) |
+| 2026-09-16 | Docs (Claude Code, Windows) | CR-3 recorded (customer accounts: phone + one-time SMS code, no passwords, guest booking always available, 60-day sessions, OTP through the shared outbox, rate-limited). Note: the developer's message labelled this "CR-2", but CR-2 already exists (no-manual-confirmation) — recorded as **CR-3** instead and flagged to the developer. Documentation only, no code/templates/migrations/tests touched. Updated CLAUDE.md (4 customer-account hard rules) and the plan: §1 budget (v2, Tk 30,000/6 days), §2 constraints (customer accounts back in scope, guest booking guaranteed), D-34…D-40 added (OTP not passwords, guest booking permanent, 60-day session, OTP rate limits, guest-booking linking, hashed codes, client summary v2), D-15/D-16/D-17/CR-1 status pointers updated to D-40, §5 file map / data model (`customers`, `login_codes`, `bookings.customer_id`) / service contracts (`services/otp.py`, `services/customers.py`) / routes (`/account/*`, `/admin/customers`), new M13 + execution-order update, M5.8 and M9.9 cross-references, §7 QA (C3 block), §9 client inputs (C-29, C-30), §11 backlog, §12 risks, §13 known issues. | Awaiting client signature on v2 (D-40) + advance; M13 and M10 blocked until then. Developer go-ahead needed before any further build task. |
 
 ---
 
