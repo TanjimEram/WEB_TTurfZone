@@ -121,23 +121,36 @@
     <div class="container stack reveal">
       <p class="section__label">Gallery</p>
       <h2 class="section__title" id="gallery-title">Photos</h2>
+      {% if settings.gallery %}
+        {% set gallery_shots = settings.gallery %}
+      {% else %}
+        {% set gallery_shots = [
+          "Owner photo: field at night (C-13)", "Owner photo: field, daytime (C-13)", "Owner photo: wide angle (C-13)",
+          "Owner photo: goal / nets (C-13)", "Owner photo: entrance / seating (C-13)", "Owner photo: match in progress (C-13)"] %}
+      {% endif %}
       <div class="gallery">
-        {% if settings.gallery %}
-          {% for shot in settings.gallery %}
-            {{ photo((shot.caption if shot is mapping else shot) ~ " (C-13)") }}
-          {% endfor %}
-        {% else %}
-          {{ photo("Owner photo: field at night (C-13)") }}
-          {{ photo("Owner photo: field, daytime (C-13)") }}
-          {{ photo("Owner photo: wide angle (C-13)") }}
-          {{ photo("Owner photo: goal / nets (C-13)") }}
-          {{ photo("Owner photo: entrance / seating (C-13)") }}
-          {{ photo("Owner photo: match in progress (C-13)") }}
-        {% endif %}
+        {% for shot in gallery_shots %}
+          {% set base = shot.caption if shot is mapping else shot %}
+          {% set caption = (base ~ " (C-13)") if settings.gallery else base %}
+          <button type="button" class="gallery__item" data-lightbox-item
+                  aria-label="View photo {{ loop.index }} of {{ gallery_shots | length }}: {{ caption }}">
+            {{ photo(caption, interactive=true) }}
+          </button>
+        {% endfor %}
       </div>
-      <p class="muted"><small>A tap-to-zoom lightbox is added with the real photos (M7.2).</small></p>
+      <p class="muted"><small>Tap a photo to zoom. Real photos replace these placeholders at M7.1.</small></p>
     </div>
   </section>
+
+  {# Lightbox overlay (M7.2): static markup, gallery.js toggles it. Works
+     on placeholders today; the same markup/JS carry over once M7.1 swaps
+     in real <img> photos. #}
+  <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Photo viewer" hidden data-lightbox-overlay>
+    <button type="button" class="lightbox__close" aria-label="Close" data-lightbox-close>&times;</button>
+    <button type="button" class="lightbox__nav lightbox__nav--prev" aria-label="Previous photo" data-lightbox-prev>&larr;</button>
+    <div class="lightbox__stage" data-lightbox-stage></div>
+    <button type="button" class="lightbox__nav lightbox__nav--next" aria-label="Next photo" data-lightbox-next>&rarr;</button>
+  </div>
 
   {# -------------------------------------------------------------- location #}
   <section class="section" id="location" aria-labelledby="location-title">
@@ -206,4 +219,6 @@
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/booking.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/gallery.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/reveal.js') }}" defer></script>
 {% endblock %}

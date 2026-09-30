@@ -105,6 +105,7 @@ def test_booking_happy_path(client, app):
     html = page.get_data(as_text=True)
     assert "Booking confirmed" in html
     assert "Rafi Ahmed" in html
+    assert "success-check" in html  # M7.2 success animation
 
     with app.app_context():
         booking = db.session.execute(db.select(Booking)).scalar_one()

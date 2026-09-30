@@ -543,6 +543,32 @@ a:hover { text-decoration: underline; }
 .status-pill--pending { background: rgba(245, 158, 11, 0.18); color: var(--warn); }
 .status-pill--confirmed { background: rgba(34, 197, 94, 0.18); color: var(--accent-text); }
 
+/* success animation (M7.2): restrained - a quick draw-in checkmark + card pop.
+   Both are plain CSS keyframes, so the global prefers-reduced-motion rule
+   (near the end of this file) already shortens them to effectively nothing. */
+.success-check__circle {
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-dasharray: 151;
+  stroke-dashoffset: 151;
+  animation: success-draw 500ms ease-out forwards;
+}
+.success-check__mark {
+  stroke: var(--accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 40;
+  stroke-dashoffset: 40;
+  animation: success-draw 300ms 400ms ease-out forwards;
+}
+@keyframes success-draw { to { stroke-dashoffset: 0; } }
+.success-pop { animation: success-pop 380ms ease-out; }
+@keyframes success-pop {
+  from { opacity: 0; transform: scale(0.96) translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
 /* ------------------------------------------------------------------ facilities */
 .facility {
   display: flex;
@@ -573,6 +599,51 @@ a:hover { text-decoration: underline; }
   .gallery { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 .gallery .ph { border-radius: var(--radius-sm); }
+.gallery__item {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+.gallery__item:hover .ph,
+.gallery__item:focus-visible .ph { border-color: var(--accent); }
+
+/* ------------------------------------------------------------- lightbox (M7.2) */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-8) var(--sp-4);
+  background: rgba(11, 15, 13, 0.92);
+}
+.lightbox__stage { width: 100%; max-width: 640px; }
+.lightbox__stage .ph { aspect-ratio: 4 / 3; width: 100%; }
+.lightbox__close,
+.lightbox__nav {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-1);
+  color: var(--text);
+  font-size: var(--fs-500);
+  cursor: pointer;
+}
+.lightbox__close { top: var(--sp-4); right: var(--gutter); }
+.lightbox__nav--prev { left: var(--sp-4); top: 50%; transform: translateY(-50%); }
+.lightbox__nav--next { right: var(--sp-4); top: 50%; transform: translateY(-50%); }
+.lightbox__close:hover,
+.lightbox__nav:hover { border-color: var(--accent); }
 
 /* ------------------------------------------------------------------ location */
 .map-frame {

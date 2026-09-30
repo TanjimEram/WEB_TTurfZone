@@ -9,9 +9,13 @@
   <section class="section" aria-labelledby="ok-title">
     <div class="container stack">
       <p class="section__label">Booking</p>
+      <svg class="success-check" viewBox="0 0 52 52" width="56" height="56" aria-hidden="true">
+        <circle class="success-check__circle" cx="26" cy="26" r="24" fill="none"/>
+        <path class="success-check__mark" fill="none" d="M14 27l7 7 17-17"/>
+      </svg>
       <h1 class="section__title" id="ok-title">Booking confirmed!</h1>
 
-      <div class="card stack">
+      <div class="card stack success-pop">
         <p class="booking-code">Booking ID: <strong>{{ booking.booking_code }}</strong></p>
         <dl class="booking-summary">
           <div><dt>Date</dt><dd>{{ date_display }}</dd></div>

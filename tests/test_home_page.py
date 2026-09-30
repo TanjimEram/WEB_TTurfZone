@@ -50,6 +50,16 @@ def test_nav_has_mobile_menu_and_script(home):
     assert "js/main.js" in html
 
 
+def test_gallery_lightbox_present(home):
+    """M7.2: 6 placeholder photos, each a lightbox trigger, plus the overlay + scripts."""
+    html = home.get_data(as_text=True)
+    assert html.count("data-lightbox-item") == 6
+    assert 'data-lightbox-overlay' in html
+    assert 'role="dialog"' in html
+    assert "js/gallery.js" in html
+    assert "js/reveal.js" in html
+
+
 def test_missing_owner_content_shows_todo_notes(home):
     """With no seeded settings row, every gap is a visible TODO(owner) marker."""
     html = home.get_data(as_text=True)

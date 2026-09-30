@@ -11,9 +11,11 @@
 
 {# Labelled placeholder for a photo the owner has not sent yet.
    `label` should name the asset and its Client-inputs row, e.g.
-   "Owner photo: field at night (C-13)". Never use a stock image. #}
-{% macro photo(label, ratio='4x3') -%}
-<div class="ph ph--{{ ratio }}" role="img" aria-label="Placeholder. {{ label }}">
+   "Owner photo: field at night (C-13)". Never use a stock image.
+   `interactive=true` drops this element's own img semantics (an
+   interactive wrapper, e.g. a gallery lightbox button, owns the name). #}
+{% macro photo(label, ratio='4x3', interactive=false) -%}
+<div class="ph ph--{{ ratio }}"{% if interactive %} aria-hidden="true"{% else %} role="img" aria-label="Placeholder. {{ label }}"{% endif %}>
   {{ camera() }}
   <span>{{ label }}</span>
 </div>
