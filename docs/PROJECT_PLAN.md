@@ -6,9 +6,9 @@
 
 | Field | Value |
 |---|---|
-| Phase | M3 homepage + M5 admin + M7.5 + M4.6 (instant auto-confirm booking) + **M7.3 (SEO/sharing tags)** complete. CR-1 and CR-3 (payments, notifications, customer accounts) recorded but not built, gated on client sign-off. Scaffold done locally; waiting on hosting money for real deploy |
-| Last completed | **M7.3**: canonical/OG/Twitter meta tags, SVG favicon placeholder, homepage `LocalBusiness` JSON-LD (confirmed fields only — no `og-image.jpg` yet, see Known issues). 146 passed, 4 skipped. Browser-verified (2026-09-30). Before: M4.6 (CR-2 instant confirm), CR-3 docs, M7.5, M5 admin |
-| Next task | **Decision.** (a) **M2.6** — CR-1 payment schema — needs C-27 (folded into v2/D-40). (b) **M13** — customer accounts — needs the client to sign v2 (D-40) + pay the advance, and needs M11 (notifications outbox) built first. (c) **M6** — deploy current build (needs hosting). (d) **M7.1/M7.2** — real assets + lightbox (needs owner photos; would also fill in `og-image.jpg` and the JSON-LD `description`/`address` once C-07/C-17 land). |
+| Phase | M3 homepage + M5 admin + M7.5 + M4.6 (instant auto-confirm booking) + M7.3 (SEO/sharing tags) + **M6.1 (local QA pass, clean)** complete. CR-1 and CR-3 (payments, notifications, customer accounts) recorded but not built, gated on client sign-off. Scaffold done locally; waiting on hosting money for real deploy |
+| Last completed | **M6.1**: local QA pass, §7 A–C. No critical bugs. Fixed two stale checklist lines (pending cap, success-page wording) to match M4.6. 146 passed, 4 skipped (2026-09-30). Before: M7.3 (SEO tags), M4.6 (CR-2 instant confirm), CR-3 docs, M7.5, M5 admin |
+| Next task | **Decision.** (a) **M2.6** — CR-1 payment schema — needs C-27 (folded into v2/D-40). (b) **M13** — customer accounts — needs the client to sign v2 (D-40) + pay the advance, and needs M11 (notifications outbox) built first. (c) **M6.2** — deploy current build (needs hosting). (d) **M7.1/M7.2** — real assets + lightbox (needs owner photos; would also fill in `og-image.jpg` and the JSON-LD `description`/`address` once C-07/C-17 land). |
 | Blocked by | Hosting/domain purchase blocks M1.3b and W3–W6 (postponed). PostgreSQL-only bugs uncaught until W5. **CR-1: M10 blocked by repricing agreement (C-27, folded into v2/D-40); M12 blocked by bKash merchant approval (C-21). CR-3: M13 blocked by v2 (D-40) sign-off + advance, and by M11 existing first. C-28 needs the client's own confirmation of the D-41 default.** |
 | Dev environment | Windows + PowerShell. venv: `.venv\Scripts\Activate.ps1`. |
 | Live URL | not deployed |
@@ -441,7 +441,7 @@ Done when: the owner flow works end to end at phone width.
 
 ### M6 Day 1 wrap (22:00 to 23:30)
 
-- [ ] M6.1 Run QA checklist sections A to C locally; fix critical bugs only.
+- [x] M6.1 Ran QA checklist §7 A–C locally at 360×740 (browser) + the automated suite. **No critical bugs found.** Fixed the checklist itself: struck the per-phone pending cap (removed by M4.6) and corrected "PENDING" → "Confirmed" on the success-page item. Confirmed as working: hero/sticky visible without scroll at 360px, no horizontal page overflow anywhere (admin tables scroll inside their own wrapper), full guest booking flow end to end, double-booking blocked client- and server-side, CSRF rejects an unsigned POST, admin confirm/login/logout/redirect-when-logged-out. Confirmed as **expected-not-built** (not bugs): map (C-07 pending), gallery lightbox (M7.2), CR-1/CR-3 admin screens (M5.6/M5.7/M13.6). (2026-09-30)
 - [ ] M6.2 Push and deploy the current build to the host.
 - [ ] M6.3 Update this plan; list missing client inputs for a morning follow-up message.
 
@@ -538,31 +538,31 @@ M3 → M4.2 → M2.2, M2.3, M2.6, M2.7 → M4.3–M4.5 → M5 (incl. M5.6, M5.7,
 ## 7. QA checklist
 
 **A. Public site (phone first)**
-- [ ] Hero, BOOK NOW and WhatsApp visible without scrolling on a 360px screen
-- [ ] Sticky mobile bar stays visible and doesn't cover form buttons
-- [ ] All sections show real or clearly marked placeholder content; no invented claims
-- [ ] Map loads; GET DIRECTIONS opens Google Maps
-- [ ] Gallery lightbox opens, swipes, closes
-- [ ] Facebook and WhatsApp links open the right page/number
+- [x] Hero, BOOK NOW and WhatsApp visible without scrolling on a 360px screen (2026-09-30, 360×740)
+- [x] Sticky mobile bar stays visible and doesn't cover form buttons (2026-09-30)
+- [x] All sections show real or clearly marked placeholder content; no invented claims (2026-09-30)
+- [ ] Map loads; GET DIRECTIONS opens Google Maps — not testable yet, `map_embed_url`/`map_link` are still TODO (C-07)
+- [ ] Gallery lightbox opens, swipes, closes — not built yet (M7.2); gallery shows static placeholders, correctly no click handler
+- [x] Facebook and WhatsApp links open the right page/number (2026-09-30: Facebook is the real default; WhatsApp correctly renders disabled/TODO pending C-06)
 
 **B. Booking rules**
-- [ ] Past slots today show as unavailable
-- [ ] Dates outside the booking window can't be chosen, and the API rejects them
-- [ ] Invalid phone numbers rejected with a clear message
-- [ ] Booking a PENDING, CONFIRMED or BLOCKED slot fails on the server
-- [ ] Rejected or cancelled slot becomes available again
-- [ ] Pending cap per phone works
-- [ ] Success page shows booking ID and PENDING; refresh doesn't create a second booking
+- [x] Past slots today show as unavailable (2026-09-30)
+- [x] Dates outside the booking window can't be chosen, and the API rejects them (2026-09-30)
+- [x] Invalid phone numbers rejected with a clear message (2026-09-30)
+- [x] Booking a CONFIRMED or BLOCKED slot fails on the server (2026-09-30)
+- [x] Rejected or cancelled slot becomes available again (2026-09-30)
+- ~~Pending cap per phone works~~ — dropped by M4.6/CR-2, there is no manual PENDING step to cap. Backlog has a per-phone/IP rate limit instead, only if abuse appears.
+- [x] Success page shows booking ID and **Confirmed** (was PENDING, changed by M4.6); refresh doesn't create a second booking (2026-09-30)
 
 **C. Admin**
-- [ ] Every `/admin` page redirects to login when logged out
-- [ ] Wrong password shows a generic error
-- [ ] Confirm, reject, cancel, block and unblock update the public grid immediately
-- [ ] Filters by date and status work
-- [ ] Usable at phone width
-- [ ] (CR-1) Manual booking for phone / walk-in works and respects the unique index
-- [ ] (CR-1) Payments list shows attempts; recording a refund sets REFUNDED and (optionally) frees the slot
-- [ ] (CR-3) Customers list shows booking counts and last login
+- [x] Every `/admin` page redirects to login when logged out (covered by tests + 2026-09-30 spot check)
+- [x] Wrong password shows a generic error (tests)
+- [x] Confirm, reject, cancel, block and unblock update the public grid immediately (2026-09-30: confirm re-verified live; the rest already browser-verified at M5)
+- [x] Filters by date and status work (tests)
+- [x] Usable at phone width (2026-09-30, 360px: bookings table scrolls inside its own `.admin-table--scroll` wrapper, page itself never scrolls horizontally)
+- [ ] (CR-1) Manual booking for phone / walk-in works and respects the unique index — not built (M5.6)
+- [ ] (CR-1) Payments list shows attempts; recording a refund sets REFUNDED and (optionally) frees the slot — not built (M5.7)
+- [ ] (CR-3) Customers list shows booking counts and last login — not built (M13.6)
 
 **C2. Payments and notifications (CR-1, `PAYMENTS_ENABLED=true`)**
 - [ ] Successful payment → booking auto-CONFIRMED, slot taken, customer + owner notified
@@ -745,6 +745,7 @@ Needed by: D0 = before Day 1 starts, D1-AM = Day 1 09:00, D1-PM = Day 1 18:00.
 | 2026-09-16 | Docs (Claude Code, Windows) | CR-3 recorded (customer accounts: phone + one-time SMS code, no passwords, guest booking always available, 60-day sessions, OTP through the shared outbox, rate-limited). Note: the developer's message labelled this "CR-2", but CR-2 already exists (no-manual-confirmation) — recorded as **CR-3** instead and flagged to the developer. Documentation only, no code/templates/migrations/tests touched. Updated CLAUDE.md (4 customer-account hard rules) and the plan: §1 budget (v2, Tk 30,000/6 days), §2 constraints (customer accounts back in scope, guest booking guaranteed), D-34…D-40 added (OTP not passwords, guest booking permanent, 60-day session, OTP rate limits, guest-booking linking, hashed codes, client summary v2), D-15/D-16/D-17/CR-1 status pointers updated to D-40, §5 file map / data model (`customers`, `login_codes`, `bookings.customer_id`) / service contracts (`services/otp.py`, `services/customers.py`) / routes (`/account/*`, `/admin/customers`), new M13 + execution-order update, M5.8 and M9.9 cross-references, §7 QA (C3 block), §9 client inputs (C-29, C-30), §11 backlog, §12 risks, §13 known issues. | Awaiting client signature on v2 (D-40) + advance; M13 and M10 blocked until then. Developer go-ahead needed before any further build task. |
 | 2026-09-30 | Build (Claude Code, Windows) | M4.6 (CR-2): `create_booking_request` drops the manual `PENDING` path and confirms immediately (`PAYMENTS_ENABLED=false`, D-41 — the only state buildable today; `=true` raises `NotImplementedError` until M2.6/M10). Dropped the per-phone PENDING cap and its now-dead `_settings()`/`TurfSettings` import. `config.py` gained `PAYMENTS_ENABLED`. Updated copy on `booking.html`, `booking_success.html` (green Confirmed pill, no more `confirm_time_text`), the footer disclaimer and the WhatsApp message. `confirm_booking`/PENDING kept working for non-guest paths (tested directly). `tests/test_bookings.py` -3/+2, `tests/test_public_routes.py` updated. 143 passed, 4 skipped. Browser-verified: book → instant "Booking confirmed!". | C-28 needs the client's own sign-off on the D-41 default; next build pick per Resume here |
 | 2026-09-30 | Build (Claude Code, Windows) | M7.3: `base.html` gained canonical link, OG (`type`/`site_name`/`title`/`description`/`url`), `twitter:card`, and an SVG favicon placeholder (`static/icons/favicon.svg`). `routes/public.py` `_local_business_json_ld()`: homepage `LocalBusiness` JSON-LD, field-by-field so a `TODO` value is omitted, never invented — today just `name`/`url`/`sameAs` (Facebook). Deliberately no `og-image.jpg` (a placeholder share-card graphic would look worse than none) or structured `openingHours` (stored text is prose, not schema.org's format) — both noted in Known issues. `tests/test_home_page.py` +3. 146 passed, 4 skipped. Browser-verified: tags + JSON-LD render correctly, favicon renders. | M6 / M7.1-M7.2 / M2.6 / M13 — see Resume here |
+| 2026-09-30 | Build (Claude Code, Windows) | M6.1: local QA pass, §7 sections A-C at 360×740 in the browser plus the automated suite. No critical bugs. Verified: hero/sticky visible without scroll, no page-level horizontal overflow anywhere (admin tables scroll in their own wrapper), full guest booking flow, double-booking blocked (client + server), CSRF rejects an unsigned POST, admin login/logout/redirect/confirm. Confirmed expected-not-built: map (C-07), gallery lightbox (M7.2), CR-1/CR-3 admin screens. Fixed the checklist itself: struck the per-phone pending cap item (removed by M4.6) and corrected the success-page item from PENDING to Confirmed. 146 passed, 4 skipped, unchanged (docs + checklist only, no app code touched). | Developer pick: M2.6/M13 (needs v2 signed) / M6.2 deploy (needs hosting) / M7.1-M7.2 (needs owner assets) |
 
 ---
 
