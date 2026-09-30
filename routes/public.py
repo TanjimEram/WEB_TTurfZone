@@ -94,7 +94,7 @@ def book():
 
 @bp.post("/book")
 def book_submit():
-    """Create a PENDING booking request. Server re-validates everything (D-04, D-05)."""
+    """Create a booking, confirmed immediately (CR-2/M4.6). Server re-validates everything (D-04)."""
     form = {
         "name": request.form.get("name", "").strip(),
         "phone": request.form.get("phone", "").strip(),
@@ -132,7 +132,7 @@ def booking_success():
     settings = TurfSettings.current_or_default()
     slot_display = slot_label(booking.slot_time)
     wa_text = (
-        f"Hi, I requested a booking at {settings.turf_name or 'TTURFZONE'}. "
+        f"Hi, I have a confirmed booking at {settings.turf_name or 'TTURFZONE'}. "
         f"Booking ID: {booking.booking_code}, "
         f"Date: {booking.booking_date:%d %b %Y}, Time: {slot_display}"
     )

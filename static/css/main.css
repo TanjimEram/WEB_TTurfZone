@@ -541,6 +541,7 @@ a:hover { text-decoration: underline; }
   font-weight: 700;
 }
 .status-pill--pending { background: rgba(245, 158, 11, 0.18); color: var(--warn); }
+.status-pill--confirmed { background: rgba(34, 197, 94, 0.18); color: var(--accent-text); }
 
 /* ------------------------------------------------------------------ facilities */
 .facility {

@@ -8,11 +8,12 @@ import re
 import secrets
 from datetime import date, timedelta
 
+from flask import current_app
 from sqlalchemy.exc import IntegrityError
 
 from extensions import db
-from models import Booking, TurfSettings
-from services.slots import is_bookable, today_dhaka
+from models import Booking
+from services.slots import is_bookable
 
 CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no 0/O or 1/I, easy to read out on the phone
 
@@ -86,17 +87,15 @@ def _clean_name(raw: str) -> str:
     return name
 
 
-def _settings() -> TurfSettings:
-    return TurfSettings.current_or_default()
-
-
 # --------------------------------------------------------------- actions
 
 def create_booking_request(name: str, phone: str, booking_date, slot_time) -> Booking:
-    """Validate and insert a PENDING booking request.
+    """Validate and insert a booking.
 
-    Raises BookingValidationError (bad name/phone, slot not bookable, pending cap)
-    or SlotUnavailableError (slot taken between the page load and submit).
+    No manual owner confirmation (CR-2/M4.6): the booking is CONFIRMED
+    immediately while PAYMENTS_ENABLED is off. Raises BookingValidationError
+    (bad name/phone, slot not bookable) or SlotUnavailableError (slot taken
+    between the page load and submit).
     """
     errors: dict[str, str] = {}
 
@@ -115,22 +114,14 @@ def create_booking_request(name: str, phone: str, booking_date, slot_time) -> Bo
     if not is_bookable(booking_date, slot_time):
         errors["slot"] = "That slot can no longer be booked."
 
-    if clean_phone and "phone" not in errors:
-        cap = _settings().max_pending_per_phone or 2
-        pending = db.session.scalar(
-            db.select(db.func.count())
-            .select_from(Booking)
-            .where(
-                Booking.phone == clean_phone,
-                Booking.status == Booking.PENDING,
-                Booking.booking_date >= today_dhaka(),
-            )
-        )
-        if pending >= cap:
-            errors["phone"] = f"You already have {cap} pending requests. Please wait for those to be confirmed."
-
     if errors:
         raise BookingValidationError(errors)
+
+    if current_app.config.get("PAYMENTS_ENABLED"):
+        # ponytail: the Tk 500 bKash advance (PENDING_PAYMENT hold) needs the
+        # CR-1 schema and gateway (M2.6/M10), not built yet. Fail loudly
+        # rather than insert a booking under the wrong status.
+        raise NotImplementedError("PAYMENTS_ENABLED=true needs M2.6/M10 (not built yet).")
 
     return save_booking(Booking(
         booking_code=generate_booking_code(),
@@ -138,7 +129,7 @@ def create_booking_request(name: str, phone: str, booking_date, slot_time) -> Bo
         phone=clean_phone,
         booking_date=booking_date,
         slot_time=slot_time,
-        status=Booking.PENDING,
+        status=Booking.CONFIRMED,
     ))
 
 

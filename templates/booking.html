@@ -11,7 +11,7 @@
     <div class="container stack">
       <p class="section__label">Booking</p>
       <h1 class="section__title" id="book-title">Book a 90-minute slot</h1>
-      <p class="muted">Pick a date, then a free slot. Your request is confirmed by the owner &mdash; there is no online payment.</p>
+      <p class="muted">Pick a date, then a free slot. Your booking is confirmed instantly &mdash; there is no online payment yet, pay at the ground.</p>
 
       {% set picker_continue = false %}
       {% include "partials/slot_picker.html" %}
@@ -42,8 +42,8 @@
           {% if errors.phone %}<p class="field-error" id="err-phone">{{ errors.phone }}</p>{% endif %}
         </div>
 
-        <button class="btn btn--primary" type="submit" data-submit>Send booking request</button>
-        <p class="muted"><small>You will get a booking ID. The owner then confirms or declines it.</small></p>
+        <button class="btn btn--primary" type="submit" data-submit>Book now</button>
+        <p class="muted"><small>You will get a booking ID and your slot is booked immediately.</small></p>
       </form>
 
       <p>{{ owner_text(settings.booking_rules_text, "booking and cancellation rules (C-05)") }}</p>

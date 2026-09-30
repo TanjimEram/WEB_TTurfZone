@@ -29,6 +29,7 @@ class BaseConfig:
     SESSION_COOKIE_SECURE = False
     PERMANENT_SESSION_LIFETIME = timedelta(hours=12)
     ENABLE_DEV_TOOLS = False  # /dev/wiring diagnostics page (plan D-18)
+    PAYMENTS_ENABLED = False  # bKash advance (D-24); false = auto-confirm, no payment (CR-2/M4.6)
 
 
 class DevelopmentConfig(BaseConfig):

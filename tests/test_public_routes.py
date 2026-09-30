@@ -103,13 +103,12 @@ def test_booking_happy_path(client, app):
     page = client.get("/book/success")
     assert page.status_code == 200
     html = page.get_data(as_text=True)
-    assert "Booking request received" in html
-    assert "Pending" in html
+    assert "Booking confirmed" in html
     assert "Rafi Ahmed" in html
 
     with app.app_context():
         booking = db.session.execute(db.select(Booking)).scalar_one()
-        assert booking.status == Booking.PENDING
+        assert booking.status == Booking.CONFIRMED
         assert booking.phone == "01712345678"
         assert booking.booking_code in html
 

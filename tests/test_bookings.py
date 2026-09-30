@@ -3,7 +3,7 @@ import datetime as dt
 
 import pytest
 
-from models import Booking, TurfSettings
+from models import Booking
 from services.bookings import (
     BookingValidationError,
     InvalidTransitionError,
@@ -11,16 +11,16 @@ from services.bookings import (
     block_slot,
     confirm_booking,
     create_booking_request,
+    generate_booking_code,
     normalize_phone,
     reject_booking,
+    save_booking,
     unblock_slot,
 )
 from services.slots import today_dhaka
 
 SOON = today_dhaka() + dt.timedelta(days=3)      # inside the window, all slots future
 SIX_PM = dt.time(18, 0)
-SEVEN_THIRTY = dt.time(19, 30)
-NINE_PM = dt.time(21, 0)
 
 
 # --- phone normalisation ------------------------------------------------
@@ -38,10 +38,11 @@ def test_normalize_phone_rejects_bad(raw):
 
 # --- create_booking_request -------------------------------------------
 
-def test_valid_request_is_pending(app):
+def test_valid_request_is_confirmed(app):
+    """No manual owner confirmation (CR-2/M4.6): booked means CONFIRMED immediately."""
     booking = create_booking_request("Rafi", "+8801712345678", SOON, SIX_PM)
     assert booking.id is not None
-    assert booking.status == Booking.PENDING
+    assert booking.status == Booking.CONFIRMED
     assert booking.phone == "01712345678"
     assert booking.booking_code.startswith("TZ-")
 
@@ -77,25 +78,30 @@ def test_same_slot_twice_raises_slot_unavailable(app):
         create_booking_request("Other", "01812345678", SOON, SIX_PM)
 
 
-def test_pending_cap_per_phone(app):
-    create_booking_request("Rafi", "01712345678", SOON, SIX_PM)
-    create_booking_request("Rafi", "01712345678", SOON, SEVEN_THIRTY)
-    with pytest.raises(BookingValidationError) as exc:
-        create_booking_request("Rafi", "01712345678", SOON, NINE_PM)
-    assert "phone" in exc.value.errors
-
-
-def test_pending_cap_is_per_phone_not_global(app):
-    create_booking_request("Rafi", "01712345678", SOON, SIX_PM)
-    create_booking_request("Rafi", "01712345678", SOON, SEVEN_THIRTY)
-    # a different phone is unaffected
-    assert create_booking_request("Sami", "01812345678", SOON, NINE_PM).id is not None
+def test_payments_enabled_not_implemented_yet(app):
+    """PAYMENTS_ENABLED=true needs the bKash flow (M2.6/M10) - refuses instead of mislabeling."""
+    app.config["PAYMENTS_ENABLED"] = True
+    try:
+        with pytest.raises(NotImplementedError):
+            create_booking_request("Rafi", "01712345678", SOON, SIX_PM)
+    finally:
+        app.config["PAYMENTS_ENABLED"] = False
 
 
 # --- confirm / reject ------------------------------------------------
+# create_booking_request no longer produces PENDING rows (CR-2/M4.6). The
+# manual PENDING->CONFIRMED transition stays available for other paths
+# (e.g. a future admin manual booking, M5.6), tested here directly.
+
+def _pending(slot=SIX_PM):
+    return save_booking(Booking(
+        booking_code=generate_booking_code(), customer_name="Rafi", phone="01712345678",
+        booking_date=SOON, slot_time=slot, status=Booking.PENDING,
+    ))
+
 
 def test_confirm_only_from_pending(app):
-    booking = create_booking_request("Rafi", "01712345678", SOON, SIX_PM)
+    booking = _pending()
     confirmed = confirm_booking(booking.id)
     assert confirmed.status == Booking.CONFIRMED
     with pytest.raises(InvalidTransitionError):
@@ -112,7 +118,7 @@ def test_reject_frees_the_slot(app):
 
 def test_reject_works_on_confirmed(app):
     booking = create_booking_request("Rafi", "01712345678", SOON, SIX_PM)
-    confirm_booking(booking.id)
+    assert booking.status == Booking.CONFIRMED
     reject_booking(booking.id)
     assert booking.status == Booking.REJECTED
 
@@ -148,12 +154,3 @@ def test_unblock_rejects_non_block(app):
     booking = create_booking_request("Rafi", "01712345678", SOON, SIX_PM)
     with pytest.raises(InvalidTransitionError):
         unblock_slot(booking.id)
-
-
-def test_max_pending_per_phone_reads_settings(app):
-    from extensions import db
-    db.session.add(TurfSettings(turf_name="TTURFZONE", max_pending_per_phone=1))
-    db.session.commit()
-    create_booking_request("Rafi", "01712345678", SOON, SIX_PM)
-    with pytest.raises(BookingValidationError):
-        create_booking_request("Rafi", "01712345678", SOON, SEVEN_THIRTY)

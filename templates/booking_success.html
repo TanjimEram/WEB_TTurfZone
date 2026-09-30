@@ -1,7 +1,6 @@
 {% extends "base.html" %}
-{% from "partials/_macros.html" import owner_text %}
 
-{% block title %}Booking request received · {{ settings.turf_name or "TTURFZONE" }}{% endblock %}
+{% block title %}Booking confirmed · {{ settings.turf_name or "TTURFZONE" }}{% endblock %}
 
 {% block content %}
 {% include "partials/nav.html" %}
@@ -10,7 +9,7 @@
   <section class="section" aria-labelledby="ok-title">
     <div class="container stack">
       <p class="section__label">Booking</p>
-      <h1 class="section__title" id="ok-title">Booking request received</h1>
+      <h1 class="section__title" id="ok-title">Booking confirmed!</h1>
 
       <div class="card stack">
         <p class="booking-code">Booking ID: <strong>{{ booking.booking_code }}</strong></p>
@@ -18,11 +17,9 @@
           <div><dt>Date</dt><dd>{{ date_display }}</dd></div>
           <div><dt>Time</dt><dd>{{ slot_display }} &ndash; 90 minutes</dd></div>
           <div><dt>Name</dt><dd>{{ booking.customer_name }}</dd></div>
-          <div><dt>Status</dt><dd><span class="status-pill status-pill--pending">Pending</span> &mdash; awaiting owner confirmation</dd></div>
+          <div><dt>Status</dt><dd><span class="status-pill status-pill--confirmed">Confirmed</span></dd></div>
         </dl>
       </div>
-
-      <p>{{ owner_text(settings.confirm_time_text, "how quickly requests are confirmed (C-11)") }}</p>
 
       <div class="stack">
         {% if wa_link %}
