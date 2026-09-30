@@ -1,5 +1,7 @@
 """Homepage (M3.2). Renders entirely from turf_settings; leaks no customer data."""
 import datetime as dt
+import json
+import re
 
 import pytest
 
@@ -95,3 +97,43 @@ def test_availability_api_has_no_customer_data(client, app):
     body = client.get("/api/availability?date=2099-01-01").get_data(as_text=True)
     assert "Private Person" not in body
     assert "01898765432" not in body
+
+
+# --- M7.3: SEO / sharing tags -------------------------------------------
+
+def test_favicon_and_og_tags_present(home):
+    html = home.get_data(as_text=True)
+    assert 'rel="icon"' in html
+    assert 'rel="canonical"' in html
+    assert 'property="og:title"' in html
+    assert 'property="og:description"' in html
+    assert 'name="twitter:card"' in html
+
+
+def test_json_ld_present_with_only_confirmed_fields(home):
+    """Unseeded settings are all TODO(owner) placeholders - JSON-LD must omit them, never invent."""
+    html = home.get_data(as_text=True)
+    match = re.search(r'<script type="application/ld\+json">(.*?)</script>', html, re.S)
+    assert match, "no JSON-LD script tag on the homepage"
+    data = json.loads(match.group(1))
+    assert data["@type"] == "LocalBusiness"
+    assert data["name"] == "TTURFZONE"
+    assert "url" in data
+    for missing in ("description", "telephone", "address"):
+        assert missing not in data, f"{missing} should be omitted while still a TODO placeholder"
+
+
+def test_json_ld_includes_confirmed_fields(client, app):
+    with app.app_context():
+        db.session.add(TurfSettings(
+            turf_name="TTURFZONE",
+            about_text="A real six-a-side turf in Jashore.",
+            phone="01712345678",
+            address="123 Real Street, Jashore",
+        ))
+        db.session.commit()
+    html = client.get("/").get_data(as_text=True)
+    data = json.loads(re.search(r'<script type="application/ld\+json">(.*?)</script>', html, re.S).group(1))
+    assert data["description"] == "A real six-a-side turf in Jashore."
+    assert data["telephone"] == "01712345678"
+    assert data["address"] == "123 Real Street, Jashore"

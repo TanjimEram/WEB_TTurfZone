@@ -42,6 +42,30 @@ def inject_common():
     }
 
 
+def _is_real(value) -> bool:
+    """True when an owner text field has real content, not empty or still a TODO."""
+    return bool(value and "TODO" not in value and value.strip())
+
+
+def _local_business_json_ld(settings: TurfSettings) -> dict:
+    """LocalBusiness structured data (M7.3). Only confirmed fields - never invented."""
+    data = {
+        "@context": "https://schema.org",
+        "@type": "LocalBusiness",
+        "name": settings.turf_name or "TTURFZONE",
+        "url": request.url_root,
+    }
+    if _is_real(settings.facebook_url):
+        data["sameAs"] = [settings.facebook_url.strip()]
+    if _is_real(settings.about_text):
+        data["description"] = settings.about_text.strip()
+    if _is_real(settings.phone):
+        data["telephone"] = settings.phone.strip()
+    if _is_real(settings.address):
+        data["address"] = settings.address.strip()
+    return data
+
+
 def _date_chips():
     """Bookable dates for the slot picker: [{"iso", "label"}, ...] in Dhaka time (D-10)."""
     today = today_dhaka()
@@ -72,11 +96,13 @@ def _render_booking_page(form, errors):
 @bp.get("/")
 def home():
     """Homepage. All business content comes from turf_settings (plan D-13)."""
+    settings = TurfSettings.current_or_default()
     return render_template(
         "index.html",
-        settings=TurfSettings.current_or_default(),
+        settings=settings,
         slot_labels=[slot_label(t) for t in SLOT_TIMES],
         date_chips=_date_chips(),
+        json_ld=_local_business_json_ld(settings),
     )
 
 

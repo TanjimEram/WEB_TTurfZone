@@ -6,7 +6,16 @@
   <meta name="theme-color" content="#0b0f0d">
   <meta name="description" content="{% block description %}{{ settings.tagline if settings and settings.tagline and 'TODO' not in settings.tagline else 'Book a slot at TTURFZONE turf ground.' }}{% endblock %}">
   <title>{% block title %}TTURFZONE{% endblock %}</title>
+  <link rel="canonical" href="{{ request.url }}">
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='icons/favicon.svg') }}">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="{{ settings.turf_name if settings and settings.turf_name else 'TTURFZONE' }}">
+  <meta property="og:title" content="{{ self.title() }}">
+  <meta property="og:description" content="{{ self.description() }}">
+  <meta property="og:url" content="{{ request.url }}">
+  <meta name="twitter:card" content="summary">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  {% block json_ld %}{% endblock %}
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>

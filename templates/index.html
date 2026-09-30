@@ -3,6 +3,10 @@
 
 {% block title %}{{ settings.turf_name or "TTURFZONE" }} · Book a turf slot{% endblock %}
 
+{% block json_ld %}
+<script type="application/ld+json">{{ json_ld | tojson }}</script>
+{% endblock %}
+
 {%- set wa_digits = settings.whatsapp if settings.whatsapp and settings.whatsapp|trim else '' -%}
 {%- set wa_link = ('https://wa.me/' ~ wa_digits) if wa_digits else '' -%}
 {%- set has_about = settings.about_text and 'TODO' not in settings.about_text and settings.about_text|trim -%}
