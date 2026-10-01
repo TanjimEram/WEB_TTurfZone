@@ -7,8 +7,8 @@
 | Field | Value |
 |---|---|
 | Phase | M3, M4 (incl. M4.6 instant confirm), M5, M6.1, M7.2–M7.5 complete. **M7 is done except M7.1 (real assets, waiting on the owner).** CR-1 and CR-3 (payments, notifications, customer accounts) recorded but not built, gated on client sign-off. Scaffold done locally; waiting on hosting money for real deploy |
-| Last completed | **M7.4**: `/admin/settings` — owner edits phone, WhatsApp, address, opening hours, booking rules and price bands; public site updates on save. 154 passed, 4 skipped. Browser-verified at 375px (2026-09-30). Before: M7.2, M6.1, M7.3, M4.6 |
-| Next task | **Decision — nothing left that is unblocked.** (a) **M7.1** real photos/logo/text — needs the owner's assets (C-12…C-20). (b) **M6.2 / M8** deploy — needs hosting bought. (c) **M2.6 → M10/M11 → M13** — needs the client to sign v2 (D-40) + pay the advance. Chase the client: v2 signature, hosting purchase, assets. |
+| Last completed | **Visual pass at 768/1280 + two bug fixes + client follow-up message** (2026-10-01): the closed lightbox overlay was covering the homepage on every load (global `[hidden]` rule fixes it); nav/footer/sticky links were dead on `/book` and the success page (now `/#section` and `/book`). Price card shows 12-hour slot labels; slot grid keeps even rows. Client message ready in Appendix C. 158 passed, 4 skipped. Before: M7.4 |
+| Next task | **Waiting on the client** — send Appendix C. Then: (a) **M7.1** real photos/logo/text once assets arrive; (b) **M6.2 / M8** deploy once hosting is bought; (c) **M2.6 → M10/M11 → M13** once v2 is signed and the advance paid. Nothing buildable is left without one of those. |
 | Blocked by | Hosting/domain purchase blocks M1.3b and W3–W6 (postponed). PostgreSQL-only bugs uncaught until W5. **CR-1: M10 blocked by repricing agreement (C-27, folded into v2/D-40); M12 blocked by bKash merchant approval (C-21). CR-3: M13 blocked by v2 (D-40) sign-off + advance, and by M11 existing first. C-28 needs the client's own confirmation of the D-41 default.** |
 | Dev environment | Windows + PowerShell. venv: `.venv\Scripts\Activate.ps1`. |
 | Live URL | not deployed |
@@ -443,7 +443,7 @@ Done when: the owner flow works end to end at phone width.
 
 - [x] M6.1 Ran QA checklist §7 A–C locally at 360×740 (browser) + the automated suite. **No critical bugs found.** Fixed the checklist itself: struck the per-phone pending cap (removed by M4.6) and corrected "PENDING" → "Confirmed" on the success-page item. Confirmed as working: hero/sticky visible without scroll at 360px, no horizontal page overflow anywhere (admin tables scroll inside their own wrapper), full guest booking flow end to end, double-booking blocked client- and server-side, CSRF rejects an unsigned POST, admin confirm/login/logout/redirect-when-logged-out. Confirmed as **expected-not-built** (not bugs): map (C-07 pending), gallery lightbox (M7.2), CR-1/CR-3 admin screens (M5.6/M5.7/M13.6). (2026-09-30)
 - [ ] M6.2 Push and deploy the current build to the host.
-- [ ] M6.3 Update this plan; list missing client inputs for a morning follow-up message.
+- [x] M6.3 Client follow-up message written as Appendix C (v2 signature + advance, hosting/domain, bKash documents, C-28 decision, all outstanding content items, CR-1/CR-3 inputs). Plan updated. (2026-10-01)
 
 ### M7 Content and polish (Day 2, 09:00 to 14:00)
 
@@ -711,7 +711,6 @@ Needed by: D0 = before Day 1 starts, D1-AM = Day 1 09:00, D1-PM = Day 1 18:00.
 - No admin "add a phone/walk-in booking" screen yet (CR-1 M5.6).
 - Accessibility (M7.5) covered structure/aria/contrast/focus. Real `<img>` elements (M7.1) must each get a meaningful `alt`; the current `.ph` placeholders already carry `role="img"` + `aria-label`. A full screen-reader / Lighthouse run belongs in M9.1.
 - `price_bdt` in the availability API is `null` until pricing is wired (M4).
-- Homepage verified by tests and a 375px browser pass. A visual pass at 768px and 1280px on a real browser is still pending (do at M6.1 / developer).
 - WhatsApp buttons (hero, sticky bar) render disabled and the desktop WhatsApp FAB is hidden until the owner gives the number (C-06). `tel:` link in the footer likewise waits on C-06.
 - Customer booking flow works end to end, auto-confirm mode (M4.6): `/book` picker + form → `POST /book` → `/book/success` (session, one-time), status CONFIRMED immediately. No online payment yet (CR-1 M10, gated). No email field yet (CR-1 M2.6).
 - `/api/availability` reads `booking_window_days` from `turf_settings` on every request; when M7.4 lets the owner change it, in-flight pickers keep the old chips until reload (acceptable).
@@ -720,7 +719,6 @@ Needed by: D0 = before Day 1 starts, D1-AM = Day 1 09:00, D1-PM = Day 1 18:00.
 - (CR-1) No `payments` / `notifications` tables or new booking statuses yet — M2.6. All payment/notification tasks (M10–M12) are unstarted and gated (see CR-1 and Risks).
 - (CR-3) No `customers` / `login_codes` tables, no `bookings.customer_id`, and no `/account/*` routes yet — all of M13 is unstarted and gated on the client signing v2 (D-40) and on M11 (notifications outbox) existing first.
 - (M7.3) No `og:image` — a placeholder graphic would look broken in a real WhatsApp/Facebook share preview, so none is emitted rather than emitting a fake one. Add it in M7.1 once a real photo exists to crop to 1200×630. The favicon (`static/icons/favicon.svg`) is a similar on-brand placeholder, lower stakes, replace with the real logo mark at M7.1 (C-12).
-- (M7.4) The public pricing card lists a band's slots as 24-hour keys (`06:00, 19:30`) rather than the 12-hour labels used elsewhere (`07:30 PM`). Cosmetic; fix when real prices arrive (C-02).
 - (M7.3) JSON-LD `address` is emitted as a plain string, not a structured `PostalAddress` (we only store one free-text address field); `openingHours` is intentionally omitted because the stored `opening_hours_text` is prose, not the structured day/time format schema.org expects — emitting it as-is would be invalid data.
 
 ## 14. Session log
@@ -749,6 +747,7 @@ Needed by: D0 = before Day 1 starts, D1-AM = Day 1 09:00, D1-PM = Day 1 18:00.
 | 2026-09-30 | Build (Claude Code, Windows) | M6.1: local QA pass, §7 sections A-C at 360×740 in the browser plus the automated suite. No critical bugs. Verified: hero/sticky visible without scroll, no page-level horizontal overflow anywhere (admin tables scroll in their own wrapper), full guest booking flow, double-booking blocked (client + server), CSRF rejects an unsigned POST, admin login/logout/redirect/confirm. Confirmed expected-not-built: map (C-07), gallery lightbox (M7.2), CR-1/CR-3 admin screens. Fixed the checklist itself: struck the per-phone pending cap item (removed by M4.6) and corrected the success-page item from PENDING to Confirmed. 146 passed, 4 skipped, unchanged (docs + checklist only, no app code touched). | Developer pick: M2.6/M13 (needs v2 signed) / M6.2 deploy (needs hosting) / M7.1-M7.2 (needs owner assets) |
 | 2026-09-30 | Build (Claude Code, Windows) | M7.2: `gallery.js` lightbox (each placeholder is a `<button data-lightbox-item>`, shared overlay dialog, keyboard/swipe/click-out, focus managed like the nav menu), `reveal.js` (adds `.reveal-on` only when motion isn't reduced and `IntersectionObserver` exists, reveals once per element), success-page checkmark + card pop (plain CSS keyframes, already covered by the global reduced-motion rule). `_macros.html` `photo()` gained `interactive=` for the lightbox-button case. None of this needed owner photos - same markup/JS carries over once M7.1 lands real `<img>`s. `tests/test_home_page.py` +1, `tests/test_public_routes.py` +1 assert. 147 passed, 4 skipped. Browser-verified: lightbox open/arrows/Esc/focus-return, success animation. Could not independently re-verify the scroll-triggered reveal live - this session's browser pane kept suspending rendering (IntersectionObserver/CSS transitions freeze) while hidden, a tool limitation; correctness confirmed by inspecting the served CSS and matched selectors instead. | M7.4 admin settings (recommended, no blocker) / M2.6 / M13 / M6.2 / M7.1 |
 | 2026-09-30 | Build (Claude Code, Windows) | M7.4: `/admin/settings` + `services/settings.py` (validate-then-save, phones normalized, WhatsApp stored as 8801…, hours ≤160, up to 6 price bands with ticked slots, creates the settings row if missing). Seed TODO text never pre-fills the form; failed saves keep input. Admin nav: Settings. `tests/test_admin_routes.py` +7. 154 passed, 4 skipped. Browser-verified save → public site at 375px. | Blocked on the client: v2 signature (M2.6/M10/M11/M13), hosting (M6.2/M8), assets (M7.1) |
+| 2026-10-01 | Build (Claude Code, Windows) | Visual pass at 768px and 1280px (every public + admin page: no page-level overflow, nav/sticky/FAB switch at 900px, grids correct). **Found and fixed two real bugs:** (1) `.lightbox` is `display:flex`, which beat the `hidden` attribute, so the closed lightbox overlay covered the whole homepage on every load since M7.2 — fixed at the root with a global `[hidden] { display:none !important }` (removed the now-redundant `.nav-menu[hidden]`); (2) nav/footer/sticky links (`#about`, `#pricing`, `#book`…) were dead on `/book` and `/book/success` — section links now `/#section`, "Book now" uses `book_href` (`#book` on the homepage, `/book` elsewhere) from the public context processor. Also: price card shows 12-hour labels ("All slots" when a band covers all 12); slot grid locked to 4 cols ≥640px and 6 ≥1024px so 12 slots fill even rows. M6.3: client follow-up message written as Appendix C. Tests +4 (CSS `[hidden]` guard, no dead `#` links on any public page, Book-now target, 12-hour price labels). 158 passed, 4 skipped. Lesson: tests that only check markup presence missed a visual-only bug — the lightbox was "present" and covering everything. | Send Appendix C to the client |
 
 ---
 
@@ -793,3 +792,47 @@ Needed by: D0 = before Day 1 starts, D1-AM = Day 1 09:00, D1-PM = Day 1 18:00.
 12. (CR-1) Is outbound HTTPS (port 443) to external APIs allowed (bKash, an SMS API)?
 13. (CR-1) Does the plan include email mailboxes and SMTP sending? What is the hourly/daily send limit?
 14. (CR-1) Can I set custom DNS TXT records for SPF and DKIM?
+
+## Appendix C: follow-up message to the client (2026-10-01)
+
+> Hi! The website is built and working on my computer: the homepage, slot booking (bookings now confirm instantly, as you asked), and your admin panel where you can see bookings, cancel them, block slots, and change your phone number, WhatsApp, address, hours, rules and prices yourself.
+>
+> To put it online and finish it, I need these from you, most urgent first:
+>
+> **1. To start the next stage (payments, SMS/email alerts, customer accounts)**
+> - Sign the updated project summary (version 2: Tk 30,000 total) and send the Tk 12,000 advance.
+>
+> **2. To put the site online**
+> - The domain name you want (for example tturfzone.com), and your full name, email, phone and address to register it in your name.
+> - Buy the hosting plan we choose (in your name). I'll send you the exact plan and price.
+>
+> **3. To take Tk 500 bKash advances (start now, approval takes 1 to 3 weeks)**
+> - Trade licence, TIN, business bank account details and NID for the bKash merchant account.
+>
+> **4. One decision**
+> - Until bKash is approved, should customers be able to book for free and pay at the ground (how it works now), or should online booking stay closed until payment works?
+>
+> **5. Information for the website**
+> - Your price for each slot, and whether day/night or weekend prices are different.
+> - Opening hours and days, and confirm the slot times (90 minutes each, 6:00 AM to 12:00 AM).
+> - How many days ahead customers can book (now 14).
+> - Exact address and your Google Maps location link.
+> - Phone number for calls and WhatsApp number for bookings.
+> - Your booking, cancellation and refund rules.
+> - Your email for the admin login, and anyone else who will manage bookings.
+> - Phone number and email where you want new-booking alerts.
+>
+> **6. Photos and text**
+> - Your logo (best quality you have).
+> - 10 to 15 original photos straight from your phone: day, night under lights, the full field, facilities. Please don't download them from Facebook, it lowers the quality.
+> - A short video if you have one.
+> - The facilities you actually have (parking, changing room, water, etc.).
+> - A short description of the turf (2 to 4 sentences) and a one-line tagline.
+> - Any real customer reviews you're happy to show, with their permission.
+> - Confirm your Facebook page link and any other social links, and the sports you offer.
+>
+> **7. Customer accounts (quick yes/no)**
+> - Customers will never be forced to make an account to book. OK?
+> - Logged-in customers stay logged in for 60 days. OK?
+
+Developer notes (not for the client): items map to C-01, C-02, C-04…C-08, C-10, C-12…C-21, C-23…C-30. C-03, C-09, C-11 and C-22 are obsolete or answered (CR-2, D-40). C-26 (SMS provider) is left to the developer unless the client has a preference.

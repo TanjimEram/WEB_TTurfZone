@@ -2,16 +2,16 @@
    main.js toggles `.at-top` (transparent over the hero) and opens the menu. #}
 <header class="site-header at-top" id="top" data-site-header>
   <div class="container nav">
-    <a class="nav__brand" href="#top">{{ settings.turf_name or "TTURFZONE" }}</a>
+    <a class="nav__brand" href="{{ url_for('public.home') }}#top">{{ settings.turf_name or "TTURFZONE" }}</a>
 
     <nav class="nav__links" aria-label="Primary">
-      <a href="#about">About</a>
-      <a href="#facilities">Facilities</a>
-      <a href="#pricing">Pricing</a>
-      <a href="#gallery">Gallery</a>
-      <a href="#location">Location</a>
-      <a href="#reviews">Reviews</a>
-      <a class="btn btn--primary" href="#book">Book now</a>
+      <a href="{{ url_for('public.home') }}#about">About</a>
+      <a href="{{ url_for('public.home') }}#facilities">Facilities</a>
+      <a href="{{ url_for('public.home') }}#pricing">Pricing</a>
+      <a href="{{ url_for('public.home') }}#gallery">Gallery</a>
+      <a href="{{ url_for('public.home') }}#location">Location</a>
+      <a href="{{ url_for('public.home') }}#reviews">Reviews</a>
+      <a class="btn btn--primary" href="{{ book_href }}">Book now</a>
     </nav>
 
     <button class="nav__toggle" type="button"
@@ -26,13 +26,13 @@
 
   <div class="nav-menu" id="nav-menu" hidden>
     <button class="nav-menu__close" type="button" aria-label="Close menu" data-menu-close>&times;</button>
-    <a href="#about" data-menu-link>About</a>
-    <a href="#facilities" data-menu-link>Facilities</a>
-    <a href="#pricing" data-menu-link>Pricing</a>
-    <a href="#gallery" data-menu-link>Gallery</a>
-    <a href="#location" data-menu-link>Location</a>
-    <a href="#reviews" data-menu-link>Reviews</a>
+    <a href="{{ url_for('public.home') }}#about" data-menu-link>About</a>
+    <a href="{{ url_for('public.home') }}#facilities" data-menu-link>Facilities</a>
+    <a href="{{ url_for('public.home') }}#pricing" data-menu-link>Pricing</a>
+    <a href="{{ url_for('public.home') }}#gallery" data-menu-link>Gallery</a>
+    <a href="{{ url_for('public.home') }}#location" data-menu-link>Location</a>
+    <a href="{{ url_for('public.home') }}#reviews" data-menu-link>Reviews</a>
     <a href="#contact" data-menu-link>Contact</a>
-    <a class="btn btn--primary" href="#book" data-menu-link>Book now</a>
+    <a class="btn btn--primary" href="{{ book_href }}" data-menu-link>Book now</a>
   </div>
 </header>

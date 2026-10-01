@@ -94,6 +94,10 @@ body {
 
 img { max-width: 100%; display: block; }
 
+/* `hidden` must win over any component's own `display` (the lightbox is
+   display:flex, and without this it showed on every page load). */
+[hidden] { display: none !important; }
+
 h1, h2, h3, h4 {
   margin: 0 0 var(--sp-4);
   line-height: 1.15;
@@ -336,7 +340,6 @@ a:hover { text-decoration: underline; }
   background: var(--bg);
   overflow-y: auto;
 }
-.nav-menu[hidden] { display: none; }
 .nav-menu a {
   color: var(--text);
   font-size: var(--fs-600);
@@ -470,6 +473,9 @@ a:hover { text-decoration: underline; }
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   gap: var(--sp-2);
 }
+/* 12 slots: keep rows even (4x3, then 6x2) instead of auto-fill's 7+5 */
+@media (min-width: 640px) { .quickbook__grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (min-width: 1024px) { .quickbook__grid { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
 .slot {
   display: flex;
   flex-direction: column;

@@ -147,3 +147,25 @@ def test_json_ld_includes_confirmed_fields(client, app):
     assert data["description"] == "A real six-a-side turf in Jashore."
     assert data["telephone"] == "01712345678"
     assert data["address"] == "123 Real Street, Jashore"
+
+
+def test_price_card_uses_12_hour_slot_labels(client, app):
+    all_slots = ["06:00", "07:30", "09:00", "10:30", "12:00", "13:30",
+                 "15:00", "16:30", "18:00", "19:30", "21:00", "22:30"]
+    with app.app_context():
+        db.session.add(TurfSettings(turf_name="TTURFZONE", pricing=[
+            {"label": "Night", "slots": ["19:30", "21:00"], "days": "all", "price_bdt": 2000},
+            {"label": "Flat", "slots": all_slots, "days": "weekend", "price_bdt": 1500},
+        ]))
+        db.session.commit()
+    html = client.get("/").get_data(as_text=True)
+    assert "07:30 PM, 09:00 PM" in html
+    assert "19:30" not in html.split('id="pricing"')[1].split("</section>")[0]
+    assert "All slots" in html
+
+
+def test_hidden_attribute_beats_component_display(client):
+    """Regression: .lightbox is display:flex, so without a global [hidden] rule the
+    closed lightbox overlay covered the whole homepage on every load (M7.2 bug)."""
+    css = client.get("/static/css/main.css").get_data(as_text=True)
+    assert "[hidden] { display: none !important; }" in css

@@ -179,3 +179,24 @@ def test_success_no_whatsapp_link_when_unset(client, app):
     html = client.get("/book/success").get_data(as_text=True)
     assert "wa.me" not in html
     assert "C-06" in html  # the TODO(owner) note instead
+
+
+def _dead_hash_links(html):
+    """href="#x" whose id="x" is not on the same page (a link that does nothing)."""
+    targets = set(re.findall(r'href="#([\w-]+)"', html))
+    return sorted(t for t in targets if f'id="{t}"' not in html)
+
+
+def test_no_dead_section_links_on_any_public_page(client, app):
+    """Regression: the shared nav/footer/sticky bar used to link #about, #book etc.
+    which only exist on the homepage, so they did nothing on /book."""
+    assert _dead_hash_links(client.get("/").get_data(as_text=True)) == []
+    assert _dead_hash_links(client.get("/book").get_data(as_text=True)) == []
+    _post_booking(client)
+    assert _dead_hash_links(client.get("/book/success").get_data(as_text=True)) == []
+
+
+def test_book_now_goes_to_booking_page_off_homepage(client):
+    html = client.get("/book").get_data(as_text=True)
+    assert 'href="/book">Book now' in html
+    assert 'href="/#about"' in html

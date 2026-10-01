@@ -102,7 +102,11 @@
               <h3 class="card__title">{{ band.label }}</h3>
               <p class="price-card__amount">৳{{ band.price_bdt }}</p>
               <p class="price-card__slots">
-                {{ band.slots | join(", ") if band.slots else "all slots" }}
+                {%- if not band.slots or band.slots | length == slot_names | length -%}
+                  All slots
+                {%- else -%}
+                  {% for s in band.slots %}{{ slot_names.get(s, s) }}{% if not loop.last %}, {% endif %}{% endfor %}
+                {%- endif -%}
                 {% if band.days and band.days != "all" %} · {{ band.days }}{% endif %}
               </p>
             </div>

@@ -31,14 +31,17 @@ bp = Blueprint("public", __name__)
 def inject_common():
     """Values every public template needs.
 
-    now_year: footer copyright.
-    wa_link:  wa.me deep link, or "" when the owner has not given a number (C-06).
+    now_year:  footer copyright.
+    wa_link:   wa.me deep link, or "" when the owner has not given a number (C-06).
+    book_href: every "Book now" link - the inline picker on the homepage,
+               the booking page everywhere else (#book only exists on /).
     """
     settings = TurfSettings.current_or_default()
     digits = (settings.whatsapp or "").strip()
     return {
         "now_year": today_dhaka().year,
         "wa_link": f"https://wa.me/{digits}" if digits else "",
+        "book_href": "#book" if request.endpoint == "public.home" else url_for("public.book"),
     }
 
 
@@ -101,6 +104,7 @@ def home():
         "index.html",
         settings=settings,
         slot_labels=[slot_label(t) for t in SLOT_TIMES],
+        slot_names={t.strftime("%H:%M"): slot_label(t) for t in SLOT_TIMES},
         date_chips=_date_chips(),
         json_ld=_local_business_json_ld(settings),
     )
