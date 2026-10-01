@@ -5,7 +5,7 @@ import pytest
 from werkzeug.security import generate_password_hash
 
 from extensions import db
-from models import Admin, Booking
+from models import Admin, Booking, TurfSettings
 from services.slots import today_dhaka
 
 USERNAME = "owner"
@@ -30,7 +30,7 @@ def as_admin(client, admin_user):
     return client
 
 
-PROTECTED = ["/admin/", "/admin/bookings", "/admin/calendar"]
+PROTECTED = ["/admin/", "/admin/bookings", "/admin/calendar", "/admin/settings"]
 
 
 @pytest.mark.parametrize("path", PROTECTED)
@@ -260,3 +260,64 @@ def test_calendar_block_requires_login(client, app):
     assert "/admin/login" in resp.headers["Location"]
     with app.app_context():
         assert db.session.scalar(db.select(Booking)) is None
+
+
+# --- M7.4 settings ------------------------------------------------------
+
+VALID_SETTINGS = {
+    "phone": "01712345678",
+    "whatsapp": "+8801812345678",
+    "address": "Notin Rani ghat, Jashore",
+    "opening_hours_text": "Every day, 6 AM to 12 AM",
+    "booking_rules_text": "Cancel 6 hours ahead.",
+    "band-0-label": "Day",
+    "band-0-price": "1200",
+    "band-0-days": "all",
+    "band-0-slots": ["06:00", "07:30"],
+    "band-1-label": "",  # a blank row is ignored
+    "band-1-price": "",
+}
+
+
+def test_settings_page_hides_seed_todos(as_admin):
+    html = as_admin.get("/admin/settings").get_data(as_text=True)
+    assert "TODO(owner)" not in html  # placeholders never prefill the form
+    assert html.count('type="checkbox"') == 24  # 2 blank price rows x 12 slots
+
+
+def test_settings_save_updates_public_site(as_admin, client, app):
+    resp = as_admin.post("/admin/settings", data=VALID_SETTINGS)
+    assert resp.status_code == 302
+    with app.app_context():
+        s = TurfSettings.current()
+        assert s.phone == "01712345678"
+        assert s.whatsapp == "8801812345678"  # wa.me format
+        assert s.pricing == [{"label": "Day", "slots": ["06:00", "07:30"], "days": "all", "price_bdt": 1200}]
+    home = client.get("/").get_data(as_text=True)
+    assert "Notin Rani ghat, Jashore" in home
+    assert "wa.me/8801812345678" in home
+    assert "1200" in home
+
+
+def test_settings_bad_phone_saves_nothing_and_keeps_input(as_admin, app):
+    resp = as_admin.post("/admin/settings", data={**VALID_SETTINGS, "phone": "123"})
+    assert resp.status_code == 400
+    html = resp.get_data(as_text=True)
+    assert "valid Bangladeshi mobile" in html
+    assert 'value="123"' in html
+    with app.app_context():
+        assert TurfSettings.current() is None
+
+
+def test_settings_band_needs_slots(as_admin):
+    data = {**VALID_SETTINGS, "band-0-slots": []}
+    resp = as_admin.post("/admin/settings", data=data)
+    assert resp.status_code == 400
+    assert "Tick at least one slot" in resp.get_data(as_text=True)
+
+
+def test_settings_post_requires_login(client, app):
+    resp = client.post("/admin/settings", data=VALID_SETTINGS)
+    assert "/admin/login" in resp.headers["Location"]
+    with app.app_context():
+        assert TurfSettings.current() is None

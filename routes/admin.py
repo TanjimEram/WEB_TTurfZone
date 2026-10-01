@@ -4,7 +4,7 @@ from datetime import date, time, timedelta
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 
 from extensions import db
-from models import Booking
+from models import Booking, TurfSettings
 from services.auth import (
     current_admin,
     login_admin,
@@ -22,6 +22,13 @@ from services.bookings import (
     dashboard_summary,
     reject_booking,
     unblock_slot,
+)
+from services.settings import (
+    DAY_OPTIONS,
+    MAX_BANDS,
+    SLOT_KEYS,
+    SettingsValidationError,
+    save_owner_settings,
 )
 from services.slots import SLOT_TIMES, get_day_availability, slot_label, today_dhaka
 
@@ -185,3 +192,65 @@ def slot_unblock(booking_id):
     except InvalidTransitionError as exc:
         flash(str(exc))
     return redirect(_safe_back("admin.calendar"))
+
+
+def _clean(value) -> str:
+    """Owner text for a form field: '' while it is still a seed TODO placeholder."""
+    value = (value or "").strip()
+    return "" if "TODO" in value else value
+
+
+def _settings_form(settings) -> dict:
+    """Current values for the settings form (GET)."""
+    wa = settings.whatsapp or ""
+    bands = [
+        {"label": b.get("label", ""), "days": b.get("days", "all"),
+         "price": str(b.get("price_bdt", "")), "slots": b.get("slots", [])}
+        for b in (settings.pricing or [])
+    ]
+    return {
+        "phone": settings.phone or "",
+        "whatsapp": wa[2:] if wa.startswith("88") else wa,
+        "address": _clean(settings.address),
+        "opening_hours_text": _clean(settings.opening_hours_text),
+        "booking_rules_text": _clean(settings.booking_rules_text),
+        "bands": bands,
+    }
+
+
+def _posted_form(form) -> dict:
+    """What the owner just typed, so a failed save keeps their input."""
+    bands = [
+        {"label": form.get(f"band-{i}-label", ""), "days": form.get(f"band-{i}-days", "all"),
+         "price": form.get(f"band-{i}-price", ""), "slots": form.getlist(f"band-{i}-slots")}
+        for i in range(MAX_BANDS)
+    ]
+    values = {k: form.get(k, "") for k in ("phone", "whatsapp", "address", "opening_hours_text", "booking_rules_text")}
+    values["bands"] = [b for b in bands if b["label"] or b["price"] or b["slots"]]
+    return values
+
+
+@bp.route("/settings", methods=["GET", "POST"])
+@login_required
+def settings():
+    """Owner-editable business details (M7.4, D-23)."""
+    errors = {}
+    if request.method == "POST":
+        try:
+            save_owner_settings(request.form)
+            flash("Settings saved. The public site shows them now.")
+            return redirect(url_for("admin.settings"))
+        except SettingsValidationError as exc:
+            errors = exc.errors
+            values = _posted_form(request.form)
+    else:
+        values = _settings_form(TurfSettings.current_or_default())
+
+    # existing bands plus blank rows to add more, up to MAX_BANDS
+    blanks = max(MAX_BANDS - len(values["bands"]), 0)
+    values["bands"] += [{"label": "", "days": "all", "price": "", "slots": []}] * min(blanks, 2)
+    return render_template(
+        "admin/settings.html", values=values, errors=errors,
+        slot_options=[(key, slot_label(t)) for key, t in zip(SLOT_KEYS, SLOT_TIMES)],
+        day_options=DAY_OPTIONS,
+    ), (400 if errors else 200)

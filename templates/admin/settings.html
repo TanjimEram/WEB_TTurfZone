@@ -1,0 +1,91 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Settings · TTURFZONE admin{% endblock %}
+
+{% macro field_error(name) -%}
+  {% if errors[name] %}<p class="field-error" id="err-{{ name }}">{{ errors[name] }}</p>{% endif %}
+{%- endmacro %}
+
+{% macro invalid(name) -%}
+  {% if errors[name] %} aria-invalid="true" aria-describedby="err-{{ name }}"{% endif %}
+{%- endmacro %}
+
+{% block content %}
+<h1>Settings</h1>
+<p class="muted">These show on the public site as soon as you save. Leave a box empty to hide it.</p>
+
+{% if errors %}<p class="form-error" role="alert">Please fix the highlighted fields. Nothing was saved.</p>{% endif %}
+
+<form method="post" action="{{ url_for('admin.settings') }}" class="settings-form stack">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <h2>Contact</h2>
+  <div class="form-field">
+    <label for="s-phone">Phone number for calls</label>
+    <input id="s-phone" name="phone" type="tel" inputmode="tel" placeholder="01XXXXXXXXX"
+           value="{{ values.phone }}"{{ invalid('phone') }}>
+    {{ field_error('phone') }}
+  </div>
+  <div class="form-field">
+    <label for="s-whatsapp">WhatsApp number for bookings</label>
+    <input id="s-whatsapp" name="whatsapp" type="tel" inputmode="tel" placeholder="01XXXXXXXXX"
+           value="{{ values.whatsapp }}"{{ invalid('whatsapp') }}>
+    {{ field_error('whatsapp') }}
+  </div>
+
+  <h2>Location and hours</h2>
+  <div class="form-field">
+    <label for="s-address">Address</label>
+    <textarea id="s-address" name="address" rows="3">{{ values.address }}</textarea>
+  </div>
+  <div class="form-field">
+    <label for="s-hours">Opening hours</label>
+    <input id="s-hours" name="opening_hours_text" maxlength="160" placeholder="e.g. Every day, 6 AM to 12 AM"
+           value="{{ values.opening_hours_text }}"{{ invalid('opening_hours_text') }}>
+    {{ field_error('opening_hours_text') }}
+  </div>
+  <div class="form-field">
+    <label for="s-rules">Booking and cancellation rules</label>
+    <textarea id="s-rules" name="booking_rules_text" rows="4">{{ values.booking_rules_text }}</textarea>
+  </div>
+
+  <h2>Prices</h2>
+  <p class="muted">One row per price. Tick the slots it covers. One flat price? Use one row and tick every slot.</p>
+  {% for band in values.bands %}
+    {% set i = loop.index0 %}
+    <fieldset class="card price-band"{% if errors['band-' ~ i] %} aria-describedby="err-band-{{ i }}"{% endif %}>
+      <legend>Price {{ loop.index }}</legend>
+      {{ field_error('band-' ~ i) }}
+      <div class="price-band__row">
+        <div class="form-field">
+          <label for="b{{ i }}-label">Name</label>
+          <input id="b{{ i }}-label" name="band-{{ i }}-label" maxlength="40" placeholder="e.g. Night"
+                 value="{{ band.label }}">
+        </div>
+        <div class="form-field">
+          <label for="b{{ i }}-price">Price (৳)</label>
+          <input id="b{{ i }}-price" name="band-{{ i }}-price" inputmode="numeric" placeholder="e.g. 1500"
+                 value="{{ band.price }}">
+        </div>
+        <div class="form-field">
+          <label for="b{{ i }}-days">Days</label>
+          <select id="b{{ i }}-days" name="band-{{ i }}-days">
+            {% for d in day_options %}
+              <option value="{{ d }}"{% if band.days == d %} selected{% endif %}>{{ d | title }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="price-band__slots" role="group" aria-label="Slots for price {{ loop.index }}">
+        {% for key, label in slot_options %}
+          <label class="slot-check">
+            <input type="checkbox" name="band-{{ i }}-slots" value="{{ key }}"{% if key in band.slots %} checked{% endif %}>
+            {{ label }}
+          </label>
+        {% endfor %}
+      </div>
+    </fieldset>
+  {% endfor %}
+
+  <p><button class="btn btn--primary" type="submit">Save settings</button></p>
+</form>
+{% endblock %}

@@ -19,6 +19,7 @@
         <a href="{{ url_for('admin.dashboard') }}"{% if here == 'admin.dashboard' %} aria-current="page"{% endif %}>Dashboard</a>
         <a href="{{ url_for('admin.bookings') }}"{% if here in ('admin.bookings', 'admin.booking_confirm', 'admin.booking_reject') %} aria-current="page"{% endif %}>Bookings</a>
         <a href="{{ url_for('admin.calendar') }}"{% if here in ('admin.calendar', 'admin.slot_block', 'admin.slot_unblock') %} aria-current="page"{% endif %}>Calendar</a>
+        <a href="{{ url_for('admin.settings') }}"{% if here == 'admin.settings' %} aria-current="page"{% endif %}>Settings</a>
       </nav>
       <form method="post" action="{{ url_for('admin.logout') }}" class="admin-logout">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
