@@ -89,5 +89,9 @@ def fake_clear():
 
 
 def register_cli(app: Flask) -> None:
-    for command in (db_check, seed_settings, create_admin, fake_bookings, fake_conflict_test, fake_clear):
+    """Fake-data commands exist only with ENABLE_DEV_TOOLS (D-18), never in production."""
+    commands = [db_check, seed_settings, create_admin]
+    if app.config["ENABLE_DEV_TOOLS"]:
+        commands += [fake_bookings, fake_conflict_test, fake_clear]
+    for command in commands:
         app.cli.add_command(command)

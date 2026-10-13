@@ -32,7 +32,16 @@ def test_create_admin_refuses_duplicate_username(app):
     assert result.exit_code != 0
 
 
+def test_fake_commands_absent_without_dev_tools(app):
+    """Production and testing have ENABLE_DEV_TOOLS off: fake-* must not exist."""
+    for name in ("fake-bookings", "fake-conflict-test", "fake-clear"):
+        assert name not in app.cli.commands
+
+
 def test_fake_bookings_and_clear_commands(app):
+    from cli import fake_bookings, fake_clear
+    app.cli.add_command(fake_bookings)
+    app.cli.add_command(fake_clear)
     runner = app.test_cli_runner()
     runner.invoke(args=["fake-bookings", "--count", "6"])
     assert Booking.query.count() == 6
