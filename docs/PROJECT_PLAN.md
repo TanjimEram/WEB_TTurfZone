@@ -6,10 +6,10 @@
 
 | Field | Value |
 |---|---|
-| Phase | **Live in production at https://tturfzone.com (M1.3b done, 2026-10-13)** on the host's MariaDB (CR-4). M3, M4 (incl. M4.6 instant confirm), M5, M6.1, M7.2–M7.5 complete; M7 done except M7.1 (owner assets). CR-1 and CR-3 recorded, not built (gated on v2). |
-| Last completed | **M1.3b production deploy** (2026-10-13): cloned in cPanel Terminal, Python 3.11.16 + Passenger, MariaDB 11.4.13 on localhost (round trip ~1 ms, utf8mb4_unicode_ci), migration 13a53e9a5687 applied, `uq_active_slot_key` on the generated column and the status CHECK confirmed in production, settings seeded, admin created. Cron: daily 03:00 mysqldump (14-day retention) and a 5-minute `/healthz` keep-alive. Before: CR-4 MariaDB support |
-| Next task | **Before handover:** arrange an off-server copy of the backups and test one restore (M8.8); confirm the rest of M8 (HTTPS/www/redirect and headers check, M8.1 secret). Then waiting on the client: M7.1 (assets), M2.6 → M10/M11/M13 (v2 signature + advance), C-28. |
-| Blocked by | Nothing blocks the M8 checks. **Backups sit on the same server as the database** until an off-server copy exists (Known issues). CR-1: M10 blocked by repricing (C-27, folded into v2/D-40); M12 by bKash merchant approval (C-21); the jobs cron (M8.5) needs M11. CR-3: M13 blocked by v2 (D-40) sign-off + advance, and by M11. C-28 needs the client's own confirmation of the D-41 default. |
+| Phase | **Live in production at https://tturfzone.com (M1.3b done 2026-10-13, verified 2026-10-14)** on the host's MariaDB (CR-4). **One failing check: plain `http://` is served without a redirect to https (M8.3).** M3, M4 (incl. M4.6 instant confirm), M5, M6.1, M7.2–M7.5 complete; M7 done except M7.1 (owner assets). CR-1 and CR-3 recorded, not built (gated on v2). |
+| Last completed | **Production verification** (2026-10-14). Passing: HTTPS with a valid certificate on tturfzone.com and www; security headers; `/dev/wiring` 404; `/api/availability` returns 12 slots with no customer data; `/healthz` ok; `/admin/login` loads; session cookie Secure + HttpOnly + SameSite=Lax; unknown URL → 404; a test mysqldump produced a real dump. Exact cron lines recorded in Appendix D. **Failing: `http://tturfzone.com/` and `http://www.tturfzone.com/` return 200 over plain HTTP, no redirect** (checked with curl from outside, 2026-10-14). Before: M1.3b deploy |
+| Next task | **Ops, no blocker:** (1) M8.3 turn on the HTTPS redirect (cPanel → Domains → Force HTTPS Redirect) and re-check; (2) M8.8 off-server backup copy + one restore test; (3) M8.1 confirm the production `SECRET_KEY` is fresh. **Next build task: M2.6** (CR-1 statuses + fields, `Payment`/`Notification` models), blocked by the client signing v2 and paying the advance (C-27/D-40). M7.1 waits on owner assets. |
+| Blocked by | **Every remaining build task is blocked on the client:** M2.6 → M2.7 → M10/M11 → M13 on the v2 signature + Tk 12,000 advance (D-40, C-27); M12 also on bKash merchant approval (C-21); M13 also on M11; M7.1 on owner assets (C-12, C-13, C-16…C-18); C-28 needs the client's confirmation of D-41. The jobs cron (M8.5) waits on M11. Backups sit on the same server until an off-server copy exists. |
 | Dev environment | Windows + PowerShell. venv: `.venv\Scripts\Activate.ps1`. |
 | Live URL | https://tturfzone.com (deployed 2026-10-13) |
 | Repo | created by developer (private GitHub) |
@@ -482,13 +482,13 @@ Done when: Lighthouse mobile targets reached or noted (performance 85+, accessib
 
 - [ ] M8.1 Production env vars on the host: `APP_ENV=production`, new random 64-char `SECRET_KEY`, production `DATABASE_URL`.
 - [x] M8.2 `flask db upgrade`, `seed-settings`, `create-admin` on production. No test data left. (Done as part of M1.3b, 2026-10-13; no fake-data commands were run, they are not registered in production.)
-- [ ] M8.3 Force HTTPS (cPanel setting or `.htaccess`), confirm certificate on the root domain and www, secure cookies active.
-- [ ] M8.4 Backups: ~~confirm the host/Neon backup policy; take a manual `pg_dump`~~ (CR-4) ask the host what MariaDB backups they keep and for how long; take a manual `mysqldump` before handover; write restore steps in the handover notes.
+- [ ] M8.3 Force HTTPS (cPanel setting or `.htaccess`), confirm certificate on the root domain and www, secure cookies active. **2026-10-14:** certificate valid on both tturfzone.com and www; session cookie is `Secure; HttpOnly; SameSite=Lax`. **Still failing: plain `http://` (bare domain and www) returns 200 with no redirect.** Fix: cPanel → Domains → toggle **Force HTTPS Redirect** for tturfzone.com, then `curl -sI http://tturfzone.com/` and `curl -sI http://www.tturfzone.com/` must show `301` + `Location: https://...`.
+- [ ] M8.4 Backups: ~~confirm the host/Neon backup policy; take a manual `pg_dump`~~ (CR-4) ask the host what MariaDB backups they keep and for how long; take a manual `mysqldump` before handover; write restore steps in the handover notes. **2026-10-14:** a test mysqldump produced a real dump (header `MariaDB dump 10.19-11.4.13-MariaDB`). Still to do: ask the host about their own backups, a manual dump at handover, restore steps.
 - [ ] M8.5 (CR-1) cPanel cron: three entries, once a minute — `flask jobs-expire-holds`, `flask jobs-send-notifications`, `flask jobs-send-reminders`. Confirm they run and log. **Cannot be added until M11 builds the job commands** (Known issues).
 - [ ] M8.6 (CR-1) Email: create the SMTP mailbox; set SPF and DKIM DNS records; send one test email and check it is not spam-filed.
 - [ ] M8.7 (CR-1) Set the new environment variables (§5.5). Launch with `PAYMENTS_ENABLED=false`. bKash + SMS creds stay as sandbox/empty until M12.
-- [ ] M8.8 (CR-4) **Required before launch:** nightly `mysqldump` cron in cPanel (`--single-transaction --default-character-set=utf8mb4`, gzipped, keep the last 14, stored outside `public_html`). Credentials come from `~/.my.cnf` (chmod 600), never from the command line. Restore one dump into a scratch database to prove it works. Copy a dump off the server weekly. **Progress 2026-10-13:** daily 03:00 mysqldump cron with 14-day retention, credentials from `~/.my.cnf` (chmod 600, built from the stored connection string). Still to do: test one restore into a scratch database, and an off-server copy (Known issues).
-- [x] M8.9 `/healthz` keep-alive cron every 5 minutes so the idle Passenger app is not put to sleep (a cold start would slow the first visitor from Facebook). `/healthz` touches no database (D-12), so this costs nothing. (2026-10-13)
+- [ ] M8.8 (CR-4) **Required before launch:** nightly `mysqldump` cron in cPanel (`--single-transaction --default-character-set=utf8mb4`, gzipped, keep the last 14, stored outside `public_html`). Credentials come from `~/.my.cnf` (chmod 600), never from the command line. Restore one dump into a scratch database to prove it works. Copy a dump off the server weekly. **Progress 2026-10-13:** daily 03:00 mysqldump cron with 14-day retention, credentials from `~/.my.cnf` (chmod 600, built from the stored connection string). Still to do: test one restore into a scratch database, and an off-server copy (Known issues). **2026-10-14:** the backup command is verified (real dump produced); exact cron line in Appendix D. Still open: one restore test and the off-server copy.
+- [x] M8.9 `/healthz` keep-alive cron every 5 minutes so the idle Passenger app is not put to sleep (a cold start would slow the first visitor from Facebook). `/healthz` touches no database (D-12), so this costs nothing. Cron line in Appendix D. (2026-10-13; `/healthz` → `ok` verified 2026-10-14)
 
 Done when: `https://<domain>` loads, http redirects to https, admin login works on production, cron entries run, a test email arrives.
 
@@ -613,17 +613,20 @@ M3 → M4.2 → M2.2, M2.3, M2.6, M2.7 → M4.3–M4.5 → M5 (incl. M5.6, M5.7,
 **D. Security**
 - [ ] No secrets in the repo (`git grep -i "password\|secret\|postgres://\|app_key\|api_key"` shows only names/placeholders)
 - [ ] CSRF token required on all POST forms in production config
-- [ ] `/api/availability` contains no customer data
-- [ ] Session cookie has Secure, HttpOnly, SameSite in production
+- [x] `/api/availability` contains no customer data (production 2026-10-14: 12 slots, keys `time/label/state/price_bdt` only)
+- [x] Session cookie has Secure, HttpOnly, SameSite in production (2026-10-14: `Secure; HttpOnly; Path=/; SameSite=Lax` on `/admin/login`)
 - [ ] (CR-1) A booking is only marked paid after a server-to-server gateway query that matches amount + `merchant_invoice`; redirect/query params are never trusted
 - [ ] (CR-1) Payment callback is idempotent
 - [ ] (CR-1) Gateway / SMS / SMTP credentials only in env; unit tests use fakes; sandbox tests skip without creds
 
 **E. Production**
-- [ ] HTTPS on root and www; http redirects
+- [ ] HTTPS on root and www; http redirects — **HTTPS + valid certificate on both: passing (2026-10-14). http → https redirect: FAILING**, plain http returns 200 (M8.3)
+- [x] Security headers on production: X-Content-Type-Options, X-Frame-Options, Referrer-Policy (on `/healthz`, 2026-10-14)
+- [x] `/dev/wiring` returns 404 in production: dev tools are off (2026-10-14)
+- [x] `/healthz` returns `ok` and `/admin/login` loads in production (2026-10-14)
 - [x] Production DB connected; migrations applied (MariaDB 11.4.13, 13a53e9a5687, 2026-10-13)
 - [ ] Duplicate-booking test done on production (M9.2)
-- [ ] 404 page shows for unknown URLs; no debug tracebacks
+- [x] 404 page shows for unknown URLs; no debug tracebacks (production 2026-10-14: unknown URL → 404; `DEBUG` is off in `ProductionConfig`)
 
 **F. Database engine (CR-4, MariaDB)**
 - [x] `pytest -q -m mariadb` passes on MariaDB 11.4 (local 11.4.13, 2026-10-13)
@@ -634,7 +637,7 @@ M3 → M4.2 → M2.2, M2.3, M2.6, M2.7 → M4.3–M4.5 → M5 (incl. M5.6, M5.7,
 - [x] Bangla round-trips through VARCHAR, TEXT and JSON; all tables utf8mb4_unicode_ci; `slot_time` comes back as a `time` (2026-10-13)
 - [x] Migrations upgrade and downgrade cleanly on MariaDB (2026-10-13)
 - [x] On production: `uq_active_slot_key` on the generated column and the status CHECK constraint are in place (M1.3b, 2026-10-13)
-- [ ] Nightly mysqldump runs and one restore was tested (M8.8) — cron added 2026-10-13 (daily 03:00, 14-day retention); restore test and off-server copy still open
+- [ ] Nightly mysqldump runs and one restore was tested (M8.8) — the backup command is verified (a real dump, 2026-10-14); **restore test still open**
 
 ## 8. Handover checklist
 
@@ -745,6 +748,9 @@ Needed by: D0 = before Day 1 starts, D1-AM = Day 1 09:00, D1-PM = Day 1 18:00.
 
 ## 13. Known issues
 
+- (M8.3) **Plain `http://` is served without a redirect** (checked with curl 2026-10-14: `http://tturfzone.com/` and `http://www.tturfzone.com/` → 200 with the full page, no `Location`). Browsers often upgrade to https on their own, so it looks fine in Chrome, but anyone on an http link uses the site unencrypted. Admin login also fails over http, because the session cookie is `Secure` and the browser won't store it there, so the CSRF check fails. Fix: cPanel → Domains → Force HTTPS Redirect.
+- (M8.8) The backup cron can fail silently: in `mysqldump ... | gzip > file`, the job's exit status is gzip's, so a failed dump still leaves a small `.sql.gz` and still runs the 14-day prune. If dumps failed for 14 days, every good backup would be gone. Check the newest file's size now and then, or add `set -o pipefail;` at the start of the cron line (the host's `/bin/sh` is bash on cPanel).
+
 - (M1.3b) **Backups live on the same server as the database.** The daily mysqldump protects against bad data or a bad migration, not against losing the server or the hosting account. An off-server copy (for example the owner's Google Drive, pulled weekly) must be arranged **before handover** (M8.8).
 - (M1.3b) The CR-1 jobs cron (`jobs-expire-holds`, `jobs-send-notifications`, `jobs-send-reminders`, M8.5) cannot be added until M11 builds those commands. Nothing needs it today: there are no holds or notifications yet.
 - (M1.3b) The repo is private, so every `git pull` on the server needs a GitHub token. Use a fine-grained read-only token passed as a one-off header (Appendix D, D3); never leave it in the remote URL. cPanel Git Version Control can't be used because it rejects tokens in the clone URL.
@@ -798,6 +804,7 @@ Needed by: D0 = before Day 1 starts, D1-AM = Day 1 09:00, D1-PM = Day 1 18:00.
 | 2026-10-01 | Build (Claude Code, Windows) | Visual pass at 768px and 1280px (every public + admin page: no page-level overflow, nav/sticky/FAB switch at 900px, grids correct). **Found and fixed two real bugs:** (1) `.lightbox` is `display:flex`, which beat the `hidden` attribute, so the closed lightbox overlay covered the whole homepage on every load since M7.2 — fixed at the root with a global `[hidden] { display:none !important }` (removed the now-redundant `.nav-menu[hidden]`); (2) nav/footer/sticky links (`#about`, `#pricing`, `#book`…) were dead on `/book` and `/book/success` — section links now `/#section`, "Book now" uses `book_href` (`#book` on the homepage, `/book` elsewhere) from the public context processor. Also: price card shows 12-hour labels ("All slots" when a band covers all 12); slot grid locked to 4 cols ≥640px and 6 ≥1024px so 12 slots fill even rows. M6.3: client follow-up message written as Appendix C. Tests +4 (CSS `[hidden]` guard, no dead `#` links on any public page, Book-now target, 12-hour price labels). 158 passed, 4 skipped. Lesson: tests that only check markup presence missed a visual-only bug — the lightbox was "present" and covering everything. | Send Appendix C to the client |
 | 2026-10-13 | Build (Claude Code, Windows) | **CR-4 MariaDB support** (host blocks port 5432, Neon unreachable). PyMySQL replaces psycopg in production (psycopg → dev only); `normalize_database_url` accepts `mysql://`; utf8mb4 forced on every table (`MYSQL_TABLE_OPTIONS`). Double-booking on MariaDB = STORED generated column `active_slot_key` + unique `uq_active_slot_key` (D-42): hand-edited initial migration branches on dialect, `after_create` DDL for `create_all`, `Index.ddl_if` keeps the partial index off MariaDB, `env.py` hides the hand-written rule from autogenerate. `_is_slot_conflict` documents all three engines' messages. `pytest.ini` + `conftest.py`: `mariadb` marker; `TEST_DATABASE_URL`'s scheme picks the marker. New `tests/test_mariadb.py` (11): index definition (migration and create_all), 10-thread race, REJECTED frees / PENDING-CONFIRMED-BLOCKED hold, duplicate booking_code is not "slot taken", Bangla/JSON/time/UTC round-trip, utf8mb4 + lower-case tables, downgrade. Ran against a local MariaDB 11.4.13 (portable ZIP, latin1 server default on purpose): 11 passed; a non-unique index fails 5, so the tests are real. Production-mode CLI rehearsal clean. Also: `db-check` now times a warm query (it was timing the ~150 ms handshake); blanked a committed `SECRET_KEY` value in `.env.example` (Known issues). Found PyMySQL silently drops timezone offsets (D-44). SQLite suite 161 passed, 15 skipped. | Resume M1.3b with Appendix D, then M8.8 (mysqldump cron) |
 | 2026-10-13 | Deploy (developer + Claude Code, docs only) | **M1.3b done: production live at https://tturfzone.com.** Cyber Developer BD cPanel (srv2), Python 3.11.16, Passenger, MariaDB 11.4.13 on localhost (~1 ms, utf8mb4_unicode_ci). Cloned with `git` in cPanel Terminal (cPanel Git Version Control rejects tokens in the URL; token stripped from the remote). Migration 13a53e9a5687 applied; `uq_active_slot_key` + status CHECK confirmed; settings seeded; admin created. Cron: daily 03:00 mysqldump (14-day retention, `~/.my.cnf`) and a 5-minute `/healthz` keep-alive. Known issues: backups on the same server; jobs cron waits on M11. M8.2 ticked, M8.9 added. Plan only, no code changed. | Off-server backup copy + restore test (M8.8), rest of the M8 checks; client inputs |
+| 2026-10-14 | Verify (developer + Claude Code, docs only) | **Production verification.** Passing (developer on the server, re-checked with curl from outside): valid certificate on tturfzone.com and www, security headers, `/dev/wiring` 404, `/api/availability` 12 slots with no customer data, `/healthz` ok, `/admin/login` loads, session cookie Secure/HttpOnly/SameSite=Lax, unknown URL 404, test mysqldump produced a real dump. **Failing (found from outside):** plain `http://` on both hosts returns 200 with no redirect; M8.3 stays open. Exact cron lines + `\%F` escaping note in Appendix D. New Known issue: the backup pipeline masks mysqldump failures (`pipefail`). QA D/E items ticked; M8.4/M8.8 progress noted. Plan only, no code changed. | M8.3 Force HTTPS Redirect, M8.8 off-server copy + restore test; next build task M2.6 waits on the v2 signature |
 
 ---
 
@@ -899,10 +906,16 @@ tz pip install -q -r requirements.txt && tz flask --app app db upgrade && tz fla
 Then repeat D12 and D13. Before any update that changes models or migrations, run `pytest -q -m mariadb` locally first.
 
 **Cron jobs (cPanel → Cron Jobs), added 2026-10-13:**
-- Daily at 03:00: `mysqldump` of the production database, credentials from `~/.my.cnf` (chmod 600, built from `~/.tturfzone_db`), dumps older than 14 days deleted. Dumps stay on this server, so an off-server copy is still needed (M8.8, Known issues).
-- Every 5 minutes: a request to `https://tturfzone.com/healthz` so Passenger doesn't put the idle app to sleep. No database involved (D-12).
+- **Nightly backup**, schedule `0 3 * * *`:
+  ```
+  mkdir -p /home/tturfzo1/backups && /usr/bin/mysqldump --defaults-file=/home/tturfzo1/.my.cnf --single-transaction tturfzo1_tturfzone | gzip > /home/tturfzo1/backups/tturfzone-$(date +\%F).sql.gz && find /home/tturfzo1/backups -name "*.sql.gz" -mtime +14 -delete
+  ```
+  **Keep the backslash in `\%F`.** Cron treats an unescaped `%` as a newline, which cuts the command off and makes the job fail. No password appears in the job: `~/.my.cnf` (chmod 600) was generated from the stored connection string in `~/.tturfzone_db`. Dumps stay on this server; the off-server copy is still open (M8.8). Verified 2026-10-14: a test run produced a real dump (`MariaDB dump 10.19-11.4.13-MariaDB`). See Known issues about `pipefail`.
+- **Keep-alive**, schedule `*/5 * * * *` (keeps Passenger from putting the idle app to sleep; no database involved, D-12):
+  ```
+  curl -s https://tturfzone.com/healthz > /dev/null 2>&1
+  ```
 - Not yet: the CR-1 jobs (M8.5), which need M11.
-- The exact crontab lines live in cPanel → Cron Jobs. Copy them here at the next docs update so the setup can be rebuilt from this plan alone.
 
 The plan has no SSH, so every command is pasted into cPanel → Terminal. That terminal mangles multi-line pastes, so each step is **one line**. Run them one at a time and read the output before the next. No secret is ever typed on a command line: passwords and tokens are read at hidden prompts.
 
