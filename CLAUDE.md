@@ -37,6 +37,7 @@ If the brief and the plan disagree, the plan wins only where a Decision (D-n) or
 - Commit after each task: `git commit -m "<type>(<task id>): <summary>"`. Types: feat, fix, test, docs, chore, style.
 - After each completed milestone: run `pytest -q`, then `git push` to `origin`.
 - Never invent business information (prices, facilities, reviews, hours, address). Use `TODO(owner): ...` placeholders and make sure each one appears in the Client inputs table.
+- Photos: only real photos of the ground. Originals go in `assets_raw/` (gitignored); run `python scripts/build_images.py` and commit the output (D-45).
 - Prefer the simplest implementation that meets the brief. Note assumptions in the Decisions table.
 
 ## End of every task (mandatory)
@@ -103,6 +104,7 @@ flask --app app fake-bookings --count 10         # fake rows, codes start with F
 flask --app app fake-conflict-test               # proves the DB blocks double booking
 flask --app app fake-clear                       # deletes FK- rows only
 APP_ENV=production SECRET_KEY=... DATABASE_URL=... python scripts/serve_like_passenger.py   # cPanel simulation
+python scripts/build_images.py                   # assets_raw/ originals -> static/ WebP + icons + og-image (needs Pillow, dev only)
 ```
 
 Local MariaDB 11.4 for `-m mariadb` (portable, no service; database `tturf_test` on port 3307, URL in `.env`):

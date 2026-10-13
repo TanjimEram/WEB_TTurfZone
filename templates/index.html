@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "partials/_macros.html" import photo, owner_text, camera %}
+{% from "partials/_macros.html" import photo, img, owner_text, camera %}
 
 {% block title %}{{ settings.turf_name or "TTURFZONE" }} · Book a turf slot{% endblock %}
 
@@ -20,7 +20,7 @@
   {# ---------------------------------------------------------------- hero #}
   <section class="hero" aria-label="Introduction">
     <div class="hero__media">
-      {{ photo("Owner photo: wide field under lights, night (C-13)", "wide") }}
+      {{ img(pics["night-floodlights"], "100vw", loading="eager", priority=true, cls="") }}
     </div>
     <div class="container">
       <div class="hero__inner">
@@ -48,7 +48,6 @@
         Fixed slots, 06:00 AM to 12:00 AM. Pick a date, then a free slot.
       </p>
       {% include "partials/slot_picker.html" %}
-      <p class="muted"><small>The name and phone step is added next (M4.3).</small></p>
     </div>
   </section>
 
@@ -63,8 +62,8 @@
         <p class="todo-note">TODO(owner): 2 to 4 sentence description, owner approved (C-17)</p>
       {% endif %}
       <div class="grid grid--2">
-        {{ photo("Owner photo: full field, daytime (C-13)") }}
-        {{ photo("Owner photo: players on the turf (C-13)") }}
+        {{ img(pics["day-palms"], "(min-width: 768px) 540px, 100vw") }}
+        {{ img(pics["night-goal"], "(min-width: 768px) 540px, 100vw") }}
       </div>
     </div>
   </section>
@@ -125,30 +124,20 @@
     <div class="container stack reveal">
       <p class="section__label">Gallery</p>
       <h2 class="section__title" id="gallery-title">Photos</h2>
-      {% if settings.gallery %}
-        {% set gallery_shots = settings.gallery %}
-      {% else %}
-        {% set gallery_shots = [
-          "Owner photo: field at night (C-13)", "Owner photo: field, daytime (C-13)", "Owner photo: wide angle (C-13)",
-          "Owner photo: goal / nets (C-13)", "Owner photo: entrance / seating (C-13)", "Owner photo: match in progress (C-13)"] %}
-      {% endif %}
       <div class="gallery">
-        {% for shot in gallery_shots %}
-          {% set base = shot.caption if shot is mapping else shot %}
-          {% set caption = (base ~ " (C-13)") if settings.gallery else base %}
+        {% for p in photos %}
           <button type="button" class="gallery__item" data-lightbox-item
-                  aria-label="View photo {{ loop.index }} of {{ gallery_shots | length }}: {{ caption }}">
-            {{ photo(caption, interactive=true) }}
+                  aria-label="View photo {{ loop.index }} of {{ photos | length }}: {{ p.alt }}">
+            {{ img(p, "(min-width: 768px) 360px, 50vw") }}
           </button>
         {% endfor %}
       </div>
-      <p class="muted"><small>Tap a photo to zoom. Real photos replace these placeholders at M7.1.</small></p>
+      <p class="muted"><small>Tap a photo to zoom.</small></p>
     </div>
   </section>
 
-  {# Lightbox overlay (M7.2): static markup, gallery.js toggles it. Works
-     on placeholders today; the same markup/JS carry over once M7.1 swaps
-     in real <img> photos. #}
+  {# Lightbox overlay (M7.2): static markup, gallery.js toggles it and shows
+     the clicked photo at full size (M7.1). #}
   <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Photo viewer" hidden data-lightbox-overlay>
     <button type="button" class="lightbox__close" aria-label="Close" data-lightbox-close>&times;</button>
     <button type="button" class="lightbox__nav lightbox__nav--prev" aria-label="Previous photo" data-lightbox-prev>&larr;</button>

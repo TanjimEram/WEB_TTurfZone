@@ -268,6 +268,15 @@ a:hover { text-decoration: underline; }
 .ph--16x9 { aspect-ratio: 16 / 9; }
 .ph--wide { aspect-ratio: 21 / 9; }
 
+/* Real owner photos (M7.1). width/height attributes reserve the 4:3 space. */
+.photo {
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
 /* ------------------------------------------------------------------ header / nav */
 .site-header {
   position: sticky;
@@ -292,6 +301,9 @@ a:hover { text-decoration: underline; }
   min-height: 60px;
 }
 .nav__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
   font-weight: 800;
   font-size: var(--fs-500);
   color: var(--text);
@@ -377,12 +389,10 @@ a:hover { text-decoration: underline; }
   inset: 0;
   z-index: -2;
 }
-.hero__media .ph {
-  height: 100%;
+.hero__media img {
   width: 100%;
-  aspect-ratio: auto;
-  border-radius: 0;
-  border: 0;
+  height: 100%;
+  object-fit: cover;
 }
 .hero::after {
   /* dark scrim so white text stays readable over any photo */
@@ -604,7 +614,7 @@ a:hover { text-decoration: underline; }
 @media (min-width: 768px) {
   .gallery { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
-.gallery .ph { border-radius: var(--radius-sm); }
+.gallery .photo { border-radius: var(--radius-sm); }
 .gallery__item {
   display: block;
   width: 100%;
@@ -614,8 +624,8 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
   border-radius: var(--radius-sm);
 }
-.gallery__item:hover .ph,
-.gallery__item:focus-visible .ph { border-color: var(--accent); }
+.gallery__item:hover .photo,
+.gallery__item:focus-visible .photo { border-color: var(--accent); }
 
 /* ------------------------------------------------------------- lightbox (M7.2) */
 .lightbox {
@@ -628,8 +638,14 @@ a:hover { text-decoration: underline; }
   padding: var(--sp-8) var(--sp-4);
   background: rgba(11, 15, 13, 0.92);
 }
-.lightbox__stage { width: 100%; max-width: 640px; }
-.lightbox__stage .ph { aspect-ratio: 4 / 3; width: 100%; }
+.lightbox__stage { width: 100%; max-width: 960px; }
+.lightbox__stage img {
+  width: 100%;
+  height: auto;
+  max-height: 82vh;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+}
 .lightbox__close,
 .lightbox__nav {
   position: absolute;

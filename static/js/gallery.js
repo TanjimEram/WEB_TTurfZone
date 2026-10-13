@@ -1,6 +1,6 @@
 /* Gallery lightbox (M7.2): keyboard (arrows + Esc), swipe, close on click-out.
-   Works on today's .ph placeholder blocks unchanged; the same markup and
-   this same script carry over once real <img> photos replace them (M7.1). */
+   Shows a copy of the clicked photo; its `sizes` is widened so the browser
+   picks the 1280px file from the srcset (M7.1). */
 (function () {
   "use strict";
 
@@ -19,8 +19,13 @@
   function show(i) {
     index = (i + triggers.length) % triggers.length;
     stage.innerHTML = "";
-    var content = triggers[index].querySelector(".ph");
-    if (content) stage.appendChild(content.cloneNode(true));
+    var photo = triggers[index].querySelector("img");
+    if (!photo) return;
+    var big = photo.cloneNode(true);
+    big.className = "";
+    big.loading = "eager";
+    big.sizes = "(min-width: 1000px) 960px, 100vw";
+    stage.appendChild(big);
   }
 
   function open(i) {

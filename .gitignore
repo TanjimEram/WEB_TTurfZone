@@ -19,3 +19,6 @@ Thumbs.db
 
 # personal Claude notes
 CLAUDE.local.md
+
+# original owner photos (only resized WebP copies in static/images are committed)
+assets_raw/

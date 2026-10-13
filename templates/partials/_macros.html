@@ -21,6 +21,17 @@
 </div>
 {%- endmacro %}
 
+{# A real owner photo (M7.1) from routes/public.py PHOTOS, responsive WebP (widths = PHOTO_WIDTHS).
+   `sizes` tells the browser how wide it is shown, so phones fetch the 400/800 file.
+   Pass loading="eager" (+ priority) only for the hero, which is on screen at load. #}
+{% macro img(p, sizes, loading='lazy', priority=false, cls='photo') -%}
+<img class="{{ cls }}"
+     src="{{ url_for('static', filename='images/photos/' ~ p.name ~ '-800.webp') }}"
+     srcset="{% for w in (400, 800, 1280) %}{{ url_for('static', filename='images/photos/' ~ p.name ~ '-' ~ w ~ '.webp') }} {{ w }}w{{ ', ' if not loop.last }}{% endfor %}"
+     sizes="{{ sizes }}" width="1280" height="960" alt="{{ p.alt }}"
+     loading="{{ loading }}" decoding="async"{% if priority %} fetchpriority="high"{% endif %}>
+{%- endmacro %}
+
 {# Owner text, or a visible TODO note if it is missing or still a placeholder.
    `todo` is the note text (without the "TODO(owner):" prefix). #}
 {% macro owner_text(value, todo) -%}

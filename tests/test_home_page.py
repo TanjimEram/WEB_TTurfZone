@@ -1,6 +1,7 @@
 """Homepage (M3.2). Renders entirely from turf_settings; leaks no customer data."""
 import datetime as dt
 import json
+from pathlib import Path
 import re
 
 import pytest
@@ -51,7 +52,7 @@ def test_nav_has_mobile_menu_and_script(home):
 
 
 def test_gallery_lightbox_present(home):
-    """M7.2: 6 placeholder photos, each a lightbox trigger, plus the overlay + scripts."""
+    """M7.2: every gallery photo is a lightbox trigger, plus the overlay + scripts."""
     html = home.get_data(as_text=True)
     assert html.count("data-lightbox-item") == 6
     assert 'data-lightbox-overlay' in html
@@ -64,7 +65,7 @@ def test_missing_owner_content_shows_todo_notes(home):
     """With no seeded settings row, every gap is a visible TODO(owner) marker."""
     html = home.get_data(as_text=True)
     assert "TODO(owner)" in html
-    for code in ["C-17", "C-16", "C-02", "C-07", "C-13"]:
+    for code in ["C-17", "C-16", "C-02", "C-07"]:  # C-13 photos arrived in M7.1
         assert code in html, f"no TODO note references {code}"
 
 
@@ -169,3 +170,48 @@ def test_hidden_attribute_beats_component_display(client):
     closed lightbox overlay covered the whole homepage on every load (M7.2 bug)."""
     css = client.get("/static/css/main.css").get_data(as_text=True)
     assert "[hidden] { display: none !important; }" in css
+
+
+# --- M7.1: real photos, logo, share image --------------------------------
+
+STATIC = Path(__file__).resolve().parent.parent / "static"
+
+
+def test_every_photo_exists_in_every_width_as_4x3_without_metadata():
+    """build_images.py output matches routes/public.py PHOTOS; width/height attrs assume 4:3;
+    no EXIF means no phone GPS/device data reaches the public site."""
+    from PIL import Image
+
+    from routes.public import PHOTO_WIDTHS, PHOTOS
+    for p in PHOTOS:
+        for w in PHOTO_WIDTHS:
+            path = STATIC / "images" / "photos" / f"{p['name']}-{w}.webp"
+            assert path.exists(), f"missing {path.name}: run scripts/build_images.py"
+            with Image.open(path) as im:
+                assert im.size == (w, w * 3 // 4), path.name
+                assert not im.getexif(), f"{path.name} still carries EXIF"
+
+
+def test_homepage_shows_real_photos_with_alt_text(home):
+    html = home.get_data(as_text=True)
+    assert "Owner photo:" not in html  # no photo placeholders left
+    imgs = re.findall(r"<img\s[^>]*>", html)
+    photos = [i for i in imgs if "/images/photos/" in i]
+    assert len(photos) == 1 + 2 + 6  # hero, about, gallery
+    for tag in photos:
+        alt = re.search(r'alt="([^"]*)"', tag).group(1)
+        assert alt.strip(), f"photo without alt text: {tag}"
+        assert "srcset=" in tag and 'width="1280"' in tag and 'height="960"' in tag
+    hero, rest = photos[0], photos[1:]
+    assert 'loading="eager"' in hero and 'fetchpriority="high"' in hero
+    assert all('loading="lazy"' in tag for tag in rest)
+
+
+def test_logo_icons_and_share_image(home):
+    html = home.get_data(as_text=True)
+    assert "logo-emblem-96.webp" in html
+    og = re.search(r'property="og:image" content="([^"]+)"', html).group(1)
+    assert og.startswith("http") and og.endswith("/static/images/og-image.jpg")
+    assert 'name="twitter:card" content="summary_large_image"' in html
+    for rel in ("images/og-image.jpg", "images/logo-emblem-96.webp", "icons/favicon-32.png", "icons/apple-touch-icon.png"):
+        assert (STATIC / rel).exists(), rel

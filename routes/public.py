@@ -26,6 +26,20 @@ from services.slots import (
 
 bp = Blueprint("public", __name__)
 
+# Owner photos (M7.1, C-13), built from assets_raw/ by scripts/build_images.py into
+# static/images/photos/<name>-{400,800,1280}.webp. All 4:3. Alt text describes only
+# what is visible in each photo - no claims about facilities (D-23: developer-managed).
+PHOTO_WIDTHS = (400, 800, 1280)
+PHOTOS = [
+    {"name": "night-floodlights", "alt": "The pitch at night under the floodlights, palm trees behind the fence"},
+    {"name": "night-goal", "alt": "Floodlit pitch at night with a ball near the far goal"},
+    {"name": "night-wide", "alt": "Wide view of the striped turf at night, floodlights along the palm-tree side"},
+    {"name": "day-palms", "alt": "The pitch in daylight, striped turf with palm trees along the fence"},
+    {"name": "day-netting", "alt": "Low view across the turf in sunshine, white lines and netting overhead"},
+    {"name": "day-pitch", "alt": "The pitch in daylight from a corner, goal at the far end"},
+]
+PHOTO_BY_NAME = {p["name"]: p for p in PHOTOS}
+
 
 @bp.context_processor
 def inject_common():
@@ -57,6 +71,8 @@ def _local_business_json_ld(settings: TurfSettings) -> dict:
         "@type": "LocalBusiness",
         "name": settings.turf_name or "TTURFZONE",
         "url": request.url_root,
+        "image": url_for("static", filename="images/photos/night-floodlights-1280.webp", _external=True),
+        "logo": url_for("static", filename="icons/apple-touch-icon.png", _external=True),
     }
     if _is_real(settings.facebook_url):
         data["sameAs"] = [settings.facebook_url.strip()]
@@ -107,6 +123,8 @@ def home():
         slot_names={t.strftime("%H:%M"): slot_label(t) for t in SLOT_TIMES},
         date_chips=_date_chips(),
         json_ld=_local_business_json_ld(settings),
+        photos=PHOTOS,
+        pics=PHOTO_BY_NAME,
     )
 
 

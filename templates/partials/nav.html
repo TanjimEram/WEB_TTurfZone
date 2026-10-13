@@ -2,7 +2,10 @@
    main.js toggles `.at-top` (transparent over the hero) and opens the menu. #}
 <header class="site-header at-top" id="top" data-site-header>
   <div class="container nav">
-    <a class="nav__brand" href="{{ url_for('public.home') }}#top">{{ settings.turf_name or "TTURFZONE" }}</a>
+    <a class="nav__brand" href="{{ url_for('public.home') }}#top">
+      <img src="{{ url_for('static', filename='images/logo-emblem-96.webp') }}" width="40" height="40" alt="">
+      {{ settings.turf_name or "TTURFZONE" }}
+    </a>
 
     <nav class="nav__links" aria-label="Primary">
       <a href="{{ url_for('public.home') }}#about">About</a>
