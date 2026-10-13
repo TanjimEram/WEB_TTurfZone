@@ -23,10 +23,11 @@ def check_database() -> dict:
         "error": None,
     }
     try:
+        db.session.execute(text("SELECT 1"))  # connect first: the handshake is not the round trip
+        result["connected"] = True
         started = perf_counter()
         db.session.execute(text("SELECT 1"))
         result["latency_ms"] = round((perf_counter() - started) * 1000, 1)
-        result["connected"] = True
 
         tables = set(inspect(db.engine).get_table_names())
         result["missing_tables"] = [t for t in REQUIRED_TABLES if t not in tables]

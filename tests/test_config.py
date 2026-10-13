@@ -17,3 +17,13 @@ def test_already_normalized_url_is_unchanged():
 
 def test_sqlite_url_is_unchanged():
     assert normalize_database_url("sqlite:///x.sqlite") == "sqlite:///x.sqlite"
+
+
+def test_mysql_scheme_becomes_pymysql_driver():
+    url = "mysql://u:p@localhost/db?charset=utf8mb4"
+    assert normalize_database_url(url) == "mysql+pymysql://u:p@localhost/db?charset=utf8mb4"
+
+
+def test_mysql_pymysql_url_is_unchanged():
+    url = "mysql+pymysql://u:p@localhost/db?charset=utf8mb4"
+    assert normalize_database_url(url) == url

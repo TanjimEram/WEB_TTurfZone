@@ -1,4 +1,4 @@
-from extensions import db
+from extensions import MYSQL_TABLE_OPTIONS, db
 from models._time import utcnow
 
 from database.seed_data import DEFAULT_SETTINGS
@@ -8,6 +8,7 @@ class TurfSettings(db.Model):
     """Owner-editable business info. Always a single row with id = 1 (plan D-13)."""
 
     __tablename__ = "turf_settings"
+    __table_args__ = MYSQL_TABLE_OPTIONS
 
     id = db.Column(db.Integer, primary_key=True)
     turf_name = db.Column(db.String(80), nullable=False)

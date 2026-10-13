@@ -6,10 +6,10 @@
 
 | Field | Value |
 |---|---|
-| Phase | M3, M4 (incl. M4.6 instant confirm), M5, M6.1, M7.2–M7.5 complete. **M7 is done except M7.1 (real assets, waiting on the owner).** CR-1 and CR-3 (payments, notifications, customer accounts) recorded but not built, gated on client sign-off. Scaffold done locally; waiting on hosting money for real deploy |
-| Last completed | **Visual pass at 768/1280 + two bug fixes + client follow-up message** (2026-10-01): the closed lightbox overlay was covering the homepage on every load (global `[hidden]` rule fixes it); nav/footer/sticky links were dead on `/book` and the success page (now `/#section` and `/book`). Price card shows 12-hour slot labels; slot grid keeps even rows. Client message ready in Appendix C. 158 passed, 4 skipped. Before: M7.4 |
-| Next task | **Waiting on the client** — send Appendix C. Then: (a) **M7.1** real photos/logo/text once assets arrive; (b) **M6.2 / M8** deploy once hosting is bought; (c) **M2.6 → M10/M11 → M13** once v2 is signed and the advance paid. Nothing buildable is left without one of those. |
-| Blocked by | Hosting/domain purchase blocks M1.3b and W3–W6 (postponed). PostgreSQL-only bugs uncaught until W5. **CR-1: M10 blocked by repricing agreement (C-27, folded into v2/D-40); M12 blocked by bKash merchant approval (C-21). CR-3: M13 blocked by v2 (D-40) sign-off + advance, and by M11 existing first. C-28 needs the client's own confirmation of the D-41 default.** |
+| Phase | M3, M4 (incl. M4.6 instant confirm), M5, M6.1, M7.2–M7.5 complete; M7 done except M7.1 (owner assets). CR-1 and CR-3 recorded, not built (gated on v2). **Hosting bought (Cyber Developer BD cPanel, tturfzone.com). M1.3b deploy paused at the database step: the host blocks port 5432, so CR-4 moved production to the host's MariaDB, done and tested locally, not deployed yet.** |
+| Last completed | **CR-4 MariaDB support** (2026-10-13): Neon is unreachable from the host (outbound TCP 5432 blocked), so production uses the host's MariaDB 11.4. On MariaDB the double-booking rule is a STORED generated column `active_slot_key` + unique index `uq_active_slot_key` (D-42); PostgreSQL/SQLite keep the partial index. Initial migration branches on dialect; tables forced to utf8mb4; driver PyMySQL. Verified on a local MariaDB 11.4.13: `pytest -m mariadb` 11 passed (incl. the 10-thread race), production-mode CLI rehearsal clean. SQLite suite 161 passed, 15 skipped. Before: visual pass + Appendix C |
+| Next task | **Resume M1.3b on the server** with the CR-4 runbook (Appendix D): create the MariaDB database + user in cPanel, store the URL in `~/.tturfzone_db`, pull, pip install, `db upgrade`, seed, create-admin, restart, verify. Then **M8.8 nightly mysqldump** before launch. Still waiting on the client for M7.1 (assets), M2.6/M10/M11/M13 (v2) and C-28. |
+| Blocked by | Nothing blocks M1.3b any more (CR-4 removed the Neon blocker). **Check the production SECRET_KEY was not copied from `.env.example`** (Known issues). CR-1: M10 blocked by repricing (C-27, folded into v2/D-40); M12 by bKash merchant approval (C-21). CR-3: M13 blocked by v2 (D-40) sign-off + advance, and by M11 existing first. C-28 needs the client's own confirmation of the D-41 default. |
 | Dev environment | Windows + PowerShell. venv: `.venv\Scripts\Activate.ps1`. |
 | Live URL | not deployed |
 | Repo | created by developer (private GitHub) |
@@ -33,7 +33,7 @@ Status keys: `[ ]` to do, `[x]` done, `~~struck through~~ (CR-n)` dropped by a c
 - Payment (CR-1 + CR-2, overrides brief §2): **the website confirms every booking itself — no manual owner step.** An empty slot can be booked; a taken one cannot. **Shipped (M4.6, D-41):** `PAYMENTS_ENABLED=false` (the only reachable state today) auto-confirms with no payment. **Not yet built (M2.6/M10):** `true` = a Tk 500 bKash advance, verified server-to-server, balance paid on site. No payment data is ever trusted from a redirect or query string.
 - Statuses: PENDING (no longer created by the guest booking flow as of M4.6; stays available for other paths, e.g. a future admin manual booking, M5.6), PENDING_PAYMENT (hold while the customer pays the advance, CR-1, not built), CONFIRMED (booked, unavailable to others — what every guest booking becomes immediately), REJECTED (declined, slot free again), EXPIRED (advance hold ran out, CR-1, not built), CANCELLED (cancelled after confirmation, CR-1, not built), BLOCKED (owner prevents booking).
 - Fixed 90-minute slots: 06:00, 07:30, 09:00, 10:30, 12:00, 13:30, 15:00, 16:30, 18:00, 19:30, 21:00, 22:30.
-- Duplicate bookings are prevented on the server/database side. Client-side availability is never trusted. The `uq_active_slot` partial unique index covers PENDING_PAYMENT, PENDING, CONFIRMED and BLOCKED (CR-1).
+- Duplicate bookings are prevented on the server/database side. Client-side availability is never trusted. The rule covers PENDING_PAYMENT (CR-1, once built), PENDING, CONFIRMED and BLOCKED: the `uq_active_slot` partial unique index on PostgreSQL/SQLite, and on MariaDB (production, CR-4) the `active_slot_key` generated column + `uq_active_slot_key` unique index (D-42).
 - Mobile-first. Persistent mobile actions: WHATSAPP and BOOK NOW.
 - Never invent business information. Use `TODO(owner):` placeholders for missing data.
 - Reviews: only genuine, owner-approved. Facebook: link only, no Facebook API.
@@ -50,18 +50,18 @@ Status keys: `[ ]` to do, `[x]` done, `~~struck through~~ (CR-n)` dropped by a c
 
 | ID | Decision | Why | Status |
 |---|---|---|---|
-| D-01 | Flask + Jinja + vanilla JS + PostgreSQL | Brief §8 | Final |
-| D-02 | Database: use the hosting plan's own PostgreSQL if it has one with backups; otherwise Neon Free (region nearest the app server). Not Supabase Free. | Supabase Free pauses a project after 7 days without activity and has no downloadable backups. Neon Free scales to zero after 5 idle minutes and wakes automatically in milliseconds. | Proposed, finalize in M0.3 |
-| D-03 | App hosting: Bangladeshi cPanel hosting with Python app support (Passenger), paid in BDT, account in the owner's name. Fallback: Render Starter (about $7/month, needs an international card) + Neon. | No cold starts, bKash payment, local support, low yearly cost. Free Render/Koyeb tiers sleep, which is bad for a booking site opened from Facebook. | Proposed, finalize in M0.3 |
+| D-01 | Flask + Jinja + vanilla JS + PostgreSQL. **Production database changed to MariaDB on the host by CR-4**; PostgreSQL stays supported in code | Brief §8; CR-4 | Final (amended by CR-4) |
+| D-02 | Database: **MariaDB 11.4 on the cPanel host (localhost)** (CR-4). Neon is unusable because the host blocks outbound TCP 5432. PostgreSQL support stays in the code (`postgresql://` URLs, partial-index path, `pytest -m postgres`) for a possible future move. Never Supabase Free. | Was: host PostgreSQL, else Neon Free. Verified from the server 2026-10-13: "Connection refused" on every Neon IPv4 address, "Network is unreachable" on IPv6, while outbound HTTPS works. Changing hosting is not an option; MariaDB on localhost needs no outbound connection. Cost of the switch: no Neon-style automatic backups, so a mysqldump cron is required (M8.8). | Final (CR-4, 2026-10-13) |
+| D-03 | App hosting: Bangladeshi cPanel hosting with Python app support (Passenger), paid in BDT, account in the owner's name. **Chosen: Cyber Developer BD shared cPanel (server srv2), Python 3.11. No SSH: commands go through cPanel's web Terminal (§4, Appendix D).** | No cold starts, bKash payment, local support, low yearly cost. Free Render/Koyeb tiers sleep, which is bad for a booking site opened from Facebook. | Final (hosting bought, 2026-10) |
 | D-04 | Blocks are rows in `bookings` with status BLOCKED (reason in `admin_note`). No separate BlockedSlot table. | One partial unique index then prevents every conflict (booking vs booking, booking vs block). Brief §2 already treats BLOCKED as a booking status; brief §10 allows schema refinement. | Final unless developer objects |
 | D-05 | ~~Manual mode: a PENDING request holds its slot until the owner confirms or rejects; max 2 future PENDING per phone.~~ **Superseded by CR-2, shipped M4.6** — there is no manual confirmation. A booking is `CONFIRMED` on creation (free/interim, live now) or `PENDING_PAYMENT` → paid → `CONFIRMED` (bKash, M2.6/M10, not built). Slot conflict is entirely the DB's job. The per-phone cap idea moves to a rate limit if abuse appears (Backlog). | CR-2: the owner wants zero manual steps. | Superseded (CR-2); implemented M4.6 (2026-09-30) |
 | D-06 | Owner can reject a CONFIRMED booking too (shown as "Cancel") | Real customers cancel; the owner must be able to free the slot | Final |
 | D-07 | Plain CSS with custom properties, no Tailwind build step | Nothing to compile on cPanel; fewer moving parts | Final |
-| D-08 | Dependencies: Flask, Flask-SQLAlchemy, Flask-Migrate, Flask-WTF, psycopg[binary], python-dotenv, tzdata; dev: pytest. CR-1 adds `requests` (D-33). `itsdangerous` (signed tokens, D-11) and `smtplib`/`email` (SMTP, D-30) ship with Flask / the stdlib. Add gunicorn only if deploying to Render. | Flask-Migrate: future schema changes on live data. Flask-WTF: CSRF protection. tzdata: zoneinfo on Windows has no timezone database. | Final (CR-1 additions) |
+| D-08 | Dependencies: Flask, Flask-SQLAlchemy, Flask-Migrate, Flask-WTF, **PyMySQL** (CR-4, D-43), python-dotenv, tzdata; dev: pytest, psycopg[binary] (only for `pytest -m postgres`, moved out of production by CR-4). CR-1 adds `requests` (D-33). `itsdangerous` (signed tokens, D-11) and `smtplib`/`email` (SMTP, D-30) ship with Flask / the stdlib. Add gunicorn only if deploying to Render. | Flask-Migrate: future schema changes on live data. Flask-WTF: CSRF protection. tzdata: zoneinfo on Windows has no timezone database. | Final (CR-1, CR-4 changes) |
 | D-09 | Slot times are a constant in `services/slots.py` for the MVP | Settings-driven slot config is future work (Backlog) | Final |
 | D-10 | Business logic uses Asia/Dhaka time (`zoneinfo`). Slots stored as local `date` + `time`; audit fields as `timestamptz`. | Server may run in UTC | Final |
 | D-11 | Success / payment-result page reads the booking from the session or from a short-lived signed token (`itsdangerous`, already a Flask dependency), not a public `/booking/<code>` URL. The token carries only the booking id and a short expiry. | Brief §13: do not expose customer data publicly. A payment gateway returns the user to a fixed URL, so the session alone is not always enough — a signed, expiring token is safe. | Final (updated by CR-1) |
-| D-12 | `/healthz` does not touch the database | Uptime pings must not keep Neon awake and burn free compute hours | Final |
+| D-12 | `/healthz` does not touch the database | An uptime check must not depend on (or, on Neon, wake) the database. Still right on MariaDB (CR-4) | Final |
 | D-13 | Owner content (about, facilities, reviews, pricing, gallery list, contact, hours) lives in one `turf_settings` row, seeded from `database/seed_data.py` | One place to edit; admin settings page (M7.4) can edit it later | Final |
 | D-14 | Admin password generated by `create-admin` (20 random chars, shown once). Login rate limiting moved to Backlog. | Fits the 2-day window; strong generated password lowers brute-force risk | Final |
 | D-15 | ৳10,000 is the development fee. Domain and hosting are billed to the owner separately and registered in the owner's name. | Recurring costs belong to the owner; clean handover | **Superseded — see D-40 (client summary v2, Tk 30,000, sent 2026-09-16, not yet signed).** Not deleted. |
@@ -69,7 +69,7 @@ Status keys: `[ ]` to do, `[x]` done, `~~struck through~~ (CR-n)` dropped by a c
 | D-18 | Dev-only diagnostics: `/dev/wiring` page and `fake-*` CLI commands, fake rows use `FK-` codes. Registered only when `ENABLE_DEV_TOOLS` (development). | Test DB connection, migrations, conflict rule and API before real features and before hosting exists | Final |
 | D-19 | `scripts/serve_like_passenger.py` uses stdlib `wsgiref` to import `passenger_wsgi.application` in production mode | Rehearse cPanel loading without buying hosting; no new dependency | Final |
 | D-20 | `requirements-dev.txt` adds pytest on top of `requirements.txt`; production installs only `requirements.txt` | Keep production minimal | Final |
-| D-21 | `config.normalize_database_url()` converts `postgres://`/`postgresql://` to `postgresql+psycopg://` | Paste Neon/cPanel URLs unchanged | Final |
+| D-21 | `config.normalize_database_url()` converts `postgres://`/`postgresql://` to `postgresql+psycopg://` and `mysql://` to `mysql+pymysql://` (CR-4); `mysql+pymysql://` and `sqlite://` pass through | Paste host URLs unchanged | Final (CR-4 addition) |
 | D-22 | Short seed fields (phone, whatsapp: 20 chars) seed as empty strings; the TODO lives in a comment | PostgreSQL rejected long placeholder text (caught by testing on Postgres) | Final |
 | D-23 | Admin scope: the owner manages bookings, blocks slots, and edits basic settings (phone, WhatsApp, address, hours, booking rules, prices). Photos, page text, colours and layout are changed by the developer. A content editor (gallery upload, hero photo, about text, reviews, facilities) is a paid phase 2, in the Backlog. | Keeps the 2-day MVP small; media handling and rich text are their own project | Final (developer, 2026-09-11) |
 | D-17 | Payments: (1) Tk 5,000 development advance before build; (2) hosting + domain actual cost (up to Tk 7,000) before build, paid by owner directly or sent with receipts; (3) Tk 5,000 balance at handover after owner tests live site. Unused infra money returned or deducted from payment 3. 2-day clock starts after payments 1–2 and Day-1 inputs. 7 days of free fixes after handover. | Protects developer from funding infra out of the advance; protects deadline from late assets | **Superseded — see D-40** (v2 schedule: Tk 12,000 advance + hosting/SMS + Tk 9,000 Day 3 + Tk 9,000 handover; 14 days free fixes). Not deleted. |
@@ -91,14 +91,17 @@ Status keys: `[ ]` to do, `[x]` done, `~~struck through~~ (CR-n)` dropped by a c
 | D-39 | `login_codes.code_hash` stores a hash of the OTP, never the plain code, in the database or in any log line. The SMS itself is sent through the same `notifications` outbox as other messages (CR-1 D-28), so OTP delivery gets the same retry/failure handling. | Matches the "never log a secret" hard rule; reuses the outbox instead of a second sending path. | Final (CR-3); depends on the outbox existing (CR-1 M11) |
 | D-40 | Client summary v2 (outside the repo, reissued 2026-09-16): Tk 30,000 development; running costs max Tk 12,000/yr; payment schedule Tk 12,000 advance + hosting/SMS costs (owner pays directly) + Tk 9,000 at Day 3 + Tk 9,000 at handover; 14 days of free fixes after handover. Supersedes the CR-1 estimate (~Tk 25,000) and D-15/D-16/D-17 (v1). Status: **sent to client, not yet signed.** | CR-3 adds a day of work and ongoing SMS cost (OTP codes) on top of CR-1's repricing; one combined figure is clearer for the client than two separate revisions. | Sent to client 2026-09-16, pending signature |
 | D-41 | M4.6 implemented C-28 as **"free interim"**: while `PAYMENTS_ENABLED=false` (the only reachable state today — M10's gateway doesn't exist), `create_booking_request` confirms every valid booking immediately, no payment. Setting `PAYMENTS_ENABLED=true` now raises `NotImplementedError` rather than mislabeling a booking, since `PENDING_PAYMENT` needs M2.6/M10. | D-24 already named "free, cash on site" as the default; it is also the only option buildable before the bKash gateway exists. Developer default, not yet the client's own answer to C-28. | Final (developer, 2026-09-30); **flag to client — confirm or override via C-28** |
+| D-42 | **MariaDB double-booking rule** (CR-4): a STORED generated column `active_slot_key VARCHAR(20) AS (CASE WHEN status IN ('PENDING','CONFIRMED','BLOCKED') THEN CONCAT(booking_date,' ',slot_time) END)` with a plain unique index `uq_active_slot_key`. PostgreSQL/SQLite keep the partial index `uq_active_slot` (`Index.ddl_if` keeps it off MariaDB, where it would silently lose its WHERE). The column is not mapped in the model (the app never reads it): the hand-edited initial migration creates it, an `after_create` DDL does the same for `db.create_all()` on MariaDB only, and `env.py` hides both from autogenerate on MariaDB. The initial migration was edited in place, because no production database existed yet, rather than adding a fix-up migration that would first build a WHERE-less unique index. | Equivalent to the partial index: an active row gets a non-NULL key that is unique per (date, slot); an inactive row gets NULL, and a unique index allows any number of NULLs. InnoDB's unique index does the check at insert time, so it is race-safe exactly like PostgreSQL's (10-thread test). MariaDB has no partial indexes; a trigger or an app-side check would not be race-safe. | Final (CR-4, 2026-10-13) |
+| D-43 | MariaDB driver: **PyMySQL** (pure Python). Production `requirements.txt` drops psycopg. | Nothing to compile on shared cPanel (`mysqlclient` needs C headers the host may lack). SQLAlchemy's standard driver for MariaDB/MySQL. | Final (CR-4) |
+| D-44 | DateTime columns always hold **UTC**. MariaDB `DATETIME` (and SQLite) store no offset, and PyMySQL **drops the offset on write without converting**, so only `utcnow()` may be written; values read back are naive and mean UTC. No code reads timestamps today. When CR-1 adds `hold_expires_at` (read and compared), add a UTC-normalising column type at that point. | Verified on MariaDB 11.4.13: a +06:00 datetime was stored as its wall-clock time, unconverted. | Final (CR-4) |
 
 ## 4. Infrastructure and accounts (no secrets here)
 
 | Service | Purpose | Account owner | Status | Notes |
 |---|---|---|---|---|
-| Domain (.com preferred) | Website address | Owner is registrant; developer has access | Not bought | Buy from the chosen host. Record renewal date and renewal price. |
-| Hosting (BD cPanel, Python) | Runs Flask app | Owner's email; login shared privately | Not chosen | Must pass Appendix B checks before paying |
-| PostgreSQL | Production DB | Owner's email | Not created | Host PostgreSQL or Neon (D-02). Neon: create `production` and `dev` branches. |
+| Domain | Website address | Owner is registrant; developer has access | **Bought: tturfzone.com** | Record renewal date and renewal price here once known. |
+| Hosting (BD cPanel, Python) | Runs Flask app | Owner's email; login shared privately | **Bought: Cyber Developer BD shared cPanel, server srv2** | Python 3.11 + Passenger. App root `/home/tturfzo1/tturfzone`; venv `/home/tturfzo1/virtualenv/tturfzone/3.11`. **No SSH:** run commands in cPanel → Terminal, one single-line command at a time (it mangles multi-line pastes and heredocs). Env vars set in the cPanel Python App UI reach the web process only, not Terminal. Outbound TCP 5432 blocked (CR-4); outbound HTTPS works. |
+| MariaDB 11.4 (on the host) | Production DB (CR-4) | Owner's hosting account | Not created | cPanel → MySQL Databases: database + user with ALL PRIVILEGES on it. URL kept in `~/.tturfzone_db` (chmod 600) for Terminal and in the Python App env for the web process. **No automatic backups like Neon: nightly mysqldump cron (M8.8).** Neon: unusable from this host (CR-4). |
 | GitHub (private repo) | Code | Developer now; **transferred to the owner's account at handover, developer re-added as collaborator** (M9.7) | Not created | |
 | Google Maps | Map embed + directions link | None | n/a | Embed iframe and share link, no API key |
 | bKash merchant (CR-1) | Online payments | Owner's name (trade licence, TIN, business bank account, NID) | Not started | Sandbox first; live needs approval ~1–3 weeks. Refunds via the merchant dashboard in v1. |
@@ -120,8 +123,8 @@ tturfzone/
 ├── cli.py                    # db-check, seed-settings, create-admin, fake-*; CR-1: jobs-expire-holds, jobs-send-notifications, jobs-send-reminders
 ├── passenger_wsgi.py         # cPanel entry: from app import create_app; application = create_app()
 ├── requirements.txt
-├── requirements-dev.txt      # + pytest
-├── pytest.ini                # pythonpath, postgres marker
+├── requirements-dev.txt      # + pytest, psycopg (postgres tests only, CR-4)
+├── pytest.ini                # pythonpath, postgres + mariadb markers
 ├── .env.example
 ├── .gitignore                # .env, .venv, __pycache__, instance/, *.sqlite
 ├── docs/
@@ -186,6 +189,7 @@ tturfzone/
     ├── test_booking_rules_db.py, test_fake_data.py, test_availability_api.py
     ├── test_db_health.py, test_cli.py, test_dev_tools.py, test_seed_data.py
     ├── test_postgres.py            # @pytest.mark.postgres: migrations, partial index, 10-thread race
+    ├── test_mariadb.py             # CR-4 @pytest.mark.mariadb: generated column + unique index, 10-thread race, utf8mb4/Bangla, up/downgrade
     ├── test_slots.py               # M2.2
     ├── test_bookings.py            # M2.3
     ├── test_holds.py               # CR-1 M2.7: hold expiry inside booking creation (+ @pytest.mark.postgres)
@@ -230,6 +234,24 @@ __table_args__ = (
 ```
 
 Alembic autogenerate can miss the WHERE clause. Always open the generated migration and check it. A stale `PENDING_PAYMENT` row still occupies `uq_active_slot`, so `create_booking_request` must expire that slot's stale holds in the same transaction before inserting (D-26, M2.7).
+
+**MariaDB (production, CR-4, D-42).** MariaDB has no partial indexes, so the same rule is a STORED generated column plus a plain unique index:
+
+```sql
+active_slot_key VARCHAR(20) GENERATED ALWAYS AS (
+  CASE WHEN status IN ('PENDING','CONFIRMED','BLOCKED') THEN CONCAT(booking_date, ' ', slot_time) END
+) STORED,
+UNIQUE KEY uq_active_slot_key (active_slot_key)
+```
+
+An active row gets `'2030-05-05 19:30:00'`, any other row NULL, and the unique index allows many NULLs. A second active row raises error 1062 `Duplicate entry ... for key 'uq_active_slot_key'`, which `_is_slot_conflict` turns into `SlotUnavailableError`. **When CR-1 adds `PENDING_PAYMENT`, the migration must change both the partial-index WHERE and this expression** (`ALTER TABLE bookings MODIFY active_slot_key ...`).
+
+Other MariaDB facts (all checked by `tests/test_mariadb.py`):
+- Every table is `utf8mb4` / `utf8mb4_unicode_ci` (`extensions.MYSQL_TABLE_OPTIONS`) whatever the server default (the local test server is latin1 on purpose). `_ci` makes `booking_code` and `admins.username` uniqueness case-insensitive; codes are generated upper-case, so no effect.
+- Indexed strings are far below InnoDB's 3072-byte key limit (longest: `admins.username`, 50 chars × 4 bytes).
+- `JSON` is LONGTEXT with a `json_valid` CHECK; Bangla round-trips through VARCHAR, TEXT and JSON.
+- `DateTime(timezone=True)` is plain `DATETIME`: UTC with no offset (D-44).
+- Table names are all lower-case (MariaDB on Linux is case-sensitive about them).
 
 **payments** (CR-1): id (PK), booking_id (FK bookings, not null), gateway (string, e.g. `bkash`), merchant_invoice (string, **unique** — our idempotency key), gateway_payment_id (string, **unique**, nullable until "create payment" succeeds), amount_bdt (int), status (`INITIATED|SUCCESS|FAILED|CANCELLED|REFUNDED`), raw_response (JSON, **no secrets/tokens**), created_at, updated_at (timestamptz).
 
@@ -341,7 +363,7 @@ WhatsApp link after booking: `https://wa.me/<whatsapp>?text=` + URL-encoded `"Hi
 
 ### 5.5 Environment variables (`.env.example` lists names only)
 
-`APP_ENV` (development|testing|production), `SECRET_KEY`, `DATABASE_URL` (`postgresql+psycopg://...`, add `?sslmode=require` for Neon), `TEST_DATABASE_URL` (optional, for the postgres test).
+`APP_ENV` (development|testing|production), `SECRET_KEY`, `DATABASE_URL` (production, CR-4: `mysql+pymysql://<user>:<password>@localhost/<database>?charset=utf8mb4`, password URL-encoded; `postgresql://...` still accepted), `TEST_DATABASE_URL` (optional, throwaway DB: a `mysql+pymysql://` URL runs `-m mariadb`, a `postgresql://` URL runs `-m postgres`).
 
 CR-1 (names only; values only in the environment, never in git or .md):
 `PAYMENTS_ENABLED` (default false), `PAYMENT_GATEWAY` (e.g. `bkash`), `HOLD_MINUTES` (default 10),
@@ -351,7 +373,7 @@ CR-1 (names only; values only in the environment, never in git or .md):
 `OWNER_ALERT_PHONE`, `OWNER_ALERT_EMAIL`.
 Sandbox tests read `BKASH_*` from the environment and skip when unset (`@pytest.mark.sandbox`).
 
-Engine options: `pool_pre_ping=True`, `pool_recycle=280` (Neon closes idle connections when it scales to zero).
+Engine options: `pool_pre_ping=True`, `pool_recycle=280` (kept for MariaDB: shared hosts often lower `wait_timeout` to a few minutes, 280 s stays under common values, and pre-ping catches anything else).
 
 Production config: `SESSION_COOKIE_SECURE=True`, `SESSION_COOKIE_HTTPONLY=True`, `SESSION_COOKIE_SAMESITE="Lax"`, `PERMANENT_SESSION_LIFETIME=12h`. Response headers: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`.
 
@@ -378,7 +400,7 @@ Done when: repo exists with docs, hosting and DB are accessible, C-01 to C-07 an
 - [x] M1.1 `requirements.txt`, `.gitignore`, `.env.example`, `config.py`, `extensions.py`, `app.py` (factory, blueprints, headers), `cli.py` with `db-check`, `templates/base.html`, `/healthz`.
 - [x] M1.2 `tests/conftest.py` (app with TestConfig, SQLite in-memory, CSRF off in tests), one test for `/healthz`.
 - [x] M1.3a `passenger_wsgi.py` + `scripts/serve_like_passenger.py`; production-mode simulation verified (healthz ok, /dev 404, headers set, refuses to start without SECRET_KEY/DATABASE_URL).
-- [ ] M1.3b Deploy skeleton to the real host: Setup Python App, env vars, `pip install -r requirements.txt`, `flask db upgrade`, `flask db-check` from the host terminal. Blocked until hosting is bought.
+- [ ] M1.3b Deploy to the real host through cPanel Terminal (no SSH): clone, `pip install -r requirements.txt`, `db-check`, `db upgrade`, `seed-settings`, `create-admin`, restart, verify. **First attempt (2026-10-13) stopped at the database: the host blocks outbound 5432, Neon unreachable → CR-4 (MariaDB).** Resume with Appendix D.
 - [x] M1.4 Dev wiring page `/dev/wiring`, `services/db_health.py`, `services/fake_data.py`, fake CLI commands (D-18).
 
 Done when: `pytest -q` passes; host URL (temporary URL is fine) returns `ok` at `/healthz`; `db-check` succeeds on the host. This proves the risky parts early.
@@ -389,10 +411,11 @@ Done when: `pytest -q` passes; host URL (temporary URL is fine) returns `ok` at 
 - [ ] W2 SQLite: copy `.env.example` to `.env`, set SECRET_KEY, `flask db upgrade`, `seed-settings`, `run --debug`, open `/dev/wiring`, press all three buttons.
 - [x] W1 done (2026-09-11): `pytest -q` shows 42 passed, 4 skipped on Windows.
 - [x] W2 done (2026-09-11): local SQLite, `/dev/wiring` works, all three buttons pressed.
-- [ ] W3 POSTPONED until hosting/DB is bought. Neon: create project (region nearest Bangladesh, Singapore), branches `dev` and `test`. Put `dev` URL in `DATABASE_URL`, `test` URL in `TEST_DATABASE_URL`.
-- [ ] W4 POSTPONED. Neon: `flask db-check` (expect missing tables), `flask db upgrade`, `db-check` shows Database OK, `seed-settings`, `fake-bookings`, `fake-conflict-test`, `/dev/wiring` shows postgresql.
-- [ ] W5 POSTPONED. `pytest -q -m postgres` against Neon `test` branch: 4 passed. Until this runs, PostgreSQL-only problems are not caught (see Risks).
-- [ ] W6 POSTPONED. `serve_like_passenger.py` in production mode against Neon `dev`: `/healthz` ok, `/dev/wiring` 404.
+- ~~W3 Neon project + branches~~ (CR-4: Neon unreachable from the host)
+- ~~W4 Neon db-check / upgrade / seed / fake data~~ (CR-4)
+- ~~W5 `pytest -m postgres` against Neon~~ (CR-4; still possible against any PostgreSQL if a move back is ever planned)
+- ~~W6 `serve_like_passenger.py` against Neon~~ (CR-4)
+- [x] W7 (CR-4) Local MariaDB 11.4.13 (portable ZIP, 127.0.0.1:3307, server default left at latin1 on purpose): `pytest -q -m mariadb` 11 passed; production-mode CLI rehearsal (`db-check` → missing tables, `db upgrade`, `db-check` → Database OK, `seed-settings`, `create-admin`, `db downgrade base`) clean. Making the unique index non-unique fails 5 tests, so the tests do catch it. (2026-10-13)
 
 ### M2 Data model and booking rules (Day 1, 10:30 to 12:30)
 
@@ -460,10 +483,11 @@ Done when: Lighthouse mobile targets reached or noted (performance 85+, accessib
 - [ ] M8.1 Production env vars on the host: `APP_ENV=production`, new random 64-char `SECRET_KEY`, production `DATABASE_URL`.
 - [ ] M8.2 `flask db upgrade`, `seed-settings`, `create-admin` on production. No test data left.
 - [ ] M8.3 Force HTTPS (cPanel setting or `.htaccess`), confirm certificate on the root domain and www, secure cookies active.
-- [ ] M8.4 Backups: confirm the host/Neon backup policy; take a manual `pg_dump` before handover; write restore steps in Known issues or handover notes.
+- [ ] M8.4 Backups: ~~confirm the host/Neon backup policy; take a manual `pg_dump`~~ (CR-4) ask the host what MariaDB backups they keep and for how long; take a manual `mysqldump` before handover; write restore steps in the handover notes.
 - [ ] M8.5 (CR-1) cPanel cron: three entries, once a minute — `flask jobs-expire-holds`, `flask jobs-send-notifications`, `flask jobs-send-reminders`. Confirm they run and log.
 - [ ] M8.6 (CR-1) Email: create the SMTP mailbox; set SPF and DKIM DNS records; send one test email and check it is not spam-filed.
 - [ ] M8.7 (CR-1) Set the new environment variables (§5.5). Launch with `PAYMENTS_ENABLED=false`. bKash + SMS creds stay as sandbox/empty until M12.
+- [ ] M8.8 (CR-4) **Required before launch:** nightly `mysqldump` cron in cPanel (`--single-transaction --default-character-set=utf8mb4`, gzipped, keep the last 14, stored outside `public_html`). Credentials come from `~/.my.cnf` (chmod 600), never from the command line. Restore one dump into a scratch database to prove it works. Copy a dump off the server weekly.
 
 Done when: `https://<domain>` loads, http redirects to https, admin login works on production, cron entries run, a test email arrives.
 
@@ -600,6 +624,17 @@ M3 → M4.2 → M2.2, M2.3, M2.6, M2.7 → M4.3–M4.5 → M5 (incl. M5.6, M5.7,
 - [ ] Duplicate-booking test done on production (M9.2)
 - [ ] 404 page shows for unknown URLs; no debug tracebacks
 
+**F. Database engine (CR-4, MariaDB)**
+- [x] `pytest -q -m mariadb` passes on MariaDB 11.4 (local 11.4.13, 2026-10-13)
+- [x] 10 threads race for one slot: exactly 1 succeeds, 9 get `SlotUnavailableError` (2026-10-13)
+- [x] `uq_active_slot_key` is a unique index on the STORED generated column `active_slot_key` with the expected CASE expression; no WHERE-less `uq_active_slot` on MariaDB (2026-10-13)
+- [x] REJECTED frees the slot; PENDING, CONFIRMED and BLOCKED each hold it; several REJECTED rows can share a slot (2026-10-13)
+- [x] A duplicate `booking_code` is a plain IntegrityError, not "slot taken" (2026-10-13)
+- [x] Bangla round-trips through VARCHAR, TEXT and JSON; all tables utf8mb4_unicode_ci; `slot_time` comes back as a `time` (2026-10-13)
+- [x] Migrations upgrade and downgrade cleanly on MariaDB (2026-10-13)
+- [ ] On production: `SHOW CREATE TABLE bookings` shows the generated column and `uq_active_slot_key` (M1.3b)
+- [ ] Nightly mysqldump runs and one restore was tested (M8.8)
+
 ## 8. Handover checklist
 
 - [ ] Owner can log in to the admin on their own phone
@@ -654,6 +689,7 @@ Needed by: D0 = before Day 1 starts, D1-AM = Day 1 09:00, D1-PM = Day 1 18:00.
 
 | ID | Date | Request | Type (add/remove/modify) | Impact (time, scope, price) | Affected tasks | Status |
 |---|---|---|---|---|---|---|
+| CR-4 | 2026-10-13 | **Production database: PostgreSQL (Neon) → MariaDB on the host.** The host (Cyber Developer BD, shared cPanel, server srv2) blocks outbound TCP 5432. Checked from the server: "Connection refused" on every Neon IPv4 address and "Network is unreachable" on IPv6, while outbound HTTPS works (HTTP/2 200 from google.com). Changing hosting is not an option; the host's MariaDB 11.4 on localhost needs no outbound connection. Overrides brief §8 (PostgreSQL) for production; PostgreSQL support stays in the code. *The developer's message labelled this "CR-3", but CR-3 already exists (customer accounts), so it is recorded as CR-4.* | modify | **Time:** about half a day (done 2026-10-13). **Scope:** driver, URL handling, the double-booking rule on MariaDB (generated column, D-42), migration, tests, docs; no change to app behaviour. **Price:** none proposed (an infrastructure fix, not a feature); developer's call. **Owner costs:** none (MariaDB comes with the hosting), but backups are now ours to run (M8.8). | D-01, D-02, D-03, D-08, D-12, D-21, D-42…D-44; §2; §4; §5.1, §5.2, §5.5; W3–W7; M1.3b; M8.4, M8.8; §7 F; §12; §13; Appendix D | Done and tested locally 2026-10-13 (MariaDB 11.4.13). **Not deployed**: M1.3b resumes with Appendix D. |
 | CR-3 | 2026-09-16 | **Customer accounts.** Customers can create an account (phone number + a one-time SMS code, no password) and see their booking history. Guest booking without an account stays available and is never blocked. A verified phone number on a booking reduces fake bookings. Sessions last 60 days. The OTP goes through the same notification outbox as other SMS (~Tk 0.35/code). | add | **Time:** +1 day (6 days total). **Price:** Tk 30,000 development (reissued client summary v2, see D-40). **Owner costs:** SMS cost rises (OTP codes on top of booking notifications); no extra hosting or database cost. | Global constraints §2; §5 (models, services, routes); new M13; M5 (admin customers list); M9 (handover); §7 QA; §9 client inputs; §11 backlog; §12 risks; D-34…D-40 | Recorded 2026-09-16. Sent to client as version 2 of the client summary (Tk 30,000, outside the repo), **not yet signed**. M13 (and M10) blocked until v2 is signed and the advance paid. Frontend work continues. |
 | CR-2 | 2026-09-11 | **No manual confirmation at all.** The website decides every booking by itself: an empty slot can be booked, a taken slot cannot — the admin never has to intervene for a normal booking (but keeps full override: cancel, block, manual booking, refunds). Confirmation is by a **Tk 500 bKash advance** (bKash wired later — CR-1 M10); the balance is paid on site after the slot. Answers C-22 (advance = Tk 500 flat, not a percentage, not full payment). | modify | **Removes** the manual `PENDING → owner confirms` flow and CR-1's `PAYMENTS_ENABLED=false` "manual mode". `create_booking_request` will produce `CONFIRMED` (free/interim) or `PENDING_PAYMENT` (bKash), never `PENDING`. **Interim (before M10):** needs a call — auto-confirm free (cash on site) as a temporary launch mode, or keep the public booking form closed until bKash is live (open question, tracked as C-28). **Time:** small (mostly deletion) once M2.6/M10 land. **Price:** inside CR-1's repricing, no extra. | D-05 (superseded), D-24, CR-1 M2.6 / M4.3 / M4.4 / M10, C-22 (answered), new M4.6, M5.3 (confirm action now transitional) | Recorded 2026-09-11. Per developer: **M5 is built now against the current PENDING model and adapted when M2.6 lands** ("M5 now, adapt after"). |
 | CR-1 | 2026-09-11 | Make the website self-sufficient: online payment (bKash direct gateway, server-verified), automatic confirmation, SMS + email notifications, slot holds, scheduled jobs, admin manual bookings + payments/refunds. Overrides brief §2 ("no online payment"); removes "online payments/bKash" and "SMS gateway" from brief §15 exclusions. Still excluded: customer accounts, automated WhatsApp API, multiple branches, tournaments, coupons, complex analytics, native app, AI chatbot, large CMS. | add / modify | **Time:** +2–3 dev days (4–5 total). **Price:** development must be repriced — developer estimate ~Tk 25,000 at the original daily rate; **superseded by the combined CR-1+CR-3 client summary v2, Tk 30,000 (D-40), not yet agreed**; D-15…D-17 superseded. **Owner costs:** new running costs (bKash 1.5–2% per txn, SMS ~Tk 0.25–0.40 each, possible masking-sender registration). **Blockers:** live payments need an approved bKash merchant account in the owner's name (trade licence, TIN, business bank account, NID, live URL; ~1–3 weeks). | Global constraints §2; D-05, D-11, D-15–D-17; §5 (models, services, routes, env); new M2.6, M2.7, M5.6, M5.7, M10, M11, M12; M8; §7, §8, §9, §11, §12 | Recorded 2026-09-11. Repricing + owner running-cost agreement pending (blocks M10 start). Merchant approval pending (blocks M12). Frontend (M3, M4.2) continues unaffected. |
@@ -687,7 +723,7 @@ Needed by: D0 = before Day 1 starts, D1-AM = Day 1 09:00, D1-PM = Day 1 18:00.
 | Client assets arrive late | Placeholders marked `TODO(owner)`; hard deadlines in section 9; follow-up message at M6.3 |
 | Host can't run the app (old Python, no SSH, blocked outbound DB port) | Appendix B checks before paying; walking-skeleton deploy in M1.3; fallback D-03 |
 | DNS/SSL delay | Buy in M0.4 before Day 1; use host's temporary URL until ready |
-| Neon free compute hours used up | `/healthz` without DB (D-12); check usage page after one week |
+| ~~Neon free compute hours used up~~ | Obsolete: Neon is not used (CR-4) |
 | Fake PENDING requests block slots | Per-phone cap (D-05), owner rejects; auto-expiry in Backlog |
 | Owner slow to confirm | Show `confirm_time_text`; WhatsApp button on success page |
 | Scope creep during the 2 days | Every change goes through section 10 with time and price impact |
@@ -702,9 +738,16 @@ Needed by: D0 = before Day 1 starts, D1-AM = Day 1 09:00, D1-PM = Day 1 18:00.
 | (CR-3) SMS cost abuse through the OTP endpoint (someone hammers `/account/login` to run up the bill) | Rate limits enforced server-side: 3 codes/phone/hour, 5/day, 5 wrong attempts per code (D-37). |
 | (CR-3) Customers drop off if account signup is ever forced or nagged | Guest booking is permanent and unconditional (D-35); accounts are offered, never required. |
 | (CR-3) Client summary v2 not signed | M13 (and M10) do not start until it is signed and the advance is paid; frontend and non-CR-3 work continue meanwhile. |
-| PostgreSQL-only problems (VARCHAR length limits, partial-index behaviour, timezone/`timestamptz` handling, JSON columns, concurrency) are not caught while all local work runs on SQLite | W5 (`pytest -q -m postgres`) and W3–W6 are postponed until hosting/DB is bought. Keep model, migration and seed changes conservative until then; run `pytest -m postgres` against Neon the moment it exists and before any deploy (M8). SQLite is treated as UX-only, never as proof. |
+| (CR-4) Engine differences: production is MariaDB, everyday tests run on SQLite, and the double-booking rule is built differently per engine (partial index vs generated column, D-42), so a bug in one won't show in the other | Run `pytest -q -m mariadb` (10-thread race + index-definition check) against MariaDB 11.4, not MySQL, before every deploy and after every model or migration change. The tests are proven to fail when the index is broken. SQLite is UX-only, never proof. |
+| (CR-4) The host's MariaDB has no automatic backups we control (Neon had point-in-time restore) | M8.8: nightly mysqldump cron, a tested restore, and a weekly off-server copy. **Required before launch.** |
+| (CR-4) A status-list change (CR-1's `PENDING_PAYMENT`) must update two definitions: the partial-index WHERE and the MariaDB generated-column expression | Called out in §5.2 and the CLAUDE.md gotchas; the MariaDB index-definition test asserts the status list, so it fails until both change. |
 
 ## 13. Known issues
+
+- (CR-4) `.env.example` shipped a real-looking `SECRET_KEY` value from the scaffold commit (`6fc49b0`) until 2026-10-13; it is still in git history. If production's `SECRET_KEY` in the cPanel Python App settings was copied from it, generate a new one there and restart (it only logs the admin out).
+- (CR-4) M1.3b's first attempt stopped at the database step: the host blocks outbound port 5432, so Neon cannot be reached. Resolved by moving production to the host's MariaDB.
+- (CR-4) `flask db-check` used to time the first `SELECT 1`, which includes the connection handshake (about 150 ms even to localhost on Windows). It now connects first and times a second query, so "Round trip" is the real query time.
+- (CR-4) DateTime values come back naive on MariaDB/SQLite and aware on PostgreSQL (D-44). Harmless today because no code reads them.
 
 - Admin's "Confirm" action and "Awaiting confirmation" dashboard stat are now vestigial for the guest flow (M4.6 ships bookings CONFIRMED already) — kept working for any row that is still PENDING by other means (e.g. the future M5.6 manual booking). Reject/cancel, block/unblock, filters and the dashboard are otherwise unchanged.
 - Rejecting/cancelling a booking does not notify the customer (no SMS/email until CR-1 M11). The confirm dialog says so.
@@ -748,6 +791,7 @@ Needed by: D0 = before Day 1 starts, D1-AM = Day 1 09:00, D1-PM = Day 1 18:00.
 | 2026-09-30 | Build (Claude Code, Windows) | M7.2: `gallery.js` lightbox (each placeholder is a `<button data-lightbox-item>`, shared overlay dialog, keyboard/swipe/click-out, focus managed like the nav menu), `reveal.js` (adds `.reveal-on` only when motion isn't reduced and `IntersectionObserver` exists, reveals once per element), success-page checkmark + card pop (plain CSS keyframes, already covered by the global reduced-motion rule). `_macros.html` `photo()` gained `interactive=` for the lightbox-button case. None of this needed owner photos - same markup/JS carries over once M7.1 lands real `<img>`s. `tests/test_home_page.py` +1, `tests/test_public_routes.py` +1 assert. 147 passed, 4 skipped. Browser-verified: lightbox open/arrows/Esc/focus-return, success animation. Could not independently re-verify the scroll-triggered reveal live - this session's browser pane kept suspending rendering (IntersectionObserver/CSS transitions freeze) while hidden, a tool limitation; correctness confirmed by inspecting the served CSS and matched selectors instead. | M7.4 admin settings (recommended, no blocker) / M2.6 / M13 / M6.2 / M7.1 |
 | 2026-09-30 | Build (Claude Code, Windows) | M7.4: `/admin/settings` + `services/settings.py` (validate-then-save, phones normalized, WhatsApp stored as 8801…, hours ≤160, up to 6 price bands with ticked slots, creates the settings row if missing). Seed TODO text never pre-fills the form; failed saves keep input. Admin nav: Settings. `tests/test_admin_routes.py` +7. 154 passed, 4 skipped. Browser-verified save → public site at 375px. | Blocked on the client: v2 signature (M2.6/M10/M11/M13), hosting (M6.2/M8), assets (M7.1) |
 | 2026-10-01 | Build (Claude Code, Windows) | Visual pass at 768px and 1280px (every public + admin page: no page-level overflow, nav/sticky/FAB switch at 900px, grids correct). **Found and fixed two real bugs:** (1) `.lightbox` is `display:flex`, which beat the `hidden` attribute, so the closed lightbox overlay covered the whole homepage on every load since M7.2 — fixed at the root with a global `[hidden] { display:none !important }` (removed the now-redundant `.nav-menu[hidden]`); (2) nav/footer/sticky links (`#about`, `#pricing`, `#book`…) were dead on `/book` and `/book/success` — section links now `/#section`, "Book now" uses `book_href` (`#book` on the homepage, `/book` elsewhere) from the public context processor. Also: price card shows 12-hour labels ("All slots" when a band covers all 12); slot grid locked to 4 cols ≥640px and 6 ≥1024px so 12 slots fill even rows. M6.3: client follow-up message written as Appendix C. Tests +4 (CSS `[hidden]` guard, no dead `#` links on any public page, Book-now target, 12-hour price labels). 158 passed, 4 skipped. Lesson: tests that only check markup presence missed a visual-only bug — the lightbox was "present" and covering everything. | Send Appendix C to the client |
+| 2026-10-13 | Build (Claude Code, Windows) | **CR-4 MariaDB support** (host blocks port 5432, Neon unreachable). PyMySQL replaces psycopg in production (psycopg → dev only); `normalize_database_url` accepts `mysql://`; utf8mb4 forced on every table (`MYSQL_TABLE_OPTIONS`). Double-booking on MariaDB = STORED generated column `active_slot_key` + unique `uq_active_slot_key` (D-42): hand-edited initial migration branches on dialect, `after_create` DDL for `create_all`, `Index.ddl_if` keeps the partial index off MariaDB, `env.py` hides the hand-written rule from autogenerate. `_is_slot_conflict` documents all three engines' messages. `pytest.ini` + `conftest.py`: `mariadb` marker; `TEST_DATABASE_URL`'s scheme picks the marker. New `tests/test_mariadb.py` (11): index definition (migration and create_all), 10-thread race, REJECTED frees / PENDING-CONFIRMED-BLOCKED hold, duplicate booking_code is not "slot taken", Bangla/JSON/time/UTC round-trip, utf8mb4 + lower-case tables, downgrade. Ran against a local MariaDB 11.4.13 (portable ZIP, latin1 server default on purpose): 11 passed; a non-unique index fails 5, so the tests are real. Production-mode CLI rehearsal clean. Also: `db-check` now times a warm query (it was timing the ~150 ms handshake); blanked a committed `SECRET_KEY` value in `.env.example` (Known issues). Found PyMySQL silently drops timezone offsets (D-44). SQLite suite 161 passed, 15 skipped. | Resume M1.3b with Appendix D, then M8.8 (mysqldump cron) |
 
 ---
 
@@ -836,3 +880,55 @@ Needed by: D0 = before Day 1 starts, D1-AM = Day 1 09:00, D1-PM = Day 1 18:00.
 > - Logged-in customers stay logged in for 60 days. OK?
 
 Developer notes (not for the client): items map to C-01, C-02, C-04…C-08, C-10, C-12…C-21, C-23…C-30. C-03, C-09, C-11 and C-22 are obsolete or answered (CR-2, D-40). C-26 (SMS provider) is left to the developer unless the client has a preference.
+
+
+## Appendix D: production deploy runbook (cPanel Terminal, no SSH; CR-4)
+
+The plan has no SSH, so every command is pasted into cPanel → Terminal. That terminal mangles multi-line pastes, so each step is **one line**. Run them one at a time and read the output before the next. No secret is ever typed on a command line: passwords and tokens are read at hidden prompts.
+
+**D1 (cPanel UI, once).** MySQL Databases: create database `tturfzone` (cPanel names it `tturfzo1_tturfzone`), create user `app` (→ `tturfzo1_app`) with the password generator, then add the user to the database with ALL PRIVILEGES. Keep the password in a password manager.
+
+**D2 Store the connection string** (`~/.tturfzone_db`, chmod 600, outside the repo; the password is URL-encoded):
+```bash
+read -rp 'DB name (e.g. tturfzo1_tturfzone): ' N; read -rp 'DB user (e.g. tturfzo1_app): ' U; read -rsp 'DB password: ' P; echo; E=$(printf %s "$P" | /home/tturfzo1/virtualenv/tturfzone/3.11/bin/python -c 'import sys,urllib.parse;print(urllib.parse.quote(sys.stdin.read(),safe=""),end="")'); printf 'mysql+pymysql://%s:%s@localhost/%s?charset=utf8mb4' "$U" "$E" "$N" > ~/.tturfzone_db && chmod 600 ~/.tturfzone_db && unset P E && echo "SAVED, mode $(stat -c %a ~/.tturfzone_db)"
+```
+Then in cPanel → Setup Python App → the app → Environment variables, set `DATABASE_URL` to the same value (`cat ~/.tturfzone_db; echo` shows it; `clear` afterwards).
+
+**D3 Get the code** (clones on first run, fast-forward pulls after). Use a fine-grained GitHub token: this repo only, Contents read-only, short expiry. It is sent as a one-off request header, so it never lands in the remote URL or `.git/config`:
+```bash
+cd /home/tturfzo1/tturfzone && read -rsp 'GitHub token: ' T; echo; H="Authorization: Basic $(printf 'x:%s' "$T" | base64 -w0)"; if [ -d .git ]; then git -c http.extraHeader="$H" pull --ff-only origin main; else git init -q && git remote add origin https://github.com/TanjimEram/WEB_TTurfZone.git && git -c http.extraHeader="$H" fetch -q origin main && git checkout -q -f -B main origin/main && git branch -q -u origin/main; fi; unset T H; git log --oneline -1; git remote get-url origin; grep -qiE 'ghp_|github_pat_|authorization' .git/config && echo 'TOKEN FOUND IN CONFIG - STOP' || echo 'NO TOKEN IN CONFIG'
+```
+`checkout -f` replaces the cPanel-generated `passenger_wsgi.py` with ours; `tmp/` is left alone.
+
+**D4 Install dependencies:**
+```bash
+source /home/tturfzo1/virtualenv/tturfzone/3.11/bin/activate && cd /home/tturfzo1/tturfzone && pip install -q -r requirements.txt && python --version && python -c "import pymysql, flask, sqlalchemy; print('DEPS OK')"
+```
+
+**D5 Define a helper for this terminal session** (production config, URL from `~/.tturfzone_db`; the throwaway `SECRET_KEY` is fine because CLI commands sign nothing). Run it again whenever the terminal is reopened:
+```bash
+tz() { source /home/tturfzo1/virtualenv/tturfzone/3.11/bin/activate && cd /home/tturfzo1/tturfzone && APP_ENV=production SECRET_KEY=terminal-cli-only DATABASE_URL="$(cat ~/.tturfzone_db)" "$@"; }; echo HELPER READY
+```
+
+**D6** `tz flask --app app db-check` (expect "tables are missing" plus the round trip) → **D7** `tz flask --app app db upgrade && tz flask --app app db-check` (expect "Database OK") → **D8** `tz flask --app app seed-settings` → **D9** `tz flask --app app create-admin --username <name>` (save the printed password immediately; it is shown once).
+
+**D10 Check the schema and the server:**
+```bash
+tz python -c "from app import create_app; from extensions import db; from sqlalchemy import text; app = create_app(); app.app_context().push(); print(db.session.execute(text('SHOW CREATE TABLE bookings')).one()[1]); print(db.session.execute(text('SELECT VERSION(), @@wait_timeout, @@character_set_server, @@lower_case_table_names')).one())"
+```
+Expect `active_slot_key ... GENERATED ALWAYS AS (case when status in ('PENDING','CONFIRMED','BLOCKED') ...) STORED`, `UNIQUE KEY uq_active_slot_key`, and `CHARSET=utf8mb4`.
+
+**D11 Restart:** `mkdir -p /home/tturfzo1/tturfzone/tmp && touch /home/tturfzo1/tturfzone/tmp/restart.txt && echo RESTARTED`
+
+**D12 Verify over HTTPS** (status + certificate check per URL, http→https redirects, security headers):
+```bash
+D=$(TZ=Asia/Dhaka date -d tomorrow +%F); for u in https://tturfzone.com/healthz https://www.tturfzone.com/healthz https://tturfzone.com/ "https://tturfzone.com/api/availability?date=$D" https://tturfzone.com/dev/wiring https://tturfzone.com/admin/login; do echo "$(curl -s -o /dev/null -w '%{http_code} ssl_verify=%{ssl_verify_result}' "$u")  $u"; done; echo "healthz body: $(curl -s https://tturfzone.com/healthz)"; curl -sI http://tturfzone.com/ | grep -iE '^(HTTP|location)'; curl -sI http://www.tturfzone.com/ | grep -iE '^(HTTP|location)'; curl -sI https://tturfzone.com/ | grep -iE '^(x-content-type-options|x-frame-options|referrer-policy)'
+```
+Expect 200 everywhere except `/dev/wiring` (404), `ssl_verify=0` (certificate valid), a 301 to `https://` from both http URLs, and all three headers.
+
+**D13 Availability API holds 12 slots and no customer data:**
+```bash
+curl -s "https://tturfzone.com/api/availability?date=$(TZ=Asia/Dhaka date -d tomorrow +%F)" | /home/tturfzo1/virtualenv/tturfzone/3.11/bin/python -c "import sys,json; s=json.load(sys.stdin)['slots']; k=sorted({x for row in s for x in row}); print(len(s), 'slots, keys', k); print('NO CUSTOMER DATA' if k == ['label','price_bdt','state','time'] else 'UNEXPECTED KEYS - STOP')"
+```
+
+Never run `fake-*` commands on production. They are not even registered there (`ENABLE_DEV_TOOLS` is off).

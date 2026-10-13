@@ -5,7 +5,7 @@
 ## What this project is
 
 Website and self-sufficient slot-booking system for TTURFZONE, a single turf ground in Bangladesh.
-Flask + Jinja templates + vanilla JS + PostgreSQL. Built by one developer with Claude Code, then handed to the owner.
+Flask + Jinja templates + vanilla JS. Production database: MariaDB 11.4 on the cPanel host (CR-4); PostgreSQL stays supported; SQLite for the fast local tests. Built by one developer with Claude Code, then handed to the owner.
 
 The owner should not have to confirm each online booking by hand. The site:
 - takes payment online (bKash direct gateway, verified server-to-server), then confirms the booking automatically;
@@ -57,7 +57,7 @@ In the same commit as the code, update PROJECT_PLAN.md:
 ## Hard rules
 
 - No secrets in git or in any .md file. Secrets live in `.env` locally and in the host's environment settings. `.env.example` lists variable names only.
-- Double booking is prevented by the database (partial unique index, see plan section 5). Frontend checks are only for UX.
+- Double booking is prevented by the database: partial unique index `uq_active_slot` on PostgreSQL/SQLite, generated column `active_slot_key` + unique index `uq_active_slot_key` on MariaDB (D-42, plan §5.2). Frontend checks are only for UX.
 - Customer names and phone numbers appear only on admin pages behind login. The availability API never returns them.
 - All "today", "past slot" and booking-window logic uses Asia/Dhaka time via `services/slots.now_dhaka()`, never server time.
 - `/healthz` must not query the database.
@@ -92,8 +92,9 @@ python -m venv .venv; .venv\Scripts\Activate.ps1; pip install -r requirements-de
 
 flask --app app run --debug                      # run locally, then open /dev/wiring
 pytest -q                                        # all tests; postgres tests skip without TEST_DATABASE_URL
-pytest -q -m postgres                            # needs TEST_DATABASE_URL (throwaway DB: tests drop tables)
-flask --app app db migrate -m "message"          # new migration: open it and check the uq_active_slot WHERE clause
+pytest -q -m mariadb                             # needs a mysql+pymysql:// TEST_DATABASE_URL (throwaway DB: tests drop tables). Run before every deploy
+pytest -q -m postgres                            # needs a postgresql:// TEST_DATABASE_URL; the URL's scheme picks which marker runs
+flask --app app db migrate -m "message"          # autogenerate on SQLite; then hand-check uq_active_slot WHERE AND the MariaDB active_slot_key branch
 flask --app app db upgrade                       # apply migrations
 flask --app app db-check                         # connection, latency, tables, migration version
 flask --app app seed-settings [--force]          # create turf_settings row from database/seed_data.py
@@ -104,8 +105,26 @@ flask --app app fake-clear                       # deletes FK- rows only
 APP_ENV=production SECRET_KEY=... DATABASE_URL=... python scripts/serve_like_passenger.py   # cPanel simulation
 ```
 
+Local MariaDB 11.4 for `-m mariadb` (portable, no service; database `tturf_test` on port 3307, URL in `.env`):
+
+```bash
+"$LOCALAPPDATA/mariadb-11.4.13-winx64/bin/mariadbd.exe" --datadir="$LOCALAPPDATA/mariadb-data-tturf" --port=3307 --bind-address=127.0.0.1 --console
+```
+
+Production has no SSH: deploy with the one-line cPanel Terminal commands in plan Appendix D.
+
 ## Gotchas learned so far
 
-- SQLite ignores VARCHAR lengths; PostgreSQL enforces them. Run `pytest -m postgres` before deploying model or seed changes.
+- SQLite ignores VARCHAR lengths; MariaDB (strict mode) and PostgreSQL enforce them. Run `pytest -m mariadb` before deploying model or seed changes.
 - Fake data and the `/dev` pages exist only when `ENABLE_DEV_TOOLS` is true (development). Never enable it in production.
 - `database/migrations/env.py` was edited to use `db.engine` (the generated `get_engine()` is deprecated). Keep it that way.
+
+MariaDB (production, CR-4):
+
+- No partial indexes. The one-booking-per-slot rule is the STORED generated column `active_slot_key` + unique `uq_active_slot_key` (D-42). Changing the active status list (e.g. CR-1's `PENDING_PAYMENT`) means a migration that updates BOTH the partial-index WHERE and the generated-column expression.
+- Never let a migration put `uq_active_slot` on MariaDB: without its WHERE it becomes a plain unique (date, slot) index and a rejected booking would block its slot forever. The model uses `Index.ddl_if`, and `env.py` hides the hand-written rule from autogenerate.
+- PyMySQL silently DROPS timezone offsets on write, without converting. Only write UTC (`models._time.utcnow()`) into DateTime columns, never `now_dhaka()`; values read back are naive UTC (D-44).
+- Tables are forced to utf8mb4 (`extensions.MYSQL_TABLE_OPTIONS`) because a server default can be latin1. Keep table names lower-case (Linux MariaDB is case-sensitive).
+- Test against MariaDB 11.4, not MySQL: generated-column behaviour differs.
+- The host blocks outbound port 5432, so no external PostgreSQL (Neon) from production.
+- cPanel Python App env vars reach the web process only. Terminal commands read the URL from `~/.tturfzone_db` (Appendix D).

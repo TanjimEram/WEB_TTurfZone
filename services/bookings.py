@@ -59,8 +59,18 @@ def save_booking(booking: Booking) -> Booking:
 
 
 def _is_slot_conflict(exc: IntegrityError) -> bool:
+    """True when the IntegrityError is the one-active-booking-per-slot rule, per engine:
+
+    PostgreSQL: 'duplicate key value violates unique constraint "uq_active_slot"'
+    MariaDB:    (1062, "Duplicate entry '2026-10-14 18:00:00' for key 'uq_active_slot_key'")
+    SQLite:     'UNIQUE constraint failed: bookings.booking_date, bookings.slot_time'
+    A clash on booking_code ('uq_bookings_booking_code') is NOT a slot conflict.
+    """
     message = str(exc.orig)
-    return "uq_active_slot" in message or "bookings.booking_date, bookings.slot_time" in message
+    return (
+        "uq_active_slot" in message  # PostgreSQL, and MariaDB's uq_active_slot_key
+        or "bookings.booking_date, bookings.slot_time" in message
+    )
 
 
 # --------------------------------------------------------------- validation

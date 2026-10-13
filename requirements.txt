@@ -3,6 +3,6 @@ Flask>=3.1,<4
 Flask-SQLAlchemy>=3.1,<4
 Flask-Migrate>=4.0,<5
 Flask-WTF>=1.2,<2
-psycopg[binary]>=3.2,<4
+PyMySQL>=1.1,<2            # MariaDB on the host (CR-4, D-42); pure Python, nothing to compile on cPanel
 python-dotenv>=1.0,<2
 tzdata>=2024.1

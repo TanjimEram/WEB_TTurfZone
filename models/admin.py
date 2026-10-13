@@ -1,6 +1,6 @@
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from extensions import db
+from extensions import MYSQL_TABLE_OPTIONS, db
 from models._time import utcnow
 
 
@@ -8,6 +8,7 @@ class Admin(db.Model):
     """Owner login. Created with `flask create-admin`; there is no sign-up page."""
 
     __tablename__ = "admins"
+    __table_args__ = MYSQL_TABLE_OPTIONS
 
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)

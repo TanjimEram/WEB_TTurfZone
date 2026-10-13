@@ -20,7 +20,10 @@ class BaseConfig:
     SECRET_KEY = "dev-only-not-a-secret"
     SQLALCHEMY_ENGINE_OPTIONS = {
         "pool_pre_ping": True,   # test the connection before using it
-        "pool_recycle": 280,     # Neon closes idle connections; reconnect before that
+        # MariaDB drops connections idle longer than wait_timeout (8 h by default, but
+        # shared cPanel hosts often lower it to a few minutes). Recycling after 280 s stays
+        # under any common value, and reconnecting to localhost costs about a millisecond.
+        "pool_recycle": 280,
     }
     TIMEZONE = "Asia/Dhaka"
     WTF_CSRF_ENABLED = True
@@ -60,12 +63,18 @@ CONFIGS = {
 
 
 def normalize_database_url(url: str) -> str:
-    """Make hosting-provided URLs work with SQLAlchemy + psycopg 3.
+    """Make hosting-provided URLs pick the driver we install.
 
-    Neon, Render and cPanel give URLs like `postgresql://...` or `postgres://...`.
-    SQLAlchemy needs `postgresql+psycopg://...` to pick the psycopg 3 driver.
+    Production is MariaDB on the host (CR-4): `mysql://...` -> `mysql+pymysql://...`.
+    PostgreSQL stays supported for a possible future move:
+    `postgres://...` / `postgresql://...` -> `postgresql+psycopg://...` (psycopg 3).
+    URLs that already name a driver (`mysql+pymysql://`, `sqlite://`) pass through unchanged.
     """
-    for prefix in ("postgres://", "postgresql://"):
+    for prefix, driver in (
+        ("postgres://", "postgresql+psycopg://"),
+        ("postgresql://", "postgresql+psycopg://"),
+        ("mysql://", "mysql+pymysql://"),
+    ):
         if url.startswith(prefix):
-            return "postgresql+psycopg://" + url[len(prefix):]
+            return driver + url[len(prefix):]
     return url

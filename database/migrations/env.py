@@ -68,6 +68,15 @@ def run_migrations_offline():
         context.run_migrations()
 
 
+def _skip_hand_written_slot_rule(obj, name, type_, reflected, compare_to):
+    """MariaDB (D-42): the one-booking-per-slot rule is written by hand in migrations.
+
+    Without this, autogenerate against MariaDB would propose dropping active_slot_key /
+    uq_active_slot_key (not in the models) and adding uq_active_slot without its WHERE.
+    """
+    return name not in ("active_slot_key", "uq_active_slot_key", "uq_active_slot")
+
+
 def run_migrations_online():
     """Run migrations in 'online' mode.
 
@@ -93,6 +102,8 @@ def run_migrations_online():
     connectable = get_engine()
 
     with connectable.connect() as connection:
+        if connection.dialect.name in ("mysql", "mariadb"):
+            conf_args.setdefault("include_object", _skip_hand_written_slot_rule)
         context.configure(
             connection=connection,
             target_metadata=get_metadata(),

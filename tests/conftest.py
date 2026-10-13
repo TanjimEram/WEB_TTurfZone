@@ -26,9 +26,21 @@ def client(app):
     return app.test_client()
 
 
-@pytest.fixture
-def pg_url():
-    url = os.environ.get("TEST_DATABASE_URL")
+def _test_db_url(*schemes):
+    """TEST_DATABASE_URL if it points at this engine, else skip (one URL serves one marker)."""
+    url = os.environ.get("TEST_DATABASE_URL", "")
     if not url:
         pytest.skip("TEST_DATABASE_URL not set")
+    if not url.startswith(schemes):
+        pytest.skip(f"TEST_DATABASE_URL is not a {schemes[0]} URL")
     return url
+
+
+@pytest.fixture
+def pg_url():
+    return _test_db_url("postgres://", "postgresql")
+
+
+@pytest.fixture
+def mariadb_url():
+    return _test_db_url("mysql", "mariadb")
