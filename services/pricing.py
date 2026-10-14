@@ -15,9 +15,9 @@ Resolution rule (D-47), the same everywhere (slot grid, homepage, admin preview)
 Within steps 1 and 2 the band higher in the list wins. So every slot resolves to
 exactly one price (or None before the owner has set any).
 """
-from datetime import date, datetime, timedelta
+from datetime import date
 
-from services.slots import SLOT_MINUTES, slot_label, slot_times
+from services.slots import slot_end, slot_label, slot_times
 
 # D-46: Bangladesh's official weekend. Assumption until the owner confirms (C-31).
 WEEKEND_DAYS = (4, 5)  # date.weekday(): Friday, Saturday
@@ -86,7 +86,7 @@ def rundown(settings) -> list[dict]:
 def _merge_rows(rows: list, times: list) -> list[dict]:
     merged = []
     for row, t in zip(rows, times):
-        end = (datetime.combine(date.min, t) + timedelta(minutes=SLOT_MINUTES)).time()
+        end = slot_end(t)
         last = merged[-1] if merged else None
         if last and (last["price_bdt"], last["band"]) == (row["price_bdt"], row["band"]):
             last["end"] = slot_label(end)

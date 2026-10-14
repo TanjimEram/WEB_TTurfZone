@@ -491,3 +491,12 @@ def test_password_change_requires_login(client, admin_user, app):
     resp = _change(client)
     assert resp.status_code == 302 and "/admin/login" in resp.headers["Location"]
     assert _can_log_in(app, PASSWORD)
+
+
+def test_dashboard_lists_what_the_public_site_still_hides(as_admin):
+    html = as_admin.get("/admin/").get_data(as_text=True)
+    assert "Not on your website yet" in html
+    for label in ("Prices for every slot", "Phone number", "WhatsApp number", "Address",
+                  "Opening hours", "Tagline", "About the ground", "Google Maps location", "Customer reviews"):
+        assert label in html
+    assert "send it to your developer" in html and "add it in Settings" in html

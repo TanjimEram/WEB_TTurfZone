@@ -33,6 +33,7 @@ class BaseConfig:
     PERMANENT_SESSION_LIFETIME = timedelta(hours=12)
     ENABLE_DEV_TOOLS = False  # /dev/wiring diagnostics page (plan D-18)
     PAYMENTS_ENABLED = False  # bKash advance (D-24); false = auto-confirm, no payment (CR-2/M4.6)
+    SHOW_TODO_NOTES = True    # visible TODO(owner) notes for missing content; off in production (D-50)
 
 
 class DevelopmentConfig(BaseConfig):
@@ -53,6 +54,7 @@ class TestingConfig(BaseConfig):
 class ProductionConfig(BaseConfig):
     ENV_NAME = "production"
     SESSION_COOKIE_SECURE = True
+    SHOW_TODO_NOTES = False   # customers never see TODO notes; empty sections hide instead (D-50)
 
 
 CONFIGS = {

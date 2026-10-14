@@ -46,7 +46,9 @@
         <p class="muted"><small>You will get a booking ID and your slot is booked immediately.</small></p>
       </form>
 
-      <p>{{ owner_text(settings.booking_rules_text, "booking and cancellation rules (C-05)") }}</p>
+      {% if is_real(settings.booking_rules_text) or show_todos %}
+        <p>{{ owner_text(settings.booking_rules_text, "booking and cancellation rules (C-05)") }}</p>
+      {% endif %}
     </div>
   </section>
 </main>

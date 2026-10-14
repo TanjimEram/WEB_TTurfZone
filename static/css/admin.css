@@ -152,4 +152,6 @@
 .price-preview td small { display: block; color: var(--text-muted); }
 .price-preview--default { background: rgba(245, 158, 11, 0.12); }
 .price-preview--missing { color: var(--danger); font-weight: 700; }
-
+.missing-content { margin-bottom: var(--sp-6); }
+.missing-content h2 { font-size: var(--fs-500); margin: 0; }
+.missing-content ul { margin: 0; padding-left: 1.2rem; }

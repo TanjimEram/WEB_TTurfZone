@@ -25,12 +25,18 @@
     <div class="container">
       <div class="hero__inner">
         <h1 class="hero__title">{{ settings.turf_name or "TTURFZONE" }}</h1>
-        <p class="hero__tagline">{{ owner_text(settings.tagline, "short tagline (C-17)") }}</p>
+        <p class="hero__tagline">
+          {%- if is_real(settings.tagline) or show_todos -%}
+            {{ owner_text(settings.tagline, "short tagline (C-17)") }}
+          {%- else -%}
+            Book a 90-minute slot online and get confirmed instantly.
+          {%- endif -%}
+        </p>
         <div class="hero__actions">
           <a class="btn btn--primary" href="#book">Book now</a>
           {% if wa_link %}
             <a class="btn btn--whatsapp" href="{{ wa_link }}" rel="noopener" target="_blank">WhatsApp</a>
-          {% else %}
+          {% elif show_todos %}
             <a class="btn btn--whatsapp" aria-disabled="true"
                title="WhatsApp number not set yet">WhatsApp</a>
           {% endif %}
@@ -45,7 +51,7 @@
       <p class="section__label">Availability</p>
       <h2 class="section__title" id="book-title">Book a 90-minute slot</h2>
       <p class="muted">
-        Fixed slots, 06:00 AM to 12:00 AM. Pick a date, then a free slot.
+        Fixed slots, {{ slot_span[0] }} to {{ slot_span[1] }}. Pick a date, then a free slot.
       </p>
       {% include "partials/slot_picker.html" %}
     </div>
@@ -58,7 +64,7 @@
       <h2 class="section__title" id="about-title">The ground</h2>
       {% if has_about %}
         <p>{{ settings.about_text|trim }}</p>
-      {% else %}
+      {% elif show_todos %}
         <p class="todo-note">TODO(owner): 2 to 4 sentence description, owner approved (C-17)</p>
       {% endif %}
       <div class="grid grid--2">
@@ -69,6 +75,7 @@
   </section>
 
   {# --------------------------------------------------------------- pricing #}
+  {% if sections.pricing %}
   <section class="section" id="pricing" aria-labelledby="pricing-title">
     <div class="container stack reveal">
       <p class="section__label">Pricing</p>
@@ -93,13 +100,14 @@
             </div>
           {% endfor %}
         </div>
-      {% else %}
+      {% elif show_todos %}
         <p class="todo-note">TODO(owner): price per slot, and whether day/night, weekday/weekend
           or holiday prices differ (C-02)</p>
       {% endif %}
       <p class="muted"><small>Price per 90-minute slot, paid at the ground. No online payment yet.</small></p>
     </div>
   </section>
+  {% endif %}
 
   {# --------------------------------------------------------------- gallery #}
   <section class="section" id="gallery" aria-labelledby="gallery-title">
@@ -128,28 +136,31 @@
   </div>
 
   {# -------------------------------------------------------------- location #}
+  {% if sections.location %}
   <section class="section" id="location" aria-labelledby="location-title">
     <div class="container stack reveal">
       <p class="section__label">Location</p>
       <h2 class="section__title" id="location-title">Find the ground</h2>
       <p>{{ owner_text(settings.address, "exact address (C-07)") }}</p>
-      <div class="map-frame">
-        {% if has_map_embed %}
+      {% if has_map_embed %}
+        <div class="map-frame">
           <iframe src="{{ settings.map_embed_url|trim }}" title="Map to {{ settings.turf_name or 'TTURFZONE' }}"
                   loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
-        {% else %}
-          {{ photo("Google Maps embed (C-07)", "16x9") }}
-        {% endif %}
-      </div>
+        </div>
+      {% elif show_todos %}
+        <div class="map-frame">{{ photo("Google Maps embed (C-07)", "16x9") }}</div>
+      {% endif %}
       {% if settings.map_link and 'TODO' not in settings.map_link and settings.map_link|trim %}
         <p><a class="btn btn--ghost" href="{{ settings.map_link|trim }}" rel="noopener" target="_blank">Get directions</a></p>
-      {% else %}
+      {% elif show_todos %}
         <p><span class="todo-note">TODO(owner): Google Maps pin link for directions (C-07)</span></p>
       {% endif %}
     </div>
   </section>
+  {% endif %}
 
   {# --------------------------------------------------------------- reviews #}
+  {% if sections.reviews %}
   <section class="section" id="reviews" aria-labelledby="reviews-title">
     <div class="container stack reveal">
       <p class="section__label">Reviews</p>
@@ -165,14 +176,16 @@
             </blockquote>
           {% endfor %}
         </div>
-      {% else %}
+      {% elif show_todos %}
         <p class="todo-note">TODO(owner): real customer reviews you are happy to show, with
           permission to use names (C-18). Only genuine, owner-approved reviews are shown.</p>
       {% endif %}
     </div>
   </section>
+  {% endif %}
 
   {# -------------------------------------------------------------- facebook #}
+  {% if is_real(settings.facebook_url) or show_todos %}
   <section class="section" id="facebook" aria-labelledby="facebook-title">
     <div class="container stack reveal">
       <p class="section__label">Facebook</p>
@@ -184,6 +197,7 @@
       {% endif %}
     </div>
   </section>
+  {% endif %}
 
 </main>
 

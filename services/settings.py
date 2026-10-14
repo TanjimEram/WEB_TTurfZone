@@ -219,3 +219,28 @@ def current_price_summary() -> dict:
     """price_summary for the saved settings (dashboard warning, settings page on load)."""
     return price_summary(price_table(TurfSettings.current_or_default()))
 
+
+def _filled(value) -> bool:
+    return bool(value and "TODO" not in value and value.strip())
+
+
+def missing_content(settings) -> list[dict]:
+    """What the public site leaves out until it is filled in (production hides it, D-50).
+
+    [{"label": "Prices", "where": "settings" | "developer"}, ...] in the order the owner should fix them.
+    """
+    summary = price_summary(price_table(settings))
+    checks = [
+        ("Prices for every slot", "settings", not summary["missing"]),
+        ("Phone number", "settings", _filled(settings.phone)),
+        ("WhatsApp number", "settings", _filled(settings.whatsapp)),
+        ("Address", "settings", _filled(settings.address)),
+        ("Opening hours", "settings", _filled(settings.opening_hours_text)),
+        ("Tagline", "settings", _filled(settings.tagline)),
+        ("About the ground", "settings", _filled(settings.about_text)),
+        ("Booking and cancellation rules", "settings", _filled(settings.booking_rules_text)),
+        ("Google Maps location", "developer", _filled(settings.map_embed_url) or _filled(settings.map_link)),
+        ("Customer reviews", "developer", bool(settings.reviews)),
+    ]
+    return [{"label": label, "where": where} for label, where, done in checks if not done]
+

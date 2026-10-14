@@ -33,6 +33,7 @@ from services.settings import (
     SLOT_COUNT,
     SettingsValidationError,
     current_price_summary,
+    missing_content,
     preview_prices,
     save_owner_settings,
 )
@@ -87,7 +88,8 @@ def logout():
 @login_required
 def dashboard():
     return render_template("admin/dashboard.html", summary=dashboard_summary(today_dhaka()),
-                           prices=current_price_summary())
+                           prices=current_price_summary(),
+                           missing=missing_content(TurfSettings.current_or_default()))
 
 
 @bp.get("/bookings")

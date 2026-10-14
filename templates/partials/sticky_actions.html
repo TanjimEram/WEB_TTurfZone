@@ -3,7 +3,7 @@
 <div class="sticky-actions" data-sticky-actions>
   {% if wa_link %}
     <a class="btn btn--whatsapp" href="{{ wa_link }}" rel="noopener" target="_blank">WhatsApp</a>
-  {% else %}
+  {% elif show_todos %}
     <a class="btn btn--whatsapp" aria-disabled="true" title="WhatsApp number not set yet (C-06)">WhatsApp</a>
   {% endif %}
   <a class="btn btn--primary" href="{{ book_href }}">Book now</a>

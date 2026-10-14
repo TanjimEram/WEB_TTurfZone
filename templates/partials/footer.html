@@ -6,42 +6,40 @@
     <div class="footer__grid">
       <div>
         <h3>{{ settings.turf_name or "TTURFZONE" }}</h3>
-        <p>{{ owner_text(settings.tagline, "short tagline (C-17)") }}</p>
+        {% if is_real(settings.tagline) or show_todos %}<p>{{ owner_text(settings.tagline, "short tagline (C-17)") }}</p>{% endif %}
       </div>
 
       <div>
         <h3>Contact</h3>
-        <p>
-          {% if settings.phone and settings.phone|trim %}
-            <a href="tel:{{ settings.phone|trim }}">{{ settings.phone|trim }}</a>
-          {% else %}
-            <span class="todo-note">TODO(owner): phone number (C-06)</span>
-          {% endif %}
-        </p>
-        <p>
-          {% if wa_digits %}
-            <a href="https://wa.me/{{ wa_digits }}">WhatsApp</a>
-          {% else %}
-            <span class="todo-note">TODO(owner): WhatsApp number (C-06)</span>
-          {% endif %}
-        </p>
+        {% if settings.phone and settings.phone|trim %}
+          <p><a href="tel:{{ settings.phone|trim }}">{{ settings.phone|trim }}</a></p>
+        {% elif show_todos %}
+          <p><span class="todo-note">TODO(owner): phone number (C-06)</span></p>
+        {% endif %}
+        {% if wa_digits %}
+          <p><a href="https://wa.me/{{ wa_digits }}">WhatsApp</a></p>
+        {% elif show_todos %}
+          <p><span class="todo-note">TODO(owner): WhatsApp number (C-06)</span></p>
+        {% endif %}
         {% if settings.facebook_url and settings.facebook_url|trim %}
           <p><a href="{{ settings.facebook_url|trim }}" rel="noopener" target="_blank">Facebook</a></p>
         {% endif %}
       </div>
 
+      {% if is_real(settings.address) or is_real(settings.opening_hours_text) or show_todos %}
       <div>
         <h3>Visit</h3>
-        <p>{{ owner_text(settings.address, "exact address (C-07)") }}</p>
-        <p>{{ owner_text(settings.opening_hours_text, "opening hours (C-15)") }}</p>
+        {% if is_real(settings.address) or show_todos %}<p>{{ owner_text(settings.address, "exact address (C-07)") }}</p>{% endif %}
+        {% if is_real(settings.opening_hours_text) or show_todos %}<p>{{ owner_text(settings.opening_hours_text, "opening hours (C-15)") }}</p>{% endif %}
       </div>
+      {% endif %}
 
       <div>
         <h3>Quick links</h3>
         <p><a href="{{ book_href }}">Book a slot</a></p>
         <p><a href="{{ url_for('public.home') }}#about">About</a></p>
-        <p><a href="{{ url_for('public.home') }}#pricing">Pricing</a></p>
-        <p><a href="{{ url_for('public.home') }}#location">Location</a></p>
+        {% if sections.pricing %}<p><a href="{{ url_for('public.home') }}#pricing">Pricing</a></p>{% endif %}
+        {% if sections.location %}<p><a href="{{ url_for('public.home') }}#location">Location</a></p>{% endif %}
       </div>
     </div>
 

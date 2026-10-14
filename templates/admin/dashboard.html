@@ -28,6 +28,21 @@
     <a href="{{ url_for('admin.settings') }}">Check prices</a>.</p>
 {% endif %}
 
+{# D-50: the public site quietly leaves these out until they exist, so list them here #}
+{% if missing %}
+  <div class="card stack missing-content">
+    <h2>Not on your website yet</h2>
+    <p class="muted">Customers don't see these parts until they're filled in.</p>
+    <ul>
+      {% for item in missing %}
+        <li>{{ item.label }} &mdash;
+          {% if item.where == "settings" %}<a href="{{ url_for('admin.settings') }}">add it in Settings</a>
+          {% else %}send it to your developer{% endif %}</li>
+      {% endfor %}
+    </ul>
+  </div>
+{% endif %}
+
 <div class="stat-row">
   <div class="card stat">
     <div class="stat__value">{{ summary.todays_bookings | length }}</div>

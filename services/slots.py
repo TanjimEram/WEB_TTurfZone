@@ -47,6 +47,11 @@ def slot_label(t: time) -> str:
     return t.strftime("%I:%M %p")
 
 
+def slot_end(t: time) -> time:
+    """Start + SLOT_MINUTES, e.g. 22:30 -> 00:00."""
+    return (datetime.combine(date.min, t) + timedelta(minutes=SLOT_MINUTES)).time()
+
+
 def booking_window(today: date, days: int) -> list[date]:
     """The bookable dates: `today` plus the next `days - 1` days.
 

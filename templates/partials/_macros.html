@@ -34,13 +34,14 @@
      loading="{{ loading }}" decoding="async"{% if priority %} fetchpriority="high"{% endif %}>
 {%- endmacro %}
 
-{# Owner text, or a visible TODO note if it is missing or still a placeholder.
+{# Owner text. If it is missing or still a placeholder: a visible TODO note in
+   development, nothing at all in production (config.SHOW_TODO_NOTES, D-50).
    `todo` is the note text (without the "TODO(owner):" prefix). #}
 {% macro owner_text(value, todo) -%}
   {%- set text = (value | string | trim) if value is not none else '' -%}
   {%- if text and 'TODO' not in text -%}
     {{ text }}
-  {%- else -%}
+  {%- elif config.SHOW_TODO_NOTES -%}
     <span class="todo-note">TODO(owner): {{ todo }}</span>
   {%- endif -%}
 {%- endmacro %}

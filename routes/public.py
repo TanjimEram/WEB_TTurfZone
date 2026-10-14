@@ -2,6 +2,7 @@ from datetime import date, time
 
 from flask import (
     Blueprint,
+    current_app,
     redirect,
     render_template,
     request,
@@ -20,6 +21,7 @@ from services.pricing import rundown
 from services.slots import (
     booking_window,
     date_chip_label,
+    slot_end,
     slot_label,
     slot_times,
     today_dhaka,
@@ -57,6 +59,8 @@ def taka(amount) -> str:
 def inject_common():
     """Values every public template needs.
 
+    show_todos / sections: whether TODO notes and empty sections show (D-50).
+    slot_span: first slot start and last slot end, e.g. ("06:00 AM", "12:00 AM").
     now_year:  footer copyright.
     wa_link:   wa.me deep link, or "" when the owner has not given a number (C-06).
     book_href: every "Book now" link - the inline picker on the homepage,
@@ -64,13 +68,24 @@ def inject_common():
     """
     settings = TurfSettings.current_or_default()
     digits = (settings.whatsapp or "").strip()
+    show_todos = current_app.config["SHOW_TODO_NOTES"]
+    times = slot_times(settings)
     return {
+        "show_todos": show_todos,
+        # D-50: in production a section with nothing real to show is hidden (with its links)
+        "sections": {
+            "pricing": show_todos or bool(rundown(settings)),
+            "location": show_todos or any(_is_real(v) for v in (settings.address, settings.map_embed_url, settings.map_link)),
+            "reviews": show_todos or bool(settings.reviews),
+        },
+        "slot_span": (slot_label(times[0]), slot_label(slot_end(times[-1]))),
         "now_year": today_dhaka().year,
         "wa_link": f"https://wa.me/{digits}" if digits else "",
         "book_href": "#book" if request.endpoint == "public.home" else url_for("public.book"),
     }
 
 
+@bp.app_template_global("is_real")
 def _is_real(value) -> bool:
     """True when an owner text field has real content, not empty or still a TODO."""
     return bool(value and "TODO" not in value and value.strip())

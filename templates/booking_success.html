@@ -30,7 +30,7 @@
         {% if wa_link %}
           <a class="btn btn--whatsapp" href="{{ wa_link }}?text={{ wa_text | urlencode }}"
              rel="noopener" target="_blank">Chat on WhatsApp</a>
-        {% else %}
+        {% elif show_todos %}
           <p><span class="todo-note">TODO(owner): WhatsApp number so customers can follow up (C-06)</span></p>
         {% endif %}
         <a class="btn btn--ghost" href="{{ url_for('public.home') }}">Back to home</a>
