@@ -9,13 +9,58 @@
   {% if errors[name] %} aria-invalid="true" aria-describedby="err-{{ name }}"{% endif %}
 {%- endmacro %}
 
+{# One price band. `i` is its position (renumbered by admin_settings.js when rows move). #}
+{% macro band_row(i, band, n) -%}
+<fieldset class="card price-band" data-band{% if errors['band-' ~ i] %} aria-describedby="err-band-{{ i }}"{% endif %}>
+  <legend>Price {{ n }}</legend>
+  {{ field_error('band-' ~ i) }}
+  <div class="price-band__row">
+    <div class="form-field">
+      <label for="band-{{ i }}-label">Name</label>
+      <input id="band-{{ i }}-label" name="band-{{ i }}-label" maxlength="40" placeholder="e.g. Evening"
+             value="{{ band.label }}">
+    </div>
+    <div class="form-field">
+      <label for="band-{{ i }}-price">Price (৳)</label>
+      <input id="band-{{ i }}-price" name="band-{{ i }}-price" inputmode="numeric" placeholder="e.g. 4500"
+             value="{{ band.price }}">
+    </div>
+    <div class="form-field">
+      <label for="band-{{ i }}-days">Days</label>
+      <select id="band-{{ i }}-days" name="band-{{ i }}-days">
+        {% for d in day_options %}
+          <option value="{{ d }}"{% if band.days == d %} selected{% endif %}>
+            {{ "All days" if d == "all" else day_kinds[d] }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+  <div class="price-band__slots" role="group" aria-label="Slots for price {{ n }}" data-band-slots>
+    {% for name in slot_names %}
+      <label class="slot-check" for="band-{{ i }}-slot-{{ loop.index0 }}">
+        <input type="checkbox" id="band-{{ i }}-slot-{{ loop.index0 }}" name="band-{{ i }}-slots"
+               value="{{ loop.index0 }}"{% if loop.index0 | string in band.slots %} checked{% endif %}>
+        <span data-slot-name="{{ loop.index0 }}">{{ name }}</span>
+      </label>
+    {% endfor %}
+  </div>
+  <div class="price-band__tools" data-js-only hidden>
+    <button type="button" class="btn btn--ghost btn--small" data-band-up>Move up</button>
+    <button type="button" class="btn btn--ghost btn--small" data-band-down>Move down</button>
+    <button type="button" class="btn btn--ghost btn--small" data-band-remove>Remove</button>
+  </div>
+</fieldset>
+{%- endmacro %}
+
 {% block content %}
 <h1>Settings</h1>
-<p class="muted">These show on the public site as soon as you save. Leave a box empty to hide it.</p>
+<p class="muted">These show on the public site as soon as you save. Photos, page layout and design are
+  changed by the developer.</p>
 
 {% if errors %}<p class="form-error" role="alert">Please fix the highlighted fields. Nothing was saved.</p>{% endif %}
 
-<form method="post" action="{{ url_for('admin.settings') }}" class="settings-form stack">
+<form method="post" action="{{ url_for('admin.settings') }}" class="settings-form stack" novalidate
+      data-settings-form data-preview-url="{{ url_for('admin.settings_preview') }}" data-max-bands="{{ max_bands }}">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
   <h2>Contact</h2>
@@ -35,7 +80,8 @@
   <h2>Location and hours</h2>
   <div class="form-field">
     <label for="s-address">Address</label>
-    <textarea id="s-address" name="address" rows="3">{{ values.address }}</textarea>
+    <textarea id="s-address" name="address" rows="3"{{ invalid('address') }}>{{ values.address }}</textarea>
+    {{ field_error('address') }}
   </div>
   <div class="form-field">
     <label for="s-hours">Opening hours</label>
@@ -43,49 +89,85 @@
            value="{{ values.opening_hours_text }}"{{ invalid('opening_hours_text') }}>
     {{ field_error('opening_hours_text') }}
   </div>
+
+  <h2>Homepage text</h2>
+  <div class="form-field">
+    <label for="s-tagline">Tagline (one line under the name)</label>
+    <input id="s-tagline" name="tagline" maxlength="160" value="{{ values.tagline }}"{{ invalid('tagline') }}>
+    {{ field_error('tagline') }}
+  </div>
+  <div class="form-field">
+    <label for="s-about">About the ground (2 to 4 sentences)</label>
+    <textarea id="s-about" name="about_text" rows="5" maxlength="1500"{{ invalid('about_text') }}>{{ values.about_text }}</textarea>
+    {{ field_error('about_text') }}
+  </div>
+
+  <h2>Booking</h2>
+  <div class="form-field">
+    <label for="s-window">How many days ahead customers can book</label>
+    <input id="s-window" name="booking_window_days" inputmode="numeric" value="{{ values.booking_window_days }}"
+           {{ invalid('booking_window_days') }}>
+    {{ field_error('booking_window_days') }}
+  </div>
   <div class="form-field">
     <label for="s-rules">Booking and cancellation rules</label>
-    <textarea id="s-rules" name="booking_rules_text" rows="4">{{ values.booking_rules_text }}</textarea>
+    <textarea id="s-rules" name="booking_rules_text" rows="4"{{ invalid('booking_rules_text') }}>{{ values.booking_rules_text }}</textarea>
+    {{ field_error('booking_rules_text') }}
+  </div>
+  <div class="form-field">
+    <label for="s-note">Note on the booking confirmation page (optional)</label>
+    <input id="s-note" name="confirm_time_text" maxlength="160" value="{{ values.confirm_time_text }}"
+           {{ invalid('confirm_time_text') }}>
+    {{ field_error('confirm_time_text') }}
+  </div>
+
+  <h2 id="slot-times-title">Slot start times</h2>
+  <p class="muted">12 slots of 90 minutes, in order, without overlapping. A time can't be removed while an
+    upcoming booking or block is at that time.</p>
+  {{ field_error('slot_times') }}
+  <div class="slot-times" role="group" aria-labelledby="slot-times-title"
+       {% if errors['slot_times'] %}aria-describedby="err-slot_times"{% endif %}>
+    {% for value in values.slots %}
+      <div class="form-field">
+        <label for="slot-{{ loop.index0 }}">Slot {{ loop.index }}</label>
+        <input type="time" id="slot-{{ loop.index0 }}" name="slot-{{ loop.index0 }}" value="{{ value }}"
+               step="300" data-slot-input="{{ loop.index0 }}">
+      </div>
+    {% endfor %}
   </div>
 
   <h2>Prices</h2>
-  <p class="muted">One row per price. Tick the slots it covers. One flat price? Use one row and tick every slot.</p>
-  {% for band in values.bands %}
-    {% set i = loop.index0 %}
-    <fieldset class="card price-band"{% if errors['band-' ~ i] %} aria-describedby="err-band-{{ i }}"{% endif %}>
-      <legend>Price {{ loop.index }}</legend>
-      {{ field_error('band-' ~ i) }}
-      <div class="price-band__row">
-        <div class="form-field">
-          <label for="b{{ i }}-label">Name</label>
-          <input id="b{{ i }}-label" name="band-{{ i }}-label" maxlength="40" placeholder="e.g. Night"
-                 value="{{ band.label }}">
-        </div>
-        <div class="form-field">
-          <label for="b{{ i }}-price">Price (৳)</label>
-          <input id="b{{ i }}-price" name="band-{{ i }}-price" inputmode="numeric" placeholder="e.g. 1500"
-                 value="{{ band.price }}">
-        </div>
-        <div class="form-field">
-          <label for="b{{ i }}-days">Days</label>
-          <select id="b{{ i }}-days" name="band-{{ i }}-days">
-            {% for d in day_options %}
-              <option value="{{ d }}"{% if band.days == d %} selected{% endif %}>{{ d | title }}</option>
-            {% endfor %}
-          </select>
-        </div>
-      </div>
-      <div class="price-band__slots" role="group" aria-label="Slots for price {{ loop.index }}">
-        {% for key, label in slot_options %}
-          <label class="slot-check">
-            <input type="checkbox" name="band-{{ i }}-slots" value="{{ key }}"{% if key in band.slots %} checked{% endif %}>
-            {{ label }}
-          </label>
-        {% endfor %}
-      </div>
-    </fieldset>
-  {% endfor %}
+  <p class="muted">A price band covers the slots you tick. A Sunday–Thursday or Friday–Saturday band beats an
+    "All days" band for the same slot; between equal bands, the higher one in the list wins. Any slot no band
+    covers gets the default price.</p>
+  <div class="form-field">
+    <label for="s-default">Default price per slot (৳)</label>
+    <input id="s-default" name="default_price_bdt" inputmode="numeric" placeholder="e.g. 4000"
+           value="{{ values.default_price_bdt }}"{{ invalid('default_price_bdt') }}>
+    {{ field_error('default_price_bdt') }}
+  </div>
 
-  <p><button class="btn btn--primary" type="submit">Save settings</button></p>
+  <div class="stack" data-bands>
+    {% for band in values.bands %}{{ band_row(loop.index0, band, loop.index) }}{% endfor %}
+  </div>
+  <p data-js-only hidden><button type="button" class="btn btn--ghost" data-band-add>Add a price band</button></p>
+
+  <h2 id="preview-title">What each slot will cost</h2>
+  <div data-preview aria-live="polite" aria-labelledby="preview-title">
+    {% include "admin/_price_preview.html" %}
+  </div>
+
+  <p class="settings-actions">
+    <button class="btn btn--ghost" type="submit" name="action" value="preview">Preview prices</button>
+    <button class="btn btn--primary" type="submit" name="action" value="save">Save settings</button>
+  </p>
 </form>
+
+<template data-band-template>
+  {{ band_row("new", {"label": "", "days": "all", "price": "", "slots": []}, "new") }}
+</template>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/admin_settings.js') }}" defer></script>
 {% endblock %}

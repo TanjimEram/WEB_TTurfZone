@@ -1,0 +1,36 @@
+{# Price preview (M7.7): every slot, both day types, from services/pricing.resolve -
+   the same rule the public slot grid uses. `preview` = settings.price_summary(...). #}
+{% if preview.missing %}
+  <p class="form-error">{{ preview.missing }} slot price(s) are missing, so customers see "On request".
+    Set a default price.</p>
+{% elif preview.defaulted %}
+  <p class="notice">{{ preview.defaulted }} slot price(s) use the default price (marked "default" below).</p>
+{% else %}
+  <p class="muted">Every slot is covered by a price band.</p>
+{% endif %}
+<div class="admin-table--scroll">
+  <table class="admin-table price-preview">
+    <thead>
+      <tr><th scope="col">Slot</th>
+        {% for kind in preview.table %}<th scope="col">{{ day_kinds[kind] }}</th>{% endfor %}</tr>
+    </thead>
+    <tbody>
+      {% for row in preview.table.weekday %}
+        {% set i = loop.index0 %}
+        <tr>
+          <th scope="row">{{ row.label }}</th>
+          {% for kind in preview.table %}
+            {% set cell = preview.table[kind][i] %}
+            {% if cell.price_bdt is none %}
+              <td class="price-preview--missing">No price</td>
+            {% elif cell.band is none %}
+              <td class="price-preview--default">{{ cell.price_bdt | taka }} <small>default</small></td>
+            {% else %}
+              <td>{{ cell.price_bdt | taka }} <small>{{ cell.band }}</small></td>
+            {% endif %}
+          {% endfor %}
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

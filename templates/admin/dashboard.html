@@ -19,6 +19,15 @@
 {% block content %}
 <h1>Dashboard</h1>
 
+{# M4.7/M7.7: never let customers see a blank price without the owner knowing #}
+{% if prices.missing %}
+  <p class="form-error">{{ prices.missing }} slot price(s) are not set, so customers see "On request".
+    <a href="{{ url_for('admin.settings') }}">Set prices in Settings</a>.</p>
+{% elif prices.defaulted %}
+  <p class="notice">{{ prices.defaulted }} slot price(s) use the default price.
+    <a href="{{ url_for('admin.settings') }}">Check prices</a>.</p>
+{% endif %}
+
 <div class="stat-row">
   <div class="card stat">
     <div class="stat__value">{{ summary.todays_bookings | length }}</div>

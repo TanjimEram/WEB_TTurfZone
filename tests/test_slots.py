@@ -1,6 +1,8 @@
 """Slot helpers (M2.2 + M4.2). All time logic uses Asia/Dhaka; `now` is frozen here."""
 import datetime as dt
 
+import pytest
+
 from services.slots import (
     SLOT_TIMES,
     TZ,
@@ -13,6 +15,12 @@ from services.slots import (
 )
 
 NOON = dt.datetime(2026, 9, 11, 12, 0, tzinfo=TZ)   # a Friday, midday Dhaka
+
+
+@pytest.fixture(autouse=True)
+def _app_context(app):
+    """Slot times come from turf_settings since CR-6, so these need the app + DB."""
+    yield
 TODAY = NOON.date()
 
 

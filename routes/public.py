@@ -198,6 +198,7 @@ def booking_success():
         slot_display=slot_display,
         date_display=f"{booking.booking_date:%A, %d %b %Y}",
         wa_text=wa_text,
+        confirm_note=settings.confirm_time_text.strip() if _is_real(settings.confirm_time_text) else "",
     )
 
 

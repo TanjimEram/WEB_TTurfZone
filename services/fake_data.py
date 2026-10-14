@@ -9,7 +9,7 @@ from datetime import timedelta
 from models import Booking
 from extensions import db
 from services.bookings import SlotUnavailableError, generate_booking_code, save_booking
-from services.slots import SLOT_TIMES, today_dhaka
+from services.slots import slot_times, today_dhaka
 
 FAKE_PREFIX = "FK-"
 FAKE_NAMES = ["Test Rahim", "Test Karim", "Test Nabil", "Test Sakib", "Test Tanvir", "Test Arif"]
@@ -25,7 +25,7 @@ def make_fake_bookings(count: int = 10, days: int = 7, seed: int | None = None) 
         (b.booking_date, b.slot_time)
         for b in Booking.query.filter(Booking.status.in_(Booking.ACTIVE_STATUSES)).all()
     }
-    positions = [(start + timedelta(days=d), t) for d in range(days) for t in SLOT_TIMES]
+    positions = [(start + timedelta(days=d), t) for d in range(days) for t in slot_times()]
     rng.shuffle(positions)
     free = [p for p in positions if p not in taken]
 
@@ -49,7 +49,7 @@ def make_fake_bookings(count: int = 10, days: int = 7, seed: int | None = None) 
 def try_double_booking() -> dict:
     """Book one far-future slot twice and report whether the database stopped the second one."""
     booking_date = today_dhaka() + timedelta(days=60)
-    slot_time = SLOT_TIMES[8]  # 06:00 PM
+    slot_time = slot_times()[8]  # the 9th slot (06:00 PM by default)
 
     first = Booking(booking_code=generate_booking_code(prefix="FK"), customer_name="Test First",
                     phone="01700000001", booking_date=booking_date, slot_time=slot_time, status=Booking.PENDING)

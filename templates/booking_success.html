@@ -23,6 +23,7 @@
           <div><dt>Name</dt><dd>{{ booking.customer_name }}</dd></div>
           <div><dt>Status</dt><dd><span class="status-pill status-pill--confirmed">Confirmed</span></dd></div>
         </dl>
+        {% if confirm_note %}<p class="muted">{{ confirm_note }}</p>{% endif %}
       </div>
 
       <div class="stack">

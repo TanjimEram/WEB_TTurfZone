@@ -11,7 +11,7 @@ from models import Booking, TurfSettings
 
 TZ = ZoneInfo("Asia/Dhaka")
 SLOT_MINUTES = 90
-SLOT_TIMES = [
+SLOT_TIMES = [  # default; the owner can change them in /admin/settings (CR-6)
     time(6, 0), time(7, 30), time(9, 0), time(10, 30), time(12, 0), time(13, 30),
     time(15, 0), time(16, 30), time(18, 0), time(19, 30), time(21, 0), time(22, 30),
 ]
@@ -19,8 +19,12 @@ SLOT_TIMES = [
 
 
 def slot_times(settings=None) -> list[time]:
-    """The 12 slot start times in use. Today the fixed SLOT_TIMES; CR-6 (M7.7) lets the owner edit them."""
-    return SLOT_TIMES
+    """The 12 slot start times in use: the owner's (turf_settings.slot_times, CR-6)
+    or the built-in SLOT_TIMES when none are saved."""
+    settings = settings or TurfSettings.current_or_default()
+    if settings.slot_times:
+        return [time.fromisoformat(value) for value in settings.slot_times]
+    return list(SLOT_TIMES)
 
 
 _STATE_FOR_STATUS = {

@@ -23,14 +23,17 @@ from services.bookings import (
     reject_booking,
     unblock_slot,
 )
+from services.pricing import DAY_KINDS
 from services.settings import (
     DAY_OPTIONS,
     MAX_BANDS,
-    SLOT_KEYS,
+    SLOT_COUNT,
     SettingsValidationError,
+    current_price_summary,
+    preview_prices,
     save_owner_settings,
 )
-from services.slots import SLOT_TIMES, get_day_availability, slot_label, today_dhaka
+from services.slots import get_day_availability, slot_label, slot_times, today_dhaka
 
 bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -80,7 +83,8 @@ def logout():
 @bp.get("/")
 @login_required
 def dashboard():
-    return render_template("admin/dashboard.html", summary=dashboard_summary(today_dhaka()))
+    return render_template("admin/dashboard.html", summary=dashboard_summary(today_dhaka()),
+                           prices=current_price_summary())
 
 
 @bp.get("/bookings")
@@ -148,7 +152,7 @@ def calendar():
     rows = {b.slot_time: b for b in bookings_for_day(day)}
 
     slots = []
-    for t in SLOT_TIMES:
+    for t in slot_times():
         key = t.strftime("%H:%M")
         slots.append({
             "time": key,
@@ -200,42 +204,59 @@ def _clean(value) -> str:
     return "" if "TODO" in value else value
 
 
+TEXT_FIELDS = ("address", "opening_hours_text", "booking_rules_text", "confirm_time_text", "tagline", "about_text")
+
+
 def _settings_form(settings) -> dict:
-    """Current values for the settings form (GET)."""
+    """Current values for the settings form (GET). Band slots become positions 0-11."""
+    times = slot_times(settings)
+    keys = [t.strftime("%H:%M") for t in times]
     wa = settings.whatsapp or ""
-    bands = [
-        {"label": b.get("label", ""), "days": b.get("days", "all"),
-         "price": str(b.get("price_bdt", "")), "slots": b.get("slots", [])}
-        for b in (settings.pricing or [])
-    ]
-    return {
+    values = {field: _clean(getattr(settings, field)) for field in TEXT_FIELDS}
+    values.update({
         "phone": settings.phone or "",
         "whatsapp": wa[2:] if wa.startswith("88") else wa,
-        "address": _clean(settings.address),
-        "opening_hours_text": _clean(settings.opening_hours_text),
-        "booking_rules_text": _clean(settings.booking_rules_text),
-        "bands": bands,
-    }
+        "booking_window_days": str(settings.booking_window_days or 14),
+        "default_price_bdt": "" if settings.default_price_bdt is None else str(settings.default_price_bdt),
+        "slots": keys,
+        "bands": [
+            {"label": b.get("label", ""), "days": b.get("days", "all"), "price": str(b.get("price_bdt", "")),
+             "slots": [str(keys.index(k)) for k in b.get("slots", []) if k in keys]}
+            for b in (settings.pricing or [])
+        ],
+    })
+    return values
 
 
 def _posted_form(form) -> dict:
-    """What the owner just typed, so a failed save keeps their input."""
+    """What the owner just typed, so a failed save (or a preview) keeps their input."""
+    values = {field: form.get(field, "") for field in TEXT_FIELDS + ("phone", "whatsapp", "booking_window_days", "default_price_bdt")}
+    values["slots"] = [form.get(f"slot-{i}", "") for i in range(SLOT_COUNT)]
     bands = [
         {"label": form.get(f"band-{i}-label", ""), "days": form.get(f"band-{i}-days", "all"),
          "price": form.get(f"band-{i}-price", ""), "slots": form.getlist(f"band-{i}-slots")}
         for i in range(MAX_BANDS)
     ]
-    values = {k: form.get(k, "") for k in ("phone", "whatsapp", "address", "opening_hours_text", "booking_rules_text")}
     values["bands"] = [b for b in bands if b["label"] or b["price"] or b["slots"]]
     return values
+
+
+def _slot_label_or_raw(value: str) -> str:
+    try:
+        return slot_label(time.fromisoformat(value))
+    except ValueError:
+        return value
 
 
 @bp.route("/settings", methods=["GET", "POST"])
 @login_required
 def settings():
-    """Owner-editable business details (M7.4, D-23)."""
-    errors = {}
-    if request.method == "POST":
+    """Owner-editable business details, slot times and prices (M7.4, M7.7, D-23)."""
+    errors, preview = {}, None
+    if request.method == "POST" and request.form.get("action") == "preview":
+        values = _posted_form(request.form)  # no-JS "Preview prices": show, don't save
+        preview = preview_prices(request.form)
+    elif request.method == "POST":
         try:
             save_owner_settings(request.form)
             flash("Settings saved. The public site shows them now.")
@@ -246,11 +267,17 @@ def settings():
     else:
         values = _settings_form(TurfSettings.current_or_default())
 
-    # existing bands plus blank rows to add more, up to MAX_BANDS
-    blanks = max(MAX_BANDS - len(values["bands"]), 0)
-    values["bands"] += [{"label": "", "days": "all", "price": "", "slots": []}] * min(blanks, 2)
+    values["bands"].append({"label": "", "days": "all", "price": "", "slots": []})  # one empty row to add a band without JS
     return render_template(
         "admin/settings.html", values=values, errors=errors,
-        slot_options=[(key, slot_label(t)) for key, t in zip(SLOT_KEYS, SLOT_TIMES)],
-        day_options=DAY_OPTIONS,
+        preview=preview or current_price_summary(),
+        slot_names=[_slot_label_or_raw(v) for v in values["slots"]],
+        day_options=DAY_OPTIONS, max_bands=MAX_BANDS, day_kinds=DAY_KINDS,
     ), (400 if errors else 200)
+
+
+@bp.post("/settings/preview")
+@login_required
+def settings_preview():
+    """Live price preview for the settings form (admin_settings.js). Nothing is saved."""
+    return render_template("admin/_price_preview.html", preview=preview_prices(request.form), day_kinds=DAY_KINDS)

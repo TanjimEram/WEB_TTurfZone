@@ -135,3 +135,21 @@
 }
 .slot-check { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-300); min-height: 32px; }
 .slot-check input { width: 18px; height: 18px; accent-color: var(--accent); }
+
+/* settings (M7.7): slot times, band tools, price preview */
+.settings-form .form-field input[type="time"] { min-height: 44px; }
+.slot-times { display: grid; gap: var(--sp-3); grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (min-width: 560px) { .slot-times { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.price-band__tools { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-3); }
+.btn--small { min-height: 36px; padding: var(--sp-1) var(--sp-3); font-size: var(--fs-300); }
+.settings-actions { display: flex; flex-wrap: wrap; gap: var(--sp-3); }
+.notice {
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--warn);
+  border-radius: var(--radius-sm);
+  background: rgba(245, 158, 11, 0.1);
+}
+.price-preview td small { display: block; color: var(--text-muted); }
+.price-preview--default { background: rgba(245, 158, 11, 0.12); }
+.price-preview--missing { color: var(--danger); font-weight: 700; }
+
