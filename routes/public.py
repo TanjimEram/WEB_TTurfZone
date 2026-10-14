@@ -41,6 +41,11 @@ PHOTOS = [
 ]
 PHOTO_BY_NAME = {p["name"]: p for p in PHOTOS}
 
+# CR-7: hero image chosen by the developer. It is an AI-generated aerial pitch, not a photo
+# of this ground, so its alt text says what it is and never claims to show TTURFZONE.
+HERO = {"name": "hero-aerial", "dir": "hero", "widths": (800, 1280, 1920), "width": 1920, "height": 1072,
+        "alt": "Illustration: aerial view of a football pitch at sunset"}
+
 
 @bp.app_template_filter("taka")
 def taka(amount) -> str:
@@ -132,6 +137,7 @@ def home():
         json_ld=_local_business_json_ld(settings),
         photos=PHOTOS,
         pics=PHOTO_BY_NAME,
+        hero=HERO,
     )
 
 

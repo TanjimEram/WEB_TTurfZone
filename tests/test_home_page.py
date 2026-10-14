@@ -200,14 +200,29 @@ def test_homepage_shows_real_photos_with_alt_text(home):
     assert "Owner photo:" not in html  # no photo placeholders left
     imgs = re.findall(r"<img\s[^>]*>", html)
     photos = [i for i in imgs if "/images/photos/" in i]
-    assert len(photos) == 1 + 2 + 6  # hero, about, gallery
+    assert len(photos) == 2 + 6  # about, gallery
     for tag in photos:
         alt = re.search(r'alt="([^"]*)"', tag).group(1)
         assert alt.strip(), f"photo without alt text: {tag}"
         assert "srcset=" in tag and 'width="1280"' in tag and 'height="960"' in tag
-    hero, rest = photos[0], photos[1:]
-    assert 'loading="eager"' in hero and 'fetchpriority="high"' in hero
-    assert all('loading="lazy"' in tag for tag in rest)
+        assert 'loading="lazy"' in tag
+
+
+def test_hero_uses_the_chosen_hero_image(home):
+    """CR-7: hero.jpg (an illustration, not the ground) - loaded first, alt says what it is."""
+    from PIL import Image
+
+    from routes.public import HERO
+    html = home.get_data(as_text=True)
+    hero = [i for i in re.findall(r"<img\s[^>]*>", html) if "/images/hero/" in i]
+    assert len(hero) == 1
+    tag = hero[0]
+    assert 'loading="eager"' in tag and 'fetchpriority="high"' in tag
+    assert 'width="1920"' in tag and 'height="1072"' in tag
+    assert 'alt="Illustration: ' in tag  # never claims to show TTURFZONE itself
+    for w in HERO["widths"]:
+        with Image.open(STATIC / "images" / "hero" / f"hero-aerial-{w}.webp") as im:
+            assert im.width == w and not im.getexif()
 
 
 def test_logo_icons_and_share_image(home):

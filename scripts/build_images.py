@@ -26,7 +26,11 @@ PHOTOS = {
     "WhatsApp Image 2026-10-07 at 12.17.29.jpeg": "day-netting",
     "WhatsApp Image 2026-10-07 at 12.17.31.jpeg": "day-pitch",
 }
-WIDTHS = (400, 800, 1280)  # gallery thumb, gallery/about 2x, hero + lightbox (originals are 1280 wide)
+WIDTHS = (400, 800, 1280)  # gallery thumb, gallery/about 2x, lightbox (originals are 1280 wide)
+
+# CR-7: the hero uses the supplied hero.jpg (an AI-generated aerial pitch, not the ground itself).
+HERO_RAW, HERO_NAME, HERO_WIDTHS = "hero.jpg", "hero-aerial", (800, 1280, 1920)
+HERO_OUT = ROOT / "static" / "images" / "hero"
 
 LOGO = "Logo.jpeg"
 EMBLEM_CENTER, EMBLEM_RADIUS = (512, 497), 268  # the round badge in the 1024px logo
@@ -49,6 +53,16 @@ def build_photos() -> None:
             out = im.resize((width, round(im.height * width / im.width)), Image.LANCZOS)
             out.save(PHOTOS_OUT / f"{name}-{width}.webp", "WEBP", quality=80, method=6)
         print(f"photo  {name:18} {im.size}")
+
+
+def build_hero() -> None:
+    HERO_OUT.mkdir(parents=True, exist_ok=True)
+    im = load(HERO_RAW)
+    for width in HERO_WIDTHS:
+        if width <= im.width:
+            out = im.resize((width, round(im.height * width / im.width)), Image.LANCZOS)
+            out.save(HERO_OUT / f"{HERO_NAME}-{width}.webp", "WEBP", quality=80, method=6)
+    print(f"hero   {HERO_NAME:18} {im.size}")
 
 
 def emblem(size: int) -> Image.Image:
@@ -96,5 +110,6 @@ def build_share_image() -> None:
 
 if __name__ == "__main__":
     build_photos()
+    build_hero()
     build_logo()
     build_share_image()
