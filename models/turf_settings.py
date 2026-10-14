@@ -26,7 +26,7 @@ class TurfSettings(db.Model):
     booking_window_days = db.Column(db.Integer, nullable=False, default=14)
     max_pending_per_phone = db.Column(db.Integer, nullable=False, default=2)
     pricing = db.Column(db.JSON, nullable=False, default=list)
-    facilities = db.Column(db.JSON, nullable=False, default=list)
+    facilities = db.Column(db.JSON, nullable=False, default=list)  # unused since CR-5; kept so it can return without a migration
     reviews = db.Column(db.JSON, nullable=False, default=list)
     gallery = db.Column(db.JSON, nullable=False, default=list)
     updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow)

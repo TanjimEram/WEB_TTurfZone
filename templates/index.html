@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "partials/_macros.html" import photo, img, owner_text, camera %}
+{% from "partials/_macros.html" import photo, img, owner_text %}
 
 {% block title %}{{ settings.turf_name or "TTURFZONE" }} · Book a turf slot{% endblock %}
 
@@ -65,27 +65,6 @@
         {{ img(pics["day-palms"], "(min-width: 768px) 540px, 100vw") }}
         {{ img(pics["night-goal"], "(min-width: 768px) 540px, 100vw") }}
       </div>
-    </div>
-  </section>
-
-  {# ------------------------------------------------------------ facilities #}
-  <section class="section" id="facilities" aria-labelledby="facilities-title">
-    <div class="container stack reveal">
-      <p class="section__label">Facilities</p>
-      <h2 class="section__title" id="facilities-title">What's on site</h2>
-      {% if settings.facilities %}
-        <ul class="grid grid--3" style="list-style:none;padding:0;">
-          {% for item in settings.facilities %}
-            <li class="card facility">
-              <span class="facility__icon">{{ camera() }}</span>
-              <span>{{ item.name if item is mapping else item }}</span>
-            </li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p class="todo-note">TODO(owner): list of facilities that actually exist — parking,
-          changing room, water, lights, seating, etc. (C-16)</p>
-      {% endif %}
     </div>
   </section>
 

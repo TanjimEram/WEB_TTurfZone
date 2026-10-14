@@ -21,7 +21,6 @@ DEFAULT_SETTINGS = {
     "booking_window_days": 14,
     "max_pending_per_phone": 2,
     "pricing": [],
-    "facilities": [],
     "reviews": [],
     "gallery": [],
 }

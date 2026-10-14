@@ -9,7 +9,7 @@ import pytest
 from extensions import db
 from models import Booking, TurfSettings
 
-SECTION_IDS = ["book", "about", "facilities", "pricing", "gallery", "location", "reviews", "facebook"]
+SECTION_IDS = ["book", "about", "pricing", "gallery", "location", "reviews", "facebook"]
 
 
 @pytest.fixture
@@ -65,7 +65,7 @@ def test_missing_owner_content_shows_todo_notes(home):
     """With no seeded settings row, every gap is a visible TODO(owner) marker."""
     html = home.get_data(as_text=True)
     assert "TODO(owner)" in html
-    for code in ["C-17", "C-16", "C-02", "C-07"]:  # C-13 photos arrived in M7.1
+    for code in ["C-17", "C-02", "C-07"]:  # C-13 photos arrived in M7.1; C-16 dropped by CR-5
         assert code in html, f"no TODO note references {code}"
 
 
@@ -215,3 +215,12 @@ def test_logo_icons_and_share_image(home):
     assert 'name="twitter:card" content="summary_large_image"' in html
     for rel in ("images/og-image.jpg", "images/logo-emblem-96.webp", "icons/favicon-32.png", "icons/apple-touch-icon.png"):
         assert (STATIC / rel).exists(), rel
+
+
+def test_no_facilities_section_or_link(home):
+    """CR-5: the Facilities section was removed (column kept, unused)."""
+    html = home.get_data(as_text=True)
+    assert 'id="facilities"' not in html
+    assert "#facilities" not in html
+    assert "Facilities" not in html
+
