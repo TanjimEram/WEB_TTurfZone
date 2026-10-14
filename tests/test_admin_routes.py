@@ -436,3 +436,58 @@ def test_dashboard_warns_when_slots_have_no_price(as_admin):
     html = as_admin.get("/admin/").get_data(as_text=True)
     assert "24 slot price(s) are not set" in html
 
+
+
+# --- M5.9 password change (D-49) -------------------------------------------
+
+NEW_PASSWORD = "a-much-longer-new-passphrase"
+
+
+def _change(client, current=PASSWORD, new=NEW_PASSWORD, confirm=None):
+    return client.post("/admin/settings/password", data={
+        "current_password": current, "new_password": new,
+        "confirm_password": new if confirm is None else confirm,
+    })
+
+
+def _can_log_in(app, password):
+    resp = app.test_client().post("/admin/login", data={"username": USERNAME, "password": password})
+    return resp.status_code == 302
+
+
+def test_password_change_rejects_wrong_current_password(as_admin, app):
+    resp = _change(as_admin, current="not-my-password")
+    assert resp.status_code == 400
+    assert "current password is not right" in resp.get_data(as_text=True)
+    assert _can_log_in(app, PASSWORD) and not _can_log_in(app, NEW_PASSWORD)
+
+
+def test_password_change_rejects_short_and_mismatched_passwords(as_admin, app):
+    short = _change(as_admin, new="short1")
+    assert short.status_code == 400 and "at least 12 characters" in short.get_data(as_text=True)
+    mismatch = _change(as_admin, confirm=NEW_PASSWORD + "x")
+    assert mismatch.status_code == 400 and "The two new passwords" in mismatch.get_data(as_text=True)
+    assert _can_log_in(app, PASSWORD)
+
+
+def test_password_change_success_swaps_old_for_new(as_admin, app):
+    resp = _change(as_admin)
+    assert resp.status_code == 302
+    assert as_admin.get("/admin/").status_code == 200  # this browser stays signed in
+    assert _can_log_in(app, NEW_PASSWORD)
+    assert not _can_log_in(app, PASSWORD)
+
+
+def test_password_change_signs_out_other_sessions(as_admin, app):
+    other = app.test_client()
+    other.post("/admin/login", data={"username": USERNAME, "password": PASSWORD})
+    assert other.get("/admin/").status_code == 200
+    _change(as_admin)
+    resp = other.get("/admin/")
+    assert resp.status_code == 302 and "/admin/login" in resp.headers["Location"]
+
+
+def test_password_change_requires_login(client, admin_user, app):
+    resp = _change(client)
+    assert resp.status_code == 302 and "/admin/login" in resp.headers["Location"]
+    assert _can_log_in(app, PASSWORD)

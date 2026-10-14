@@ -100,6 +100,7 @@ flask --app app db upgrade                       # apply migrations
 flask --app app db-check                         # connection, latency, tables, migration version
 flask --app app seed-settings [--force]          # create turf_settings row from database/seed_data.py
 flask --app app create-admin --username owner    # prints a generated password once
+flask --app app reset-admin-password --username owner   # recovery: new generated password, signs out every session
 flask --app app fake-bookings --count 10         # fake rows, codes start with FK-
 flask --app app fake-conflict-test               # proves the DB blocks double booking
 flask --app app fake-clear                       # deletes FK- rows only

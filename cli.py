@@ -63,6 +63,21 @@ def create_admin(username):
     click.echo("Save it now in a password manager. It will not be shown again.")
 
 
+@click.command("reset-admin-password")
+@click.option("--username", prompt=True)
+@with_appcontext
+def reset_admin_password(username):
+    """Recovery: give an admin a new generated password (shown once). Signs out every session."""
+    admin = Admin.query.filter_by(username=username.strip()).first()
+    if admin is None:
+        raise click.ClickException(f"No admin called '{username.strip()}'.")
+    password = secrets.token_urlsafe(15)  # 20 characters
+    admin.set_password(password)  # new hash -> every existing session is logged out (D-49)
+    db.session.commit()
+    click.echo(f"New password for '{admin.username}': {password}")
+    click.echo("Save it now in a password manager. It will not be shown again. All sessions are signed out.")
+
+
 @click.command("fake-bookings")
 @click.option("--count", default=10, show_default=True)
 @with_appcontext
@@ -90,7 +105,7 @@ def fake_clear():
 
 def register_cli(app: Flask) -> None:
     """Fake-data commands exist only with ENABLE_DEV_TOOLS (D-18), never in production."""
-    commands = [db_check, seed_settings, create_admin]
+    commands = [db_check, seed_settings, create_admin, reset_admin_password]
     if app.config["ENABLE_DEV_TOOLS"]:
         commands += [fake_bookings, fake_conflict_test, fake_clear]
     for command in commands:

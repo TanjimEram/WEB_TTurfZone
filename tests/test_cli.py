@@ -47,3 +47,22 @@ def test_fake_bookings_and_clear_commands(app):
     assert Booking.query.count() == 6
     runner.invoke(args=["fake-clear"])
     assert Booking.query.count() == 0
+
+
+def test_reset_admin_password_prints_a_new_one_and_signs_everyone_out(app):
+    from services.auth import verify_admin
+    runner = app.test_cli_runner()
+    runner.invoke(args=["create-admin", "--username", "owner"])
+    old_hash = Admin.query.filter_by(username="owner").one().password_hash
+    result = runner.invoke(args=["reset-admin-password", "--username", "owner"])
+    assert result.exit_code == 0
+    new_password = result.output.split("New password for 'owner': ")[1].split()[0]
+    assert len(new_password) == 20
+    admin = Admin.query.filter_by(username="owner").one()
+    assert admin.password_hash != old_hash  # different hash = every session's stamp is stale
+    assert verify_admin("owner", new_password) is not None
+
+
+def test_reset_admin_password_unknown_user(app):
+    result = app.test_cli_runner().invoke(args=["reset-admin-password", "--username", "nobody"])
+    assert result.exit_code != 0 and "No admin called 'nobody'" in result.output

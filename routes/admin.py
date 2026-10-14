@@ -6,6 +6,9 @@ from flask import Blueprint, flash, redirect, render_template, request, url_for
 from extensions import db
 from models import Booking, TurfSettings
 from services.auth import (
+    MIN_PASSWORD_LENGTH,
+    PasswordChangeError,
+    change_password,
     current_admin,
     login_admin,
     login_required,
@@ -266,14 +269,32 @@ def settings():
             values = _posted_form(request.form)
     else:
         values = _settings_form(TurfSettings.current_or_default())
+    return _render_settings(values, errors, preview)
 
+
+def _render_settings(values, errors, preview=None, pw_errors=None):
+    """The settings page (business settings + the password form). 400 when anything failed."""
     values["bands"].append({"label": "", "days": "all", "price": "", "slots": []})  # one empty row to add a band without JS
     return render_template(
-        "admin/settings.html", values=values, errors=errors,
+        "admin/settings.html", values=values, errors=errors, pw_errors=pw_errors or {},
         preview=preview or current_price_summary(),
         slot_names=[_slot_label_or_raw(v) for v in values["slots"]],
         day_options=DAY_OPTIONS, max_bands=MAX_BANDS, day_kinds=DAY_KINDS,
-    ), (400 if errors else 200)
+        min_password_length=MIN_PASSWORD_LENGTH,
+    ), (400 if errors or pw_errors else 200)
+
+
+@bp.post("/settings/password")
+@login_required
+def settings_password():
+    """Change the signed-in admin's password (D-49). Signs out every other session."""
+    try:
+        change_password(current_admin(), request.form.get("current_password", ""),
+                        request.form.get("new_password", ""), request.form.get("confirm_password", ""))
+    except PasswordChangeError as exc:
+        return _render_settings(_settings_form(TurfSettings.current_or_default()), {}, pw_errors=exc.errors)
+    flash("Password changed. Any other device signed in to the admin has been signed out.")
+    return redirect(url_for("admin.settings") + "#password")
 
 
 @bp.post("/settings/preview")

@@ -163,6 +163,28 @@
   </p>
 </form>
 
+{# Separate form: changing the password never saves (or needs) the settings above. #}
+<form method="post" action="{{ url_for('admin.settings_password') }}" class="settings-form stack" id="password"
+      aria-labelledby="password-title">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <h2 id="password-title">Change your password</h2>
+  <p class="muted">At least {{ min_password_length }} characters. Every other phone or computer signed in to
+    the admin is signed out when you change it.</p>
+  {% if pw_errors %}<p class="form-error" role="alert">Password not changed.</p>{% endif %}
+  {% for name, label, autocomplete in [("current_password", "Current password", "current-password"),
+                                       ("new_password", "New password", "new-password"),
+                                       ("confirm_password", "New password again", "new-password")] %}
+    <div class="form-field">
+      <label for="pw-{{ name }}">{{ label }}</label>
+      <input id="pw-{{ name }}" name="{{ name }}" type="password" autocomplete="{{ autocomplete }}" required
+             {% if name != "current_password" %}minlength="{{ min_password_length }}"{% endif %}
+             {% if pw_errors[name] %}aria-invalid="true" aria-describedby="err-{{ name }}"{% endif %}>
+      {% if pw_errors[name] %}<p class="field-error" id="err-{{ name }}">{{ pw_errors[name] }}</p>{% endif %}
+    </div>
+  {% endfor %}
+  <p><button class="btn btn--primary" type="submit">Change password</button></p>
+</form>
+
 <template data-band-template>
   {{ band_row("new", {"label": "", "days": "all", "price": "", "slots": []}, "new") }}
 </template>
