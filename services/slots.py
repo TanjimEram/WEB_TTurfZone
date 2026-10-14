@@ -16,6 +16,13 @@ SLOT_TIMES = [
     time(15, 0), time(16, 30), time(18, 0), time(19, 30), time(21, 0), time(22, 30),
 ]
 
+
+
+def slot_times(settings=None) -> list[time]:
+    """The 12 slot start times in use. Today the fixed SLOT_TIMES; CR-6 (M7.7) lets the owner edit them."""
+    return SLOT_TIMES
+
+
 _STATE_FOR_STATUS = {
     Booking.PENDING: "pending",
     Booking.CONFIRMED: "booked",
@@ -55,8 +62,8 @@ def date_chip_label(d: date, today: date) -> str:
 
 
 def is_valid_slot(t: time) -> bool:
-    """True if `t` is one of the 12 fixed slot start times."""
-    return t in SLOT_TIMES
+    """True if `t` is one of the 12 slot start times in use."""
+    return t in slot_times()
 
 
 def slot_start(d: date, t: time) -> datetime:
@@ -103,7 +110,8 @@ def is_bookable(d: date, t: time, now: datetime | None = None, days: int | None 
 
 
 def get_day_availability(day: date, now: datetime | None = None) -> list[dict]:
-    """Public slot states for one day. Never includes customer data.
+    """Public slot states for one day: [{"time", "label", "state"}]. Never includes
+    customer data. Prices are added by the API (services/pricing.py).
 
     A slot with no active booking whose start time has passed is `"past"`.
     """
@@ -115,7 +123,7 @@ def get_day_availability(day: date, now: datetime | None = None) -> list[dict]:
     status_by_time = {slot: status for slot, status in active}
 
     slots = []
-    for t in SLOT_TIMES:
+    for t in slot_times():
         status = status_by_time.get(t)
         if status:
             state = _STATE_FOR_STATUS.get(status, "booked")
@@ -123,12 +131,5 @@ def get_day_availability(day: date, now: datetime | None = None) -> list[dict]:
             state = "past"
         else:
             state = "available"
-        slots.append(
-            {
-                "time": t.strftime("%H:%M"),
-                "label": slot_label(t),
-                "state": state,
-                "price_bdt": None,  # filled from turf_settings.pricing in M4
-            }
-        )
+        slots.append({"time": t.strftime("%H:%M"), "label": slot_label(t), "state": state})
     return slots

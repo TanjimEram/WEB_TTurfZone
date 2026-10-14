@@ -16,11 +16,12 @@ from services.bookings import (
     SlotUnavailableError,
     create_booking_request,
 )
+from services.pricing import rundown
 from services.slots import (
-    SLOT_TIMES,
     booking_window,
     date_chip_label,
     slot_label,
+    slot_times,
     today_dhaka,
 )
 
@@ -39,6 +40,12 @@ PHOTOS = [
     {"name": "day-pitch", "alt": "The pitch in daylight from a corner, goal at the far end"},
 ]
 PHOTO_BY_NAME = {p["name"]: p for p in PHOTOS}
+
+
+@bp.app_template_filter("taka")
+def taka(amount) -> str:
+    """4500 -> '৳4,500'. Used on the public site and in the admin."""
+    return f"৳{amount:,}"
 
 
 @bp.context_processor
@@ -103,7 +110,7 @@ def _render_booking_page(form, errors):
     return render_template(
         "booking.html",
         settings=TurfSettings.current_or_default(),
-        slot_labels=[slot_label(t) for t in SLOT_TIMES],
+        slot_labels=[slot_label(t) for t in slot_times()],
         date_chips=chips,
         preselect_date=preselect_date,
         preselect_slot=form["slot"],
@@ -119,8 +126,8 @@ def home():
     return render_template(
         "index.html",
         settings=settings,
-        slot_labels=[slot_label(t) for t in SLOT_TIMES],
-        slot_names={t.strftime("%H:%M"): slot_label(t) for t in SLOT_TIMES},
+        slot_labels=[slot_label(t) for t in slot_times()],
+        price_rundown=rundown(settings),
         date_chips=_date_chips(),
         json_ld=_local_business_json_ld(settings),
         photos=PHOTOS,

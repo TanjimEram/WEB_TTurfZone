@@ -73,20 +73,23 @@
     <div class="container stack reveal">
       <p class="section__label">Pricing</p>
       <h2 class="section__title" id="pricing-title">Slot prices</h2>
-      {% if settings.pricing %}
-        <div class="grid grid--3">
-          {% for band in settings.pricing %}
-            <div class="card price-card">
-              <h3 class="card__title">{{ band.label }}</h3>
-              <p class="price-card__amount">৳{{ band.price_bdt }}</p>
-              <p class="price-card__slots">
-                {%- if not band.slots or band.slots | length == slot_names | length -%}
-                  All slots
-                {%- else -%}
-                  {% for s in band.slots %}{{ slot_names.get(s, s) }}{% if not loop.last %}, {% endif %}{% endfor %}
-                {%- endif -%}
-                {% if band.days and band.days != "all" %} · {{ band.days }}{% endif %}
-              </p>
+      {# Built from the same resolved prices as the slot grid (services/pricing.py), so they never disagree. #}
+      {% if price_rundown %}
+        <div class="price-list">
+          {% for block in price_rundown %}
+            <div class="card price-list__block">
+              <h3 class="price-list__days">{{ block.days }}</h3>
+              <ul class="price-list__rows">
+                {% for row in block.rows %}
+                  <li class="price-row">
+                    <span class="price-row__when">
+                      {{ row.start }} – {{ row.end }}
+                      {% if row.band %}<span class="price-row__band">{{ row.band }}</span>{% endif %}
+                    </span>
+                    <span class="price-row__price">{{ row.price_bdt | taka if row.price_bdt is not none else "Price on request" }}</span>
+                  </li>
+                {% endfor %}
+              </ul>
             </div>
           {% endfor %}
         </div>
@@ -94,7 +97,7 @@
         <p class="todo-note">TODO(owner): price per slot, and whether day/night, weekday/weekend
           or holiday prices differ (C-02)</p>
       {% endif %}
-      <p class="muted"><small>Prices are collected on site. No online payment.</small></p>
+      <p class="muted"><small>Price per 90-minute slot, paid at the ground. No online payment yet.</small></p>
     </div>
   </section>
 

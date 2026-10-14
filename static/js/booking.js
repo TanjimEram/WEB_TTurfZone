@@ -1,9 +1,22 @@
-/* Date + slot picker (M4.2).
+/* Date + slot picker (M4.2, prices M4.7).
    Reads the booking window from server-rendered date chips, fetches
-   /api/availability for the chosen date, and shows the 12 slot states.
-   No framework. Every picker on the page is wired independently. */
+   /api/availability for the chosen date, and shows the 12 slots with their
+   prices. No framework. Every picker on the page is wired independently. */
 (function () {
   "use strict";
+
+  var SLOT_MINUTES = 90;
+  var STATE_TEXT = {
+    available: "available",
+    pending: "being booked, not available",
+    booked: "booked",
+    blocked: "unavailable",
+    past: "already started",
+  };
+
+  function taka(amount) {
+    return amount == null ? "On request" : "\u09F3" + amount.toLocaleString("en-US");
+  }
 
   document.querySelectorAll("[data-slotpicker]").forEach(setupPicker);
   setupBookingForm();
@@ -46,7 +59,7 @@
     if (!ui || !grid || chips.length === 0) return;
 
     var selectedDate = null;
-    var selectedSlot = null;
+    var selectedSlot = null; // the slot object from the API: {time, label, state, price_bdt}
     var requestId = 0; // guards against out-of-order responses
 
     // Switch from the no-JS fallback to the interactive picker.
@@ -136,21 +149,20 @@
       el.type = "button";
       el.className = "slot slot--" + slot.state;
       el.setAttribute("data-slot", slot.time);
+      // time + price only; the state is the card's styling (+ a word for screen readers)
       el.innerHTML =
-        '<span class="slot__time">' +
-        slot.label +
-        '</span><span class="slot__meta">' +
-        metaText(slot) +
-        "</span>";
+        '<span class="slot__time">' + slot.label + "</span>" +
+        '<span class="slot__price">' + taka(slot.price_bdt) + "</span>" +
+        '<span class="sr-only">, ' + (STATE_TEXT[slot.state] || slot.state) + "</span>";
 
       if (!open) {
         el.disabled = true;
       } else {
         el.addEventListener("click", function () {
-          selectedSlot = slot.time;
+          selectedSlot = slot;
           grid.querySelectorAll(".slot").forEach(function (s) {
             s.classList.toggle("slot--selected", s === el);
-            if (s.hasAttribute("data-slot"))
+            if (s.hasAttribute("data-slot") && !s.disabled)
               s.setAttribute("aria-pressed", s === el ? "true" : "false");
           });
           updateSelection();
@@ -160,12 +172,14 @@
       return el;
     }
 
-    function metaText(slot) {
-      if (slot.state === "available")
-        return slot.price_bdt != null ? "৳" + slot.price_bdt : "Select";
-      if (slot.state === "past") return "Past";
-      if (slot.state === "blocked") return "Unavailable";
-      return "Booked";
+    function endLabel(label) {
+      // "06:00 PM" + 90 min -> "07:30 PM"
+      var m = /^(\d{2}):(\d{2}) (AM|PM)$/.exec(label);
+      if (!m) return "";
+      var minutes = (parseInt(m[1], 10) % 12 + (m[3] === "PM" ? 12 : 0)) * 60 + parseInt(m[2], 10) + SLOT_MINUTES;
+      var h24 = Math.floor(minutes / 60) % 24;
+      var h12 = h24 % 12 || 12;
+      return (h12 < 10 ? "0" : "") + h12 + ":" + String(minutes % 60).padStart(2, "0") + (h24 < 12 ? " AM" : " PM");
     }
 
     function updateSelection() {
@@ -173,17 +187,20 @@
       var dateLabel = chip ? chip.textContent.trim() : selectedDate;
 
       if (selectedSlot && summary) {
-        var slotEl = grid.querySelector('[data-slot="' + selectedSlot + '"]');
-        var slotLabel = slotEl
-          ? slotEl.querySelector(".slot__time").textContent
-          : selectedSlot;
-        summary.textContent = "Selected: " + dateLabel + ", " + slotLabel;
+        var end = endLabel(selectedSlot.label);
+        summary.innerHTML =
+          '<span class="slotpicker__summary-what">' + dateLabel + ", " + selectedSlot.label +
+          (end ? " – " + end : "") + "</span>" +
+          '<span class="slotpicker__summary-total">' +
+          (selectedSlot.price_bdt == null ? "Price on request" : "Total " + taka(selectedSlot.price_bdt)) +
+          "</span>";
         summary.hidden = false;
       } else if (summary) {
         summary.hidden = true;
         summary.textContent = "";
       }
 
+      var slotTime = selectedSlot ? selectedSlot.time : null;
       if (continueBtn) {
         if (selectedSlot) {
           continueBtn.href =
@@ -191,7 +208,7 @@
             "?date=" +
             encodeURIComponent(selectedDate) +
             "&slot=" +
-            encodeURIComponent(selectedSlot);
+            encodeURIComponent(slotTime);
           continueBtn.removeAttribute("aria-disabled");
         } else {
           continueBtn.href = bookUrl;
@@ -201,7 +218,7 @@
 
       root.dispatchEvent(
         new CustomEvent("slotpicker:change", {
-          detail: { date: selectedDate, slot: selectedSlot },
+          detail: { date: selectedDate, slot: slotTime },
         })
       );
     }

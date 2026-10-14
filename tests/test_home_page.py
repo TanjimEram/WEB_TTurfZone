@@ -150,19 +150,22 @@ def test_json_ld_includes_confirmed_fields(client, app):
     assert data["address"] == "123 Real Street, Jashore"
 
 
-def test_price_card_uses_12_hour_slot_labels(client, app):
-    all_slots = ["06:00", "07:30", "09:00", "10:30", "12:00", "13:30",
-                 "15:00", "16:30", "18:00", "19:30", "21:00", "22:30"]
+def test_pricing_section_lists_resolved_bands(client, app):
+    """M4.7: the price list is built from the same resolution as the slot grid."""
+    evening = ["16:30", "18:00", "19:30", "21:00", "22:30"]
     with app.app_context():
         db.session.add(TurfSettings(turf_name="TTURFZONE", pricing=[
-            {"label": "Night", "slots": ["19:30", "21:00"], "days": "all", "price_bdt": 2000},
-            {"label": "Flat", "slots": all_slots, "days": "weekend", "price_bdt": 1500},
+            {"label": "Daytime", "slots": ["06:00", "07:30", "09:00", "10:30", "12:00", "13:30", "15:00"],
+             "days": "all", "price_bdt": 4000},
+            {"label": "Evening", "slots": evening, "days": "all", "price_bdt": 4500},
+            {"label": "Weekend evening", "slots": evening, "days": "weekend", "price_bdt": 5000},
         ]))
         db.session.commit()
-    html = client.get("/").get_data(as_text=True)
-    assert "07:30 PM, 09:00 PM" in html
-    assert "19:30" not in html.split('id="pricing"')[1].split("</section>")[0]
-    assert "All slots" in html
+    section = client.get("/").get_data(as_text=True).split('id="pricing"')[1].split("</section>")[0]
+    assert "Sunday to Thursday" in section and "Friday and Saturday" in section
+    assert "06:00 AM – 04:30 PM" in section and "৳4,000" in section
+    assert "৳4,500" in section and "৳5,000" in section
+    assert "TODO(owner)" not in section
 
 
 def test_hidden_attribute_beats_component_display(client):

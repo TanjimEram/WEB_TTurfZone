@@ -461,60 +461,92 @@ a:hover { text-decoration: underline; }
   color: var(--accent-ink);
 }
 .slotpicker__status { color: var(--text-muted); font-size: var(--fs-300); min-height: 1.2em; margin: 0; }
-.slotpicker__summary { color: var(--accent-text); font-weight: 600; margin: 0; }
+/* Selection summary: what you picked and what it costs, before you commit (M4.7). */
+.slotpicker__summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--sp-2) var(--sp-4);
+  margin: 0;
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: rgba(34, 197, 94, 0.08);
+}
+.slotpicker__summary-what { font-weight: 600; }
+.slotpicker__summary-total { font-size: var(--fs-500); font-weight: 800; color: var(--accent-text); white-space: nowrap; }
 
-.slot--selected {
-  border-color: var(--accent);
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-.slot--skeleton {
-  min-height: 58px;
-  border-style: dashed;
-  opacity: 0.5;
-  animation: slot-pulse 1.2s ease-in-out infinite;
-  pointer-events: none;
-}
-@keyframes slot-pulse { 0%, 100% { opacity: 0.35; } 50% { opacity: 0.6; } }
-@media (prefers-reduced-motion: reduce) {
-  .slot--skeleton { animation: none; }
-}
-
-/* ------------------------------------------------------------ quick booking */
+/* ------------------------------------------------------------ slot grid (M4.2, M4.7)
+   Each card is just time + price; its state is shown by the card's own styling.
+   Unavailable cards are not told apart by colour alone: dashed/dotted border,
+   struck-through price, and a screen-reader state word. */
 .quickbook__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));   /* 360px: two columns */
   gap: var(--sp-2);
 }
-/* 12 slots: keep rows even (4x3, then 6x2) instead of auto-fill's 7+5 */
 @media (min-width: 640px) { .quickbook__grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 @media (min-width: 1024px) { .quickbook__grid { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+
 .slot {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  justify-content: center;
   gap: 2px;
+  min-width: 0;
+  min-height: 64px;
   padding: var(--sp-3);
-  border: 1px solid var(--border);
+  border: 1.5px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--surface-2);
   color: var(--text);
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: border-color var(--transition), transform var(--transition);
+  transition: border-color var(--transition), background-color var(--transition),
+              transform var(--transition), box-shadow var(--transition);
 }
-.slot:hover { border-color: var(--accent); transform: translateY(-2px); }
-.slot__time { font-weight: 700; }
-.slot__meta { font-size: var(--fs-300); color: var(--text-muted); }
+.slot__time { font-size: var(--fs-400); font-weight: 600; color: var(--text-muted); white-space: nowrap; }
+.slot__price { font-size: var(--fs-500); font-weight: 800; white-space: nowrap; }
+/* narrow phones: the time shrinks, the price never does */
+@media (max-width: 400px) { .slot__time { font-size: var(--fs-300); } }
 
 .slot--available { border-color: var(--accent); }
-.slot--pending { border-color: var(--warn); color: var(--text-muted); }
-.slot--booked { border-color: var(--danger); color: var(--text-muted); cursor: not-allowed; }
-.slot--blocked { border-color: var(--slot-blocked); color: var(--text-muted); cursor: not-allowed; }
-.slot--past { opacity: 0.45; cursor: not-allowed; }
-.slot[disabled], .slot[aria-disabled="true"] { cursor: not-allowed; transform: none; }
-.slot[disabled]:hover, .slot[aria-disabled="true"]:hover { transform: none; }
+.slot--available .slot__price { color: var(--accent-text); }
+.slot--available:hover { transform: translateY(-2px); background: rgba(34, 197, 94, 0.08); }
+.slot--available:active { transform: scale(0.97); }
+
+.slot--selected,
+.slot--selected:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.3);
+  animation: slot-pick 220ms ease-out;
+}
+.slot--selected .slot__time,
+.slot--selected .slot__price { color: var(--accent-ink); }
+@keyframes slot-pick { 0% { transform: scale(0.94); } 60% { transform: scale(1.03); } 100% { transform: none; } }
+
+.slot[disabled] { background: transparent; cursor: not-allowed; transform: none; }
+.slot[disabled] .slot__time { color: var(--text-muted); }
+.slot[disabled] .slot__price { color: var(--text-muted); font-weight: 600; text-decoration: line-through; }
+.slot--pending { border-style: dashed; border-color: var(--warn); }
+.slot--booked { border-style: dashed; border-color: var(--danger); }
+.slot--blocked { border-style: dotted; border-color: var(--text-muted); }
+.slot--past { border-style: dashed; opacity: 0.45; }
+
+.slot--skeleton {
+  min-height: 64px;
+  border-style: dashed;
+  animation: slot-pulse 1.2s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes slot-pulse { 0%, 100% { opacity: 0.35; } 50% { opacity: 0.6; } }
+@media (prefers-reduced-motion: reduce) {
+  .slot--skeleton, .slot--selected { animation: none; }
+}
 
 /* ------------------------------------------------------- booking form (M4.3) */
 .booking-form {
@@ -588,13 +620,29 @@ a:hover { text-decoration: underline; }
   to { opacity: 1; transform: none; }
 }
 
-/* ------------------------------------------------------------------ pricing */
-.price-card__amount {
-  font-size: var(--fs-700);
+/* ------------------------------------------------------------------ pricing (M4.7) */
+.price-list { display: grid; gap: var(--sp-4); }
+@media (min-width: 768px) { .price-list { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); } }
+.price-list__days { font-size: var(--fs-500); margin-bottom: var(--sp-3); }
+.price-list__rows { list-style: none; margin: 0; padding: 0; }
+.price-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--sp-4);
+  padding: var(--sp-3) 0;
+  border-top: 1px solid var(--border);
+}
+.price-row:first-child { border-top: 0; padding-top: 0; }
+.price-row__when { display: flex; flex-direction: column; gap: 2px; }
+.price-row__band { font-size: var(--fs-300); color: var(--text-muted); }
+.price-row__price {
+  flex: 0 0 auto;
+  font-size: var(--fs-600);
   font-weight: 800;
   color: var(--accent-text);
+  white-space: nowrap;
 }
-.price-card__slots { font-size: var(--fs-300); color: var(--text-muted); }
 
 /* ------------------------------------------------------------------ gallery */
 .gallery {

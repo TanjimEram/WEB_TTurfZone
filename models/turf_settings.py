@@ -25,7 +25,8 @@ class TurfSettings(db.Model):
     confirm_time_text = db.Column(db.String(160))
     booking_window_days = db.Column(db.Integer, nullable=False, default=14)
     max_pending_per_phone = db.Column(db.Integer, nullable=False, default=2)
-    pricing = db.Column(db.JSON, nullable=False, default=list)
+    pricing = db.Column(db.JSON, nullable=False, default=list)       # price bands, services/pricing.py
+    default_price_bdt = db.Column(db.Integer)                         # for slots no band covers (D-47)
     facilities = db.Column(db.JSON, nullable=False, default=list)  # unused since CR-5; kept so it can return without a migration
     reviews = db.Column(db.JSON, nullable=False, default=list)
     gallery = db.Column(db.JSON, nullable=False, default=list)

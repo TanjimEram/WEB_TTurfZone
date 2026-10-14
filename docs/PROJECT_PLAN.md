@@ -7,7 +7,7 @@
 | Field | Value |
 |---|---|
 | Phase | **Live in production at https://tturfzone.com (M1.3b done 2026-10-13, verified 2026-10-14)** on the host's MariaDB (CR-4). **One failing check: plain `http://` is served without a redirect to https (M8.3).** M3, M4 (incl. M4.6 instant confirm), M5, M6.1, M7.1–M7.5 complete (**M7.1 real photos + logo live since 2026-10-14**). Owner text content is M7.6, waiting on the owner. CR-1 and CR-3 recorded, not built (gated on v2). |
-| Last completed | **CR-5: Facilities section removed** (2026-10-14): section, nav links and seed key gone; `turf_settings.facilities` column kept, unused. Before that: **M7.1 real photos and logo** (2026-10-14): six real phone photos of the ground (WhatsApp, 1280×960) → WebP at 400/800/1280 by `scripts/build_images.py` (Pillow, dev-only, D-45), no EXIF. Night floodlit photo as hero, two in About, all six in the gallery + lightbox (loads the 1280 file). Logo → round emblem in the nav, PNG favicon + apple-touch-icon, and a 1200×630 `og:image` (logo + night photo). The supplied `hero.jpg` was **not used**: its C2PA metadata marks it AI-generated (Google, `trainedAlgorithmicMedia`) and it shows a different, full-size pitch; the developer chose the real night photo. 164 passed, 15 skipped. Before: production verification |
+| Last completed | **M4.7 slot prices** (2026-10-14): price bands resolve to exactly one price per slot (D-47), weekend = Fri+Sat (D-46), new `turf_settings.default_price_bdt` (migration `a4f7c2d9e1b3`); `/api/availability` returns each slot's `price_bdt`; slot cards show time + price, 2 columns at 360px, state through card styling (dashed/dotted border, struck price, screen-reader word), animated selection, summary with time range + total; homepage price list built from the same resolver. 176 passed, 15 skipped; MariaDB 11 passed. Before: CR-5, CR-6, M3.1 press states |
 | Next task | **Ops, no blocker:** M8.3 HTTPS redirect, M8.8 off-server backup + restore test, M8.1 secret check, and optionally a read-only GitHub deploy key on the server so `git pull` needs no token (Known issues). Check a WhatsApp/Facebook share preview of the new `og:image`. **Next build task: M2.6**, blocked by the v2 signature + advance (C-27/D-40). M7.6 waits on owner text (C-02, C-07, C-15…C-18). |
 | Blocked by | **Every remaining build task is blocked on the client:** M2.6 → M2.7 → M10/M11 → M13 on the v2 signature + Tk 12,000 advance (D-40, C-27); M12 also on bKash merchant approval (C-21); M13 also on M11; M7.1 on owner assets (C-12, C-13, C-16…C-18); C-28 needs the client's confirmation of D-41. The jobs cron (M8.5) waits on M11. Backups sit on the same server until an off-server copy exists. |
 | Dev environment | Windows + PowerShell. venv: `.venv\Scripts\Activate.ps1`. |
@@ -95,6 +95,8 @@ Status keys: `[ ]` to do, `[x]` done, `~~struck through~~ (CR-n)` dropped by a c
 | D-43 | MariaDB driver: **PyMySQL** (pure Python). Production `requirements.txt` drops psycopg. | Nothing to compile on shared cPanel (`mysqlclient` needs C headers the host may lack). SQLAlchemy's standard driver for MariaDB/MySQL. | Final (CR-4) |
 | D-44 | DateTime columns always hold **UTC**. MariaDB `DATETIME` (and SQLite) store no offset, and PyMySQL **drops the offset on write without converting**, so only `utcnow()` may be written; values read back are naive and mean UTC. No code reads timestamps today. When CR-1 adds `hold_expires_at` (read and compared), add a UTC-normalising column type at that point. | Verified on MariaDB 11.4.13: a +06:00 datetime was stored as its wall-clock time, unconverted. | Final (CR-4) |
 | D-45 | **Owner photos are static files managed by the developer** (D-23): originals in `assets_raw/` (gitignored), `scripts/build_images.py` makes WebP at 400/800/1280 (never upscaled, EXIF stripped) plus the logo emblem, favicon, apple-touch-icon and `og:image`; the list, order and alt text live in `routes/public.py` `PHOTOS`. `turf_settings.gallery` (D-13) is left unused. Pillow is a **dev-only** dependency (`requirements-dev.txt`). Only real photos of the ground are used; an AI-generated image is never shown as the facility. | Production only serves the built files, so nothing to install or compile on cPanel; one script makes re-adding photos repeatable; a hardcoded list is simpler than a DB field nobody edits (owner photo uploads are the paid phase-2 content editor, Backlog). A picture of a different pitch would misrepresent what a customer is booking. | Final (M7.1, 2026-10-14) |
+| D-46 | **Weekend = Friday and Saturday** (`services/pricing.WEEKEND_DAYS`), Bangladesh's official weekend. Used only to pick weekday vs weekend price bands. | Developer decision 2026-10-14; it's a business rule, so the owner should confirm (C-31). Changing it means editing the constant and its two display labels (`DAY_KINDS`). | Assumed (2026-10-14), confirm via C-31 |
+| D-47 | **Price resolution order** (`services/pricing.resolve`), one function used by the slot grid, the API, the homepage price list and the admin preview: (1) a band for this day type (weekday/weekend) that lists the slot; (2) else an all-days band that lists it; (3) else `turf_settings.default_price_bdt`; (4) else none, shown as "price on request" (only before the owner sets prices). Within (1) and (2) the band higher in the owner's list wins. | A specific-day band overriding an all-days band is how the owner thinks ("evenings 4500, weekend evenings 5000"); list order only breaks ties, so reordering is rarely needed. One resolver means the price list and the slot grid can never disagree. The default price guarantees every slot has a price once the owner saves settings. | Final (developer, 2026-10-14) |
 
 ## 4. Infrastructure and accounts (no secrets here)
 
@@ -263,15 +265,15 @@ Other MariaDB facts (all checked by `tests/test_mariadb.py`):
 
 **login_codes** (CR-3): id (PK), phone (string), code_hash (string, **the OTP is never stored in plain text**), expires_at (timestamptz — created_at + 5 minutes), attempts (int, default 0), consumed_at (timestamptz, nullable — set once verified, so a code can't be reused), created_at (timestamptz). Indexed on `(phone, created_at)` for the rate-limit counts (D-37).
 
-**turf_settings** (single row, id = 1): turf_name, tagline, about_text, phone, whatsapp (digits with country code, e.g. `8801XXXXXXXXX`), address, map_embed_url, map_link, facebook_url, opening_hours_text, booking_rules_text, confirm_time_text, booking_window_days (int, default 14), max_pending_per_phone (int, default 2), pricing (JSON), facilities (JSON, **unused since CR-5**: kept so the section can return without a migration), reviews (JSON), gallery (JSON), updated_at.
+**turf_settings** (single row, id = 1): turf_name, tagline, about_text, phone, whatsapp (digits with country code, e.g. `8801XXXXXXXXX`), address, map_embed_url, map_link, facebook_url, opening_hours_text, booking_rules_text, confirm_time_text, booking_window_days (int, default 14), max_pending_per_phone (int, default 2), pricing (JSON), default_price_bdt (int, nullable, M4.7 — the price for slots no band covers), facilities (JSON, **unused since CR-5**: kept so the section can return without a migration), reviews (JSON), gallery (JSON), updated_at.
 
-Pricing JSON shape (final values from C-02):
+Pricing JSON shape (M4.7; final values from C-02). A list of bands in the owner's order; resolved by `services/pricing.resolve` (D-47):
 
 ```json
 [{"label": "Morning", "slots": ["06:00", "07:30", "09:00"], "days": "all", "price_bdt": 0}]
 ```
 
-`days` is `all`, `weekday` or `weekend`. If the owner has one flat price, use a single band with all 12 slots.
+`days` is `all`, `weekday` or `weekend` (weekend = Friday + Saturday, D-46). `slots` lists slot start times. A slot no band covers gets `default_price_bdt`; with no default it has no price ("price on request"), which the admin flags.
 
 CR-1 may add owner-tunable fields to `turf_settings` once the owner answers C-24/C-25/C-26: `deposit_percent` (100 = full payment), `reminder_hours_before` (default 2), `cancellation_refund_text`. `HOLD_MINUTES` stays config (env). Decide field vs config when building M10/M11.
 
@@ -287,6 +289,13 @@ CR-1 may add owner-tunable fields to `turf_settings` once the owner answers C-24
 - `slot_start(d, t) -> datetime` (Dhaka-aware); `is_within_window(d, now=None, days=None) -> bool` (built M2.2)
 - `is_bookable(d: date, t: time, now: datetime | None = None, days: int | None = None) -> bool` (valid slot, slot start in the future, date inside window). `days` defaults to `turf_settings.booking_window_days`. (built M2.2)
 - `get_day_availability(d: date) -> list[dict]` returns `{"time": "06:00", "label": "06:00 AM", "state": "available|pending|booked|blocked|past", "price_bdt": int | None}`. No customer data. CR-1: a live `PENDING_PAYMENT` hold (not past `hold_expires_at`) reports `state: "pending"`; expired holds report `available`.
+
+`services/pricing.py` (M4.7)
+- `WEEKEND_DAYS = (4, 5)` (Fri, Sat; D-46), `day_kind(d) -> "weekday"|"weekend"`
+- `resolve(bands, default_price, slot_key, kind) -> {"price_bdt": int|None, "band": label|None}` — the one resolution rule (D-47)
+- `price_table(settings, times=None) -> {"weekday": [row], "weekend": [row]}` (row: time, label, price_bdt, band) — used by the admin preview
+- `prices_for_day(settings, d) -> {"06:00": int|None, ...}` — used by `/api/availability`
+- `rundown(settings) -> [{"days", "rows": [{start, end, price_bdt, band}]}]` — homepage price list; consecutive equal slots merged; one "Every day" block when weekday == weekend; `[]` before any price is set
 
 `services/bookings.py`
 - Built (M2.3): `save_booking` (commits; uq_active_slot IntegrityError → SlotUnavailableError), `generate_booking_code`, `normalize_phone`, `create_booking_request(name, phone, booking_date, slot_time) -> Booking` (validation + `is_bookable` gate + per-phone future-PENDING cap; inserts PENDING), `confirm_booking` (PENDING only), `reject_booking(id, note=None)` (PENDING/CONFIRMED → REJECTED), `block_slot(date, time, reason)`, `unblock_slot(id)`, `BookingValidationError.errors`, `InvalidTransitionError`. All commits go through `save_booking`.
@@ -450,6 +459,7 @@ Done when: layout works at 360px, 768px and 1280px, and every `TODO(owner)` maps
 Done when: the whole flow takes under a minute on a phone-sized viewport, and a duplicate attempt shows a friendly error.
 
 - [x] M4.6 (CR-2) `create_booking_request` no longer inserts `PENDING` — confirms immediately (`PAYMENTS_ENABLED=false`, the only reachable state; `=true` raises `NotImplementedError` until M2.6/M10 land, D-41). Dropped the per-phone PENDING cap (`_settings()`/`TurfSettings` import removed, now dead). `booking_success.html`: "Booking confirmed!", green Confirmed pill, dropped the now-irrelevant `confirm_time_text` paragraph. Copy updated on `booking.html`, the footer disclaimer and the WhatsApp message: instant confirmation, no online payment yet, pay at the ground. `config.py` gained `PAYMENTS_ENABLED` (default False). `confirm_booking`/`reject_booking`/PENDING stay available for other paths (e.g. future M5.6 manual booking) — tested directly against a hand-built PENDING row. `tests/test_bookings.py`: -3 (dropped cap tests) +2 (confirmed-immediately, PAYMENTS_ENABLED guard); `tests/test_public_routes.py` updated. 143 passed, 4 skipped. Browser-verified: book → instant "Booking confirmed!" page. (2026-09-30)
+- [x] M4.7 Slot grid with visible prices (extends M4.2). `services/pricing.py`: bands resolve to exactly one price per slot (D-47), weekend Fri+Sat (D-46), `turf_settings.default_price_bdt` fallback (migration `a4f7c2d9e1b3`, nullable). `/api/availability` adds `price_bdt` per slot via `prices_for_day`; still only time/label/state/price_bdt (tested). Slot cards: time + price only, 2 columns at 360px (4 at 640, 6 at 1024), time shrinks below 400px but never the price; states shown by the card's styling (available green outline, pending/booked dashed, blocked dotted, past faded; unavailable prices struck through; a screen-reader state word); `disabled` attribute on unavailable slots. Selection animates and the summary shows date, time range and "Total ৳…" before Continue. Homepage pricing section rebuilt as a price list from the same resolver ("Sunday to Thursday" / "Friday and Saturday", or one "Every day" block). `slots.slot_times()` added (constant for now, settings-driven in M7.7). `taka` template filter. `tests/test_pricing.py` (11), `tests/test_home_page.py` price-list test. 176 passed, 15 skipped; `pytest -m mariadb` 11 passed. Browser: 360px 2×160px cards, no overflow, summary "Today, 01:30 PM – 03:00 PM · Total ৳4,000"; 768px 4 cols; 1024px 6 cols; price list in two blocks. (2026-10-14)
 
 ### M5 Admin (Day 1, 18:00 to 22:00)
 
@@ -582,6 +592,10 @@ M3 → M4.2 → M2.2, M2.3, M2.6, M2.7 → M4.3–M4.5 → M5 (incl. M5.6, M5.7,
 - [x] Rejected or cancelled slot becomes available again (2026-09-30)
 - ~~Pending cap per phone works~~ — dropped by M4.6/CR-2, there is no manual PENDING step to cap. Backlog has a per-phone/IP rate limit instead, only if abuse appears.
 - [x] Success page shows booking ID and **Confirmed** (was PENDING, changed by M4.6); refresh doesn't create a second booking (2026-09-30)
+- [x] (M4.7) Every slot card shows its time and price together; 2 columns at 360px; price never shrinks (2026-10-14)
+- [x] (M4.7) Weekend (Fri/Sat) and weekday prices resolve per D-47, including the default-price fallback (tests)
+- [x] (M4.7) Unavailable slots are not selectable and are distinguishable without colour (dashed/dotted border, struck price, screen-reader state) (2026-10-14)
+- [x] (M4.7) Selecting a slot shows the time range and total before Continue (2026-10-14)
 
 **C. Admin**
 - [x] Every `/admin` page redirects to login when logged out (covered by tests + 2026-09-30 spot check)
@@ -776,7 +790,7 @@ Needed by: D0 = before Day 1 starts, D1-AM = Day 1 09:00, D1-PM = Day 1 18:00.
 - Rejecting/cancelling a booking does not notify the customer (no SMS/email until CR-1 M11). The confirm dialog says so.
 - No admin "add a phone/walk-in booking" screen yet (CR-1 M5.6).
 - Accessibility (M7.5) covered structure/aria/contrast/focus. Real photos (M7.1) all have alt text describing what is visible (tested). A full screen-reader / Lighthouse run belongs in M9.1.
-- `price_bdt` in the availability API is `null` until pricing is wired (M4).
+- ~~`price_bdt` in the availability API is `null` until pricing is wired~~ Resolved by M4.7. It is still `null` (shown as "On request") until the owner saves prices; production has no prices yet (C-02).
 - WhatsApp buttons (hero, sticky bar) render disabled and the desktop WhatsApp FAB is hidden until the owner gives the number (C-06). `tel:` link in the footer likewise waits on C-06.
 - Customer booking flow works end to end, auto-confirm mode (M4.6): `/book` picker + form → `POST /book` → `/book/success` (session, one-time), status CONFIRMED immediately. No online payment yet (CR-1 M10, gated). No email field yet (CR-1 M2.6).
 - `/api/availability` reads `booking_window_days` from `turf_settings` on every request; when M7.4 lets the owner change it, in-flight pickers keep the old chips until reload (acceptable).
@@ -822,6 +836,7 @@ Needed by: D0 = before Day 1 starts, D1-AM = Day 1 09:00, D1-PM = Day 1 18:00.
 | 2026-10-14 | Build (Claude Code, Windows) | **CR-5: Facilities section removed** (recorded as CR-5, developer called it CR-4). Section, both nav links, `.facility` CSS and the `facilities` seed key removed; column kept, unused. `tests/test_home_page.py`: section list updated, new `test_no_facilities_section_or_link`. 165 passed, 15 skipped. | CR-6 record, then M3.1–M3.3 audit, M4.7 slot prices, M7.7 admin settings |
 | 2026-10-14 | Docs (Claude Code, Windows) | **CR-6 recorded** (developer called it CR-5): owner can also edit slot times, about text and tagline; images/layout/design stay developer-only, image upload stays phase 2. D-09 superseded, D-23 widened, new M7.7, new C-31 (weekend days, assumed Fri+Sat). Developer decisions taken today: keep the real photos (not placeholders) in hero and gallery; weekend = Friday + Saturday; a weekday/weekend price band beats an all-days band. Plan only. | M3.1–M3.3 audit, M4.7, M7.7 |
 | 2026-10-14 | Build (Claude Code, Windows) | **M3.1–M3.3 re-audit** against the restated spec. M3.1: press states for buttons, interactive cards, date chips, gallery photos; date chips 40→44px. M3.2: matches spec after CR-5 (real photos kept by decision). M3.3: no change needed. 165 passed, 15 skipped. | M4.7 slot prices |
+| 2026-10-14 | Build (Claude Code, Windows) | **M4.7 slot prices** (extends M4.2). Pricing service with one resolution rule (D-47) and Fri+Sat weekend (D-46); `default_price_bdt` column + migration; API returns prices (still no customer data); price-led slot cards with non-colour states, animated selection, total in the summary; homepage price list from the same resolver. 176 passed, 15 skipped; MariaDB 11 passed. Browser-checked 360/768/1024. | M7.7 admin settings |
 
 ---
 
