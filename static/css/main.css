@@ -200,7 +200,8 @@ a:hover { text-decoration: underline; }
               border-color var(--transition);
 }
 .btn:hover { text-decoration: none; }
-.btn:active { transform: translateY(0); }
+/* press: a visible push on tap/click (hover lift alone gives no feedback on touch) */
+.btn:active:not([disabled]):not([aria-disabled="true"]) { transform: translateY(1px) scale(0.98); filter: brightness(0.92); }
 
 .btn--primary {
   background: var(--accent);
@@ -243,6 +244,7 @@ a:hover { text-decoration: underline; }
 
 .card--interactive { transition: transform var(--transition), border-color var(--transition); }
 .card--interactive:hover { border-color: var(--accent); transform: translateY(-2px); }
+.card--interactive:active { transform: translateY(0) scale(0.99); }
 
 /* ------------------------------------------------------ placeholder blocks
    Never use stock images. A neutral labelled box until the owner sends the
@@ -439,7 +441,7 @@ a:hover { text-decoration: underline; }
 }
 .datechip {
   flex: 0 0 auto;
-  min-height: 40px;
+  min-height: 44px;  /* touch target */
   padding: var(--sp-2) var(--sp-4);
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -449,9 +451,10 @@ a:hover { text-decoration: underline; }
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
-  transition: border-color var(--transition), background-color var(--transition);
+  transition: border-color var(--transition), background-color var(--transition), transform var(--transition);
 }
 .datechip:hover { border-color: var(--accent); }
+.datechip:active { transform: scale(0.96); }
 .datechip[aria-pressed="true"] {
   background: var(--accent);
   border-color: var(--accent);
@@ -612,6 +615,8 @@ a:hover { text-decoration: underline; }
   cursor: pointer;
   border-radius: var(--radius-sm);
 }
+.gallery__item:active .photo { transform: scale(0.98); }
+.gallery__item .photo { transition: transform var(--transition), border-color var(--transition); }
 .gallery__item:hover .photo,
 .gallery__item:focus-visible .photo { border-color: var(--accent); }
 
