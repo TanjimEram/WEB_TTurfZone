@@ -7,7 +7,7 @@
 | Field | Value |
 |---|---|
 | Phase | **Live in production at https://tturfzone.com** (M1.3b 2026-10-13, M7.1 photos 2026-10-14) on the host's MariaDB (CR-4). **Deployed 2026-10-15:** CR-5 (no Facilities), M4.7 slot prices, M7.7 admin settings (migration `b7e3d1f04a2c` applied). **Not deployed yet:** M5.9 admin password change, CR-7 hero image, M7.8 clean production pages (pull + restart, no migration). HTTPS redirect fixed (M8.3). CR-1 and CR-3 recorded, not built (gated on v2). |
-| Last completed | **M7.8 clean production pages** (2026-10-15): customers never see `TODO(owner)` notes. In production (`SHOW_TODO_NOTES=False`) empty Pricing / Location / Reviews sections hide together with their nav and footer links, WhatsApp buttons hide without a number, the hero shows a neutral line until there is a tagline, and the owner's dashboard lists "Not on your website yet" items. Development and tests still show every TODO. The developer asked for invented placeholder content; declined (no fake reviews, phone numbers, address or prices on a live booking site) and did this instead. 203 passed, 15 skipped. Before: M8.8 restore test |
+| Last completed | **End-to-end audit** (2026-10-15), local only (fresh MariaDB 11.4.13 database, migrated to `b7e3d1f04a2c`, seeded, test admin; never production): 29 scripted checks through the real app with CSRF on (customer path, owner path, rules, Dhaka time, Bangla, production error pages, a 10-way HTTP race for one slot) all pass; browser walk at 360/768/1280 passes. **1 bug found and fixed:** the sticky mobile bar hid fields/the submit button when the browser scrolled them into view (`c87262b`, test first). SQLite 204 passed, MariaDB 11 passed. Before: M7.8 clean production pages |
 | Next task | **Deploy** (Appendix D update one-liner: pull, `pip install`, `db upgrade` — 2 migrations — `db-check`, restart), then the owner sets prices + default price in `/admin/settings` (the dashboard shows 24 missing prices until then). **Ops:** M8.3 HTTPS redirect, M8.8 off-server backup + restore test, M8.1 secret check. **Next build task: M2.6**, blocked by the v2 signature + advance (C-27/D-40). M7.6 (reviews, map) and C-31 (weekend days) wait on the owner. |
 | Blocked by | **Every remaining build task is blocked on the client:** M2.6 → M2.7 → M10/M11 → M13 on the v2 signature + Tk 12,000 advance (D-40, C-27); M12 also on bKash merchant approval (C-21); M13 also on M11; M7.1 on owner assets (C-12, C-13, C-16…C-18); C-28 needs the client's confirmation of D-41. The jobs cron (M8.5) waits on M11. Backups sit on the same server until an off-server copy exists. |
 | Dev environment | Windows + PowerShell. venv: `.venv\Scripts\Activate.ps1`. |
@@ -590,38 +590,42 @@ M3 → M4.2 → M2.2, M2.3, M2.6, M2.7 → M4.3–M4.5 → M5 (incl. M5.6, M5.7,
 
 ## 7. QA checklist
 
+**Audit 2026-10-15 (end to end, local MariaDB 11.4.13, CSRF on, never production).** Scripted walk through the real app (`/`, `/book`, `/book/success`, `/api/availability`, every admin page and action) plus a browser walk at 360/768/1280. Items below marked *(audit)* were re-verified that day. Not testable locally: real phones (M9.1), the live host (Passenger restart, cron, JetBackup), and a byte-exact comparison with the production schema (run Appendix D, D16).
+
 **A. Public site (phone first)**
 - [x] Hero, BOOK NOW and WhatsApp visible without scrolling on a 360px screen (2026-09-30, 360×740)
 - [x] Sticky mobile bar stays visible and doesn't cover form buttons (2026-09-30). **Fixed 2026-10-15 (audit):** when the browser scrolled a field or the Book now button into view (keyboard focus, phone keyboard "Next"), it parked it behind the fixed bar (button bottom 740px, bar top 674px at 360×740). `html { scroll-padding-bottom }` on screens under 900px; now every field and the submit land 17px above the bar. Regression test `test_sticky_bar_reserves_scroll_space_on_mobile`.
-- [x] All sections show real or clearly marked placeholder content; no invented claims (2026-09-30)
+- [x] All sections show real or clearly marked placeholder content; no invented claims (2026-09-30) *(audit: all 7 sections, no Facilities, TODO notes in dev)*
 - [x] (M7.8) Production shows no `TODO(owner)` notes; empty sections and their links are hidden; nothing invented (tests + production-config render, 2026-10-15)
 - [ ] Map loads; GET DIRECTIONS opens Google Maps — not testable yet, `map_embed_url`/`map_link` are still TODO (C-07)
 - [x] Gallery lightbox opens, swipes, closes (M7.2, 2026-09-30) — works on today's placeholder photos; unchanged once real `<img>`s land at M7.1
 - [x] Facebook and WhatsApp links open the right page/number (2026-09-30: Facebook is the real default; WhatsApp correctly renders disabled/TODO pending C-06)
 
 **B. Booking rules**
-- [x] Past slots today show as unavailable (2026-09-30)
-- [x] Dates outside the booking window can't be chosen, and the API rejects them (2026-09-30)
-- [x] Invalid phone numbers rejected with a clear message (2026-09-30)
-- [x] Booking a CONFIRMED or BLOCKED slot fails on the server (2026-09-30)
-- [x] Rejected or cancelled slot becomes available again (2026-09-30)
+- [x] Past slots today show as unavailable (2026-09-30) *(audit: API `past` + POST 400, Dhaka 23:14)*
+- [x] Dates outside the booking window can't be chosen, and the API rejects them (2026-09-30) *(audit: yesterday and day 15 → 400 on API and booking)*
+- [x] Invalid phone numbers rejected with a clear message (2026-09-30) *(audit: `01…`, `+8801…`, `8801…`, spaced all stored as `01XXXXXXXXX`; `12345` refused)*
+- [x] Booking a CONFIRMED or BLOCKED slot fails on the server (2026-09-30) *(audit: 409 for both)*
+- [x] Rejected or cancelled slot becomes available again (2026-09-30) *(audit: rejected slot re-booked)*
 - ~~Pending cap per phone works~~ — dropped by M4.6/CR-2, there is no manual PENDING step to cap. Backlog has a per-phone/IP rate limit instead, only if abuse appears.
 - [x] Success page shows booking ID and **Confirmed** (was PENDING, changed by M4.6); refresh doesn't create a second booking (2026-09-30)
 - [x] (M4.7) Every slot card shows its time and price together; 2 columns at 360px; price never shrinks (2026-10-14)
-- [x] (M4.7) Weekend (Fri/Sat) and weekday prices resolve per D-47, including the default-price fallback (tests)
+- [x] (M4.7) Weekend (Fri/Sat) and weekday prices resolve per D-47, including the default-price fallback (tests) *(audit: every grid price equals the homepage price list, weekday + weekend; uncovered slot → default, flagged in admin preview)*
 - [x] (M4.7) Unavailable slots are not selectable and are distinguishable without colour (dashed/dotted border, struck price, screen-reader state) (2026-10-14)
 - [x] (M4.7) Selecting a slot shows the time range and total before Continue (2026-10-14)
+- [x] (audit) Booking end to end in the browser at 360px: select date + slot → summary "Sat 17 Oct, 06:00 AM – 07:30 AM · Total ৳4,000" → details → confirmation (ID, date, time, name, Confirmed) → the next visitor sees the slot booked (dashed, struck price, not clickable, "booked" for screen readers); refreshing the confirmation creates nothing (2026-10-15)
 
 **C. Admin**
-- [x] Every `/admin` page redirects to login when logged out (covered by tests + 2026-09-30 spot check)
+- [x] Every `/admin` page redirects to login when logged out (covered by tests + 2026-09-30 spot check) *(audit: 4 pages + 8 actions)*
 - [x] Wrong password shows a generic error (tests)
 - [x] Confirm, reject, cancel, block and unblock update the public grid immediately (2026-09-30: confirm re-verified live; the rest already browser-verified at M5)
-- [x] Filters by date and status work (tests)
+- [x] Filters by date and status work (tests) *(audit)*
 - [x] Usable at phone width (2026-09-30, 360px: bookings table scrolls inside its own `.admin-table--scroll` wrapper, page itself never scrolls horizontally)
 - [x] Responsive audit 2026-10-15 (browser, scripted): `/` and `/book` at 320, 390, 768 and 1280px; dashboard, bookings, calendar and settings at 320px. No page-level horizontal overflow and no element past the viewport outside its own scroll box at any width; every button/link/input at least 40px tall on public pages (36px for the small band tools in admin); no text under 12px; slot cards 140px wide in 2 columns at 320px with nothing clipped; mobile menu links 51px; nav switches to desktop links and the sticky bar hides at 900px+. No changes needed.
 - [x] (M7.7) Settings pages and the preview endpoint require login (tests)
-- [x] (M7.7) A slot-time change is refused while upcoming bookings/blocks sit at a removed time, naming them; past bookings don't block it (tests)
+- [x] (M7.7) A slot-time change is refused while upcoming bookings/blocks sit at a removed time, naming them; past bookings don't block it (tests) *(audit: refused naming all 3 stranded codes; a free-slot retime saved and showed on the grid)*
 - [x] (M7.7) Price preview shows every slot for both day types and flags default / missing prices before saving (tests + browser)
+- [x] (audit) Owner path end to end on MariaDB: login; dashboard stats + today + upcoming; confirm a PENDING row (stays unavailable); reject (slot free, re-bookable); block (customers get 409) and unblock; settings changes (price, Bangla about text, phone, WhatsApp, address, slot time) all appear on the public site (2026-10-15)
 - [x] (M5.9) Password change needs the current password, rejects short/mismatched new passwords, and signs out other sessions (tests)
 - [ ] (CR-1) Manual booking for phone / walk-in works and respects the unique index — not built (M5.6)
 - [ ] (CR-1) Payments list shows attempts; recording a refund sets REFUNDED and (optionally) frees the slot — not built (M5.7)
@@ -651,7 +655,7 @@ M3 → M4.2 → M2.2, M2.3, M2.6, M2.7 → M4.3–M4.5 → M5 (incl. M5.6, M5.7,
 **D. Security**
 - [ ] No secrets in the repo (`git grep -i "password\|secret\|postgres://\|app_key\|api_key"` shows only names/placeholders)
 - [ ] CSRF token required on all POST forms in production config
-- [x] `/api/availability` contains no customer data (production 2026-10-14: 12 slots, keys `time/label/state/price_bdt` only)
+- [x] `/api/availability` contains no customer data (production 2026-10-14: 12 slots, keys `time/label/state/price_bdt` only) *(audit: 8 names + 8 phones absent from 3 days of API output)*
 - [x] Session cookie has Secure, HttpOnly, SameSite in production (2026-10-14: `Secure; HttpOnly; Path=/; SameSite=Lax` on `/admin/login`)
 - [ ] (CR-1) A booking is only marked paid after a server-to-server gateway query that matches amount + `merchant_invoice`; redirect/query params are never trusted
 - [ ] (CR-1) Payment callback is idempotent
@@ -664,15 +668,15 @@ M3 → M4.2 → M2.2, M2.3, M2.6, M2.7 → M4.3–M4.5 → M5 (incl. M5.6, M5.7,
 - [x] `/healthz` returns `ok` and `/admin/login` loads in production (2026-10-14)
 - [x] Production DB connected; migrations applied (MariaDB 11.4.13, 13a53e9a5687, 2026-10-13)
 - [ ] Duplicate-booking test done on production (M9.2)
-- [x] 404 page shows for unknown URLs; no debug tracebacks (production 2026-10-14: unknown URL → 404; `DEBUG` is off in `ProductionConfig`)
+- [x] 404 page shows for unknown URLs; no debug tracebacks (production 2026-10-14: unknown URL → 404; `DEBUG` is off in `ProductionConfig`) *(audit: production config, forced 500 shows the plain error page, no traceback)*
 
 **F. Database engine (CR-4, MariaDB)**
 - [x] `pytest -q -m mariadb` passes on MariaDB 11.4 (local 11.4.13, 2026-10-13)
-- [x] 10 threads race for one slot: exactly 1 succeeds, 9 get `SlotUnavailableError` (2026-10-13)
+- [x] 10 threads race for one slot: exactly 1 succeeds, 9 get `SlotUnavailableError` (2026-10-13) *(audit: 10 HTTP clients through `POST /book` with CSRF: 1×302, 9×409, 1 row)*
 - [x] `uq_active_slot_key` is a unique index on the STORED generated column `active_slot_key` with the expected CASE expression; no WHERE-less `uq_active_slot` on MariaDB (2026-10-13)
 - [x] REJECTED frees the slot; PENDING, CONFIRMED and BLOCKED each hold it; several REJECTED rows can share a slot (2026-10-13)
 - [x] A duplicate `booking_code` is a plain IntegrityError, not "slot taken" (2026-10-13)
-- [x] Bangla round-trips through VARCHAR, TEXT and JSON; all tables utf8mb4_unicode_ci; `slot_time` comes back as a `time` (2026-10-13)
+- [x] Bangla round-trips through VARCHAR, TEXT and JSON; all tables utf8mb4_unicode_ci; `slot_time` comes back as a `time` (2026-10-13) *(audit: Bangla + emoji about text saved through the admin form and shown on the homepage)*
 - [x] Migrations upgrade and downgrade cleanly on MariaDB (2026-10-13)
 - [x] On production: `uq_active_slot_key` on the generated column and the status CHECK constraint are in place (M1.3b, 2026-10-13)
 - [ ] Nightly mysqldump runs and one restore was tested (M8.8) — **restore tested and passing (2026-10-15)**; still to confirm one nightly run of `tturf-backup.sh` (a new dated file in `~/backups`)
@@ -875,6 +879,7 @@ Needed by: D0 = before Day 1 starts, D1-AM = Day 1 09:00, D1-PM = Day 1 18:00.
 | 2026-10-15 | Ops (developer + Claude Code, docs only) | **Restore test passed (M8.8):** newest dump restored into scratch `tturfzo1_restoretest`; counts match live and the double-booking column/index, migration id and utf8mb4 survive. Took three tries: the scratch DB was first shared with a stray new user (`tturfzo1_tturfzo1_app`), then the grant wasn't saved until **Make Changes**; `SHOW GRANTS` found it. Runbook D1 corrected (real user `tturfzo1_tturfzo1`), D15 restore test + emergency recovery added. Clean-up asked: delete the scratch DB and the stray user. M5.9 + CR-7 still not deployed (password route 404, old hero). | Batch 3: off-server copy, optional deploy key; deploy M5.9 + CR-7 |
 | 2026-10-15 | Build (Claude Code, Windows) | **M7.8 clean production pages.** Developer asked to fill every TODO with mock content before deploying; declined to invent reviews, phone/WhatsApp numbers, address, hours or prices for a live booking site (fake reviews, wrong numbers and wrong addresses mislead real customers). Instead: production hides TODO notes and empty sections with their links (D-50), neutral hero line, no disabled WhatsApp buttons, owner dashboard checklist of what's missing; fixed the hardcoded slot-hours text. 203 passed, 15 skipped. | Deploy (pull + restart); owner fills Settings (prices, phone, WhatsApp, address, hours, tagline, about, rules) |
 | 2026-10-15 | QA (Claude Code, Windows) | Responsive audit on request, including 320px (never checked before): public pages at 320/390/768/1280, admin pages at 320. All clean, no code changes (QA §C). | Deploy pending pull + restart |
+| 2026-10-15 | QA (Claude Code, Windows) | **End-to-end audit**, local only: fresh MariaDB 11.4.13 DB (migrations to `b7e3d1f04a2c`, seed, test admin; per-table schema fingerprints recorded for a production comparison, Appendix D16). 29 scripted checks through the real app with CSRF on, all pass after fixing three mistakes in the audit script itself (a shared app context leaked Flask-WTF's cached CSRF token between requests; wrong block field name; an invalid slot retime). Browser walk at 360/768/1280: booking flow, booked slot shown to the next visitor, grid with prices. **Bug fixed (test first):** sticky mobile bar hid fields/submit when scrolled into view (`c87262b`). SQLite 204 passed, MariaDB 11 passed. Audit DB dropped, local test rows removed. | Run D16 on production to compare schemas; deploy `c87262b` with the pending pull |
 
 ---
 
@@ -1050,5 +1055,11 @@ F=$(ls -t ~/backups/tturfzone-*.sql.gz | head -1); echo "restoring $F into tturf
 3. Delete `tturfzo1_restoretest` in cPanel.
 
 **Real recovery (emergency only).** Prefer cPanel → JetBackup → Database Backups → restore `tturfzo1_tturfzone` from a date. From our own dump instead: take a fresh dump first (`bash ~/bin/tturf-backup.sh`, which keeps today's file name, so copy the file you want to restore elsewhere before running it), then `gunzip -c <file> | mariadb --defaults-file=$HOME/.my.cnf tturfzo1_tturfzone`. The dump drops and recreates each table, so anything written after it was taken is lost. Restart the app afterwards.
+
+**D16 Compare the production schema with the tested one** (run D5 first; prints only fingerprints, no data). Each table's `SHOW CREATE TABLE`, minus the auto-increment counter, hashed:
+```bash
+tz python -c "import hashlib,re; from app import create_app; from extensions import db; from sqlalchemy import text; app=create_app(); app.app_context().push(); [print(t, hashlib.md5(re.sub(r' AUTO_INCREMENT=[0-9]+','',db.session.execute(text('SHOW CREATE TABLE '+t)).one()[1]).encode()).hexdigest()[:12]) for t in ['admins','bookings','turf_settings','alembic_version']]"
+```
+Expected at migration `b7e3d1f04a2c` (local MariaDB 11.4.13, 2026-10-15): `admins 8c56efbe0f82`, `bookings 86021f32e50d`, `turf_settings e069dd3cab1b`, `alembic_version fcaa63e95af3`. A different hash means the live table definition differs from what the tests ran against.
 
 Never run `fake-*` commands on production. They are not even registered there (`ENABLE_DEV_TOOLS` is off).
