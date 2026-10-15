@@ -592,7 +592,7 @@ M3 → M4.2 → M2.2, M2.3, M2.6, M2.7 → M4.3–M4.5 → M5 (incl. M5.6, M5.7,
 
 **A. Public site (phone first)**
 - [x] Hero, BOOK NOW and WhatsApp visible without scrolling on a 360px screen (2026-09-30, 360×740)
-- [x] Sticky mobile bar stays visible and doesn't cover form buttons (2026-09-30)
+- [x] Sticky mobile bar stays visible and doesn't cover form buttons (2026-09-30). **Fixed 2026-10-15 (audit):** when the browser scrolled a field or the Book now button into view (keyboard focus, phone keyboard "Next"), it parked it behind the fixed bar (button bottom 740px, bar top 674px at 360×740). `html { scroll-padding-bottom }` on screens under 900px; now every field and the submit land 17px above the bar. Regression test `test_sticky_bar_reserves_scroll_space_on_mobile`.
 - [x] All sections show real or clearly marked placeholder content; no invented claims (2026-09-30)
 - [x] (M7.8) Production shows no `TODO(owner)` notes; empty sections and their links are hidden; nothing invented (tests + production-config render, 2026-10-15)
 - [ ] Map loads; GET DIRECTIONS opens Google Maps — not testable yet, `map_embed_url`/`map_link` are still TODO (C-07)

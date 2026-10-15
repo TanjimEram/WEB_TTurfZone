@@ -763,9 +763,12 @@ a:hover { text-decoration: underline; }
 @media (min-width: 900px) {
   .sticky-actions { display: none; }
 }
-/* keep the last content above the bar on small screens */
+/* keep the last content above the bar on small screens, and keep anything the
+   browser scrolls into view (keyboard focus, phone keyboard "Next") from landing
+   behind it: the bar is about 66px tall plus the iPhone home-indicator inset */
 @media (max-width: 899px) {
   body { padding-bottom: 76px; }
+  html { scroll-padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
 }
 
 /* floating WhatsApp button (desktop) */

@@ -242,3 +242,12 @@ def test_no_facilities_section_or_link(home):
     assert "#facilities" not in html
     assert "Facilities" not in html
 
+
+
+def test_sticky_bar_reserves_scroll_space_on_mobile(client):
+    """Regression (audit 2026-10-15): when the browser scrolls a form field or the Book now
+    button into view (keyboard focus, phone keyboard 'Next'), it parked it right behind the
+    fixed WhatsApp / Book now bar. scroll-padding-bottom keeps it above the bar."""
+    css = client.get("/static/css/main.css").get_data(as_text=True)
+    sticky = css.split("/* --------------------------------------------------- sticky mobile actions */")[1]
+    assert re.search(r"@media \(max-width: 899px\) \{[^@]*scroll-padding-bottom", sticky)
