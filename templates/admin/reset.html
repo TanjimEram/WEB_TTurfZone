@@ -1,0 +1,27 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}New password · TTURFZONE admin{% endblock %}
+
+{% block content %}
+<div class="admin-login">
+  <h1>Choose a new password</h1>
+  {% if invalid %}
+    <p class="form-error" role="alert">This link is no longer valid. Links work once, for 30 minutes.</p>
+    <p><a href="{{ url_for('admin.forgot') }}">Send a new link</a></p>
+  {% else %}
+    <p class="muted">At least {{ min_password_length }} characters. Every device signed in to the admin will be signed out.</p>
+    <form method="post" class="stack">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {% for name, label in [("new_password", "New password"), ("confirm_password", "New password again")] %}
+        <div class="form-field">
+          <label for="r-{{ name }}">{{ label }}</label>
+          <input id="r-{{ name }}" name="{{ name }}" type="password" autocomplete="new-password" required
+                 minlength="{{ min_password_length }}"
+                 {% if errors[name] %}aria-invalid="true" aria-describedby="err-{{ name }}"{% endif %}>
+          {% if errors[name] %}<p class="field-error" id="err-{{ name }}">{{ errors[name] }}</p>{% endif %}
+        </div>
+      {% endfor %}
+      <button class="btn btn--primary" type="submit">Save new password</button>
+    </form>
+  {% endif %}
+</div>
+{% endblock %}

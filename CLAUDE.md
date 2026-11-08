@@ -100,7 +100,7 @@ flask --app app db upgrade                       # apply migrations
 flask --app app db-check                         # connection, latency, tables, migration version
 flask --app app seed-settings [--force]          # create turf_settings row from database/seed_data.py
 flask --app app create-admin --username owner    # prints a generated password once
-flask --app app reset-admin-password --username owner   # recovery: new generated password, signs out every session
+flask --app app reset-admin-password --username owner   # recovery: new generated password, signs out every session (the owner's own route: "Forgot username or password?" by email, M5.10)
 flask --app app fake-bookings --count 10         # fake rows, codes start with FK-
 flask --app app fake-conflict-test               # proves the DB blocks double booking
 flask --app app fake-clear                       # deletes FK- rows only
@@ -127,6 +127,7 @@ MariaDB (production, CR-4):
 - No partial indexes. The one-booking-per-slot rule is the STORED generated column `active_slot_key` + unique `uq_active_slot_key` (D-42). Changing the active status list (e.g. CR-1's `PENDING_PAYMENT`) means a migration that updates BOTH the partial-index WHERE and the generated-column expression.
 - Never let a migration put `uq_active_slot` on MariaDB: without its WHERE it becomes a plain unique (date, slot) index and a rejected booking would block its slot forever. The model uses `Index.ddl_if`, and `env.py` hides the hand-written rule from autogenerate.
 - PyMySQL silently DROPS timezone offsets on write, without converting. Only write UTC (`models._time.utcnow()`) into DateTime columns, never `now_dhaka()`; values read back are naive UTC (D-44).
+- A bulk `db.update(...)` whose WHERE compares a DateTime column needs `.execution_options(synchronize_session=False)`: the default tries the comparison in Python on loaded objects (naive vs aware -> TypeError). Keep such comparisons in SQL.
 - Tables are forced to utf8mb4 (`extensions.MYSQL_TABLE_OPTIONS`) because a server default can be latin1. Keep table names lower-case (Linux MariaDB is case-sensitive).
 - Test against MariaDB 11.4, not MySQL: generated-column behaviour differs.
 - The host blocks outbound port 5432, so no external PostgreSQL (Neon) from production.

@@ -1,0 +1,23 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Forgot password · TTURFZONE admin{% endblock %}
+
+{% block content %}
+<div class="admin-login">
+  <h1>Forgot username or password?</h1>
+  {% if message %}
+    <p role="status">{{ message }}</p>
+    <p><a href="{{ url_for('admin.login') }}">Back to sign in</a></p>
+  {% else %}
+    <p class="muted">Enter the admin's recovery email. We'll send the username and a link to choose a new password.</p>
+    <form method="post" action="{{ url_for('admin.forgot') }}" class="stack">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-field">
+        <label for="f-email">Recovery email</label>
+        <input id="f-email" name="email" type="email" autocomplete="email" required autofocus maxlength="254">
+      </div>
+      <button class="btn btn--primary" type="submit">Send reset link</button>
+    </form>
+    <p><a href="{{ url_for('admin.login') }}">Back to sign in</a></p>
+  {% endif %}
+</div>
+{% endblock %}

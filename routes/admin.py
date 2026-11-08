@@ -8,14 +8,22 @@ from models import Booking, TurfSettings
 from services.auth import (
     MIN_PASSWORD_LENGTH,
     PasswordChangeError,
+    admin_from_reset_token,
     change_password,
+    change_recovery_email,
+    clear_login_failures,
     current_admin,
+    is_locked_out,
     login_admin,
     login_required,
     logout_admin,
+    record_login_failure,
     safe_next,
+    send_reset_email,
     verify_admin,
 )
+from services.auth import reset_password as set_password_from_reset
+from services.mailer import mail_configured
 from services.bookings import (
     InvalidTransitionError,
     SlotUnavailableError,
@@ -63,17 +71,61 @@ def login():
     if current_admin() is not None:
         return redirect(url_for("admin.dashboard"))
 
-    error = None
+    error, status = None, 200
     next_url = safe_next(request.values.get("next"))
+    ip = request.remote_addr or "unknown"
 
     if request.method == "POST":
-        admin = verify_admin(request.form.get("username", ""), request.form.get("password", ""))
-        if admin is not None:
-            login_admin(admin)
-            return redirect(next_url or url_for("admin.dashboard"))
-        error = "Invalid username or password."
+        if is_locked_out(ip):  # checked before the password, so a locked-out guess learns nothing
+            error, status = ("Too many wrong sign-ins from this connection. Try again in 15 minutes, "
+                             "or use \"Forgot username or password?\" below."), 429
+        else:
+            admin = verify_admin(request.form.get("username", ""), request.form.get("password", ""))
+            if admin is not None:
+                clear_login_failures(ip)
+                login_admin(admin)
+                return redirect(next_url or url_for("admin.dashboard"))
+            record_login_failure(ip)
+            error = "Invalid username or password."
 
-    return render_template("admin/login.html", error=error, next_url=next_url or "")
+    return render_template("admin/login.html", error=error, next_url=next_url or ""), status
+
+
+@bp.route("/forgot", methods=["GET", "POST"])
+def forgot():
+    """Email the username + a reset link to the recovery address (D-51). Same reply for any address."""
+    message = None
+    if request.method == "POST":
+        if not mail_configured():
+            message = ("Email sending is not set up on this site yet, so a reset link can't be sent. "
+                       "Ask your developer to reset the password from the server.")
+        else:
+            send_reset_email(request.form.get("email", ""))
+            message = "If that address is on file, a reset link is on its way. Check your spam folder too."
+    return render_template("admin/forgot.html", message=message)
+
+
+@bp.route("/reset/<token>", methods=["GET", "POST"])
+def reset_password(token):
+    """Choose a new password from an emailed link (D-51). Works once, for 30 minutes."""
+    admin = admin_from_reset_token(token)
+    if admin is None:
+        return render_template("admin/reset.html", invalid=True, errors={},
+                               min_password_length=MIN_PASSWORD_LENGTH), 400
+    errors = {}
+    if request.method == "POST":
+        try:
+            set_password_from_reset(admin, request.form.get("new_password", ""),
+                                    request.form.get("confirm_password", ""))
+        except PasswordChangeError as exc:
+            errors = exc.errors
+        else:
+            clear_login_failures(request.remote_addr or "unknown")
+            logout_admin()
+            flash("Password changed. Sign in with your new password.")
+            return redirect(url_for("admin.login"))
+    return render_template("admin/reset.html", invalid=False, errors=errors,
+                           min_password_length=MIN_PASSWORD_LENGTH), (400 if errors else 200)
 
 
 @bp.post("/logout")
@@ -274,11 +326,15 @@ def settings():
     return _render_settings(values, errors, preview)
 
 
-def _render_settings(values, errors, preview=None, pw_errors=None):
-    """The settings page (business settings + the password form). 400 when anything failed."""
+def _render_settings(values, errors, preview=None, pw_errors=None, email_value=None):
+    """The settings page (business settings + password + recovery email forms). 400 when anything failed."""
     values["bands"].append({"label": "", "days": "all", "price": "", "slots": []})  # one empty row to add a band without JS
+    pw_errors = pw_errors or {}
     return render_template(
-        "admin/settings.html", values=values, errors=errors, pw_errors=pw_errors or {},
+        "admin/settings.html", values=values, errors=errors, pw_errors=pw_errors,
+        recovery_email=current_admin().email or "",
+        email_value=(current_admin().email or "") if email_value is None else email_value,
+        mail_ready=mail_configured(),
         preview=preview or current_price_summary(),
         slot_names=[_slot_label_or_raw(v) for v in values["slots"]],
         day_options=DAY_OPTIONS, max_bands=MAX_BANDS, day_kinds=DAY_KINDS,
@@ -297,6 +353,20 @@ def settings_password():
         return _render_settings(_settings_form(TurfSettings.current_or_default()), {}, pw_errors=exc.errors)
     flash("Password changed. Any other device signed in to the admin has been signed out.")
     return redirect(url_for("admin.settings") + "#password")
+
+
+@bp.post("/settings/email")
+@login_required
+def settings_email():
+    """Set the recovery address for "Forgot password" (D-51). Needs the current password."""
+    email = request.form.get("email", "")
+    try:
+        change_recovery_email(current_admin(), request.form.get("current_password", ""), email)
+    except PasswordChangeError as exc:
+        return _render_settings(_settings_form(TurfSettings.current_or_default()), {},
+                                pw_errors=exc.errors, email_value=email)
+    flash("Recovery email saved. Password reset links will go there.")
+    return redirect(url_for("admin.settings") + "#recovery")
 
 
 @bp.post("/settings/preview")

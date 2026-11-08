@@ -4,6 +4,7 @@ Static settings live in the classes below. Values that differ per machine
 (SECRET_KEY, DATABASE_URL) come from environment variables or the .env file,
 and are applied in `app.create_app()`.
 """
+import os
 from datetime import timedelta
 from pathlib import Path
 
@@ -34,6 +35,14 @@ class BaseConfig:
     ENABLE_DEV_TOOLS = False  # /dev/wiring diagnostics page (plan D-18)
     PAYMENTS_ENABLED = False  # bKash advance (D-24); false = auto-confirm, no payment (CR-2/M4.6)
     SHOW_TODO_NOTES = True    # visible TODO(owner) notes for missing content; off in production (D-50)
+    # Links in emails are built from this, never from the request's Host header (D-51).
+    SITE_URL = "http://localhost:5000"
+    # Hosting mailbox for admin password-reset emails (D-30, D-51). Empty = email is off.
+    MAIL_SERVER = os.environ.get("MAIL_SERVER", "")
+    MAIL_PORT = os.environ.get("MAIL_PORT", "465")
+    MAIL_USERNAME = os.environ.get("MAIL_USERNAME", "")
+    MAIL_PASSWORD = os.environ.get("MAIL_PASSWORD", "")
+    MAIL_FROM = os.environ.get("MAIL_FROM", "")
 
 
 class DevelopmentConfig(BaseConfig):
@@ -49,12 +58,14 @@ class TestingConfig(BaseConfig):
     SQLALCHEMY_DATABASE_URI = "sqlite://"
     SQLALCHEMY_ENGINE_OPTIONS = {}
     WTF_CSRF_ENABLED = False
+    MAIL_SERVER = ""  # never send real email from tests, whatever .env says
 
 
 class ProductionConfig(BaseConfig):
     ENV_NAME = "production"
     SESSION_COOKIE_SECURE = True
     SHOW_TODO_NOTES = False   # customers never see TODO notes; empty sections hide instead (D-50)
+    SITE_URL = "https://tturfzone.com"
 
 
 CONFIGS = {

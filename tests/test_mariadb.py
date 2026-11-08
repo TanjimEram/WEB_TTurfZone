@@ -91,7 +91,7 @@ def test_tables_are_utf8mb4_and_lower_case(maria_app):
             "SELECT TABLE_NAME, TABLE_COLLATION FROM information_schema.TABLES "
             "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME <> 'alembic_version'"
         )).all()
-    assert {r.TABLE_NAME for r in rows} == {"admins", "bookings", "turf_settings"}
+    assert {r.TABLE_NAME for r in rows} == {"admins", "bookings", "login_failures", "turf_settings"}
     assert {r.TABLE_COLLATION for r in rows} == {"utf8mb4_unicode_ci"}
     # Linux MariaDB is case-sensitive about table names; every name we use is lower-case.
     assert all(name == name.lower() for name in db.metadata.tables)
@@ -183,3 +183,26 @@ def test_migrations_downgrade_cleanly(maria_app):
             "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE()"
         )).scalars().all()
     assert set(tables) <= {"alembic_version"}
+
+
+def test_lockout_and_reset_throttle_compare_utc_on_mariadb(maria_app, monkeypatch):
+    """M5.10: both rules compare DATETIME columns in SQL; check they hold on the production engine."""
+    from models import Admin, LoginFailure
+    from services import auth
+
+    sent = []
+    monkeypatch.setattr(auth, "send_email", lambda to, subject, body: sent.append(to))
+    with maria_app.test_request_context():
+        db.session.add(Admin(username="owner", password_hash="x", email="owner@example.test"))
+        db.session.add_all([LoginFailure(ip="203.0.113.5",
+                                         created_at=datetime.now(timezone.utc) - timedelta(minutes=16))
+                            for _ in range(5)])
+        db.session.commit()
+        assert not auth.is_locked_out("203.0.113.5")  # 16-minute-old failures have expired
+        for _ in range(5):
+            auth.record_login_failure("203.0.113.5")
+        assert auth.is_locked_out("203.0.113.5")
+
+        auth.send_reset_email("owner@example.test")
+        auth.send_reset_email("owner@example.test")  # inside 5 minutes: nothing
+        assert sent == ["owner@example.test"]
