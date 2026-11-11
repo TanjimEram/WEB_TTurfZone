@@ -3,7 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#0b0f0d">
+  <meta name="theme-color" content="#ffffff">
+  {# CR-11: light by default, dark if the visitor chose it. Set before any CSS loads, so no flash. #}
+  <script>try{var t=localStorage.getItem("tturf-theme");if(t==="dark"||t==="light"){document.documentElement.setAttribute("data-theme",t);}}catch(e){}</script>
   <meta name="description" content="{% block description %}{{ settings.tagline if settings and settings.tagline and 'TODO' not in settings.tagline else 'Book a slot at TTURFZONE turf ground.' }}{% endblock %}">
   <title>{% block title %}TTURFZONE{% endblock %}</title>
   <link rel="canonical" href="{{ request.url }}">
@@ -20,6 +22,7 @@
   <meta property="og:image:alt" content="T Turf Zone logo next to the floodlit pitch at night">
   <meta name="twitter:card" content="summary_large_image">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/site.css') }}">
   {% block json_ld %}{% endblock %}
 </head>
 <body>

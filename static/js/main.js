@@ -24,6 +24,26 @@
     });
   }
 
+  // --- light / dark theme (CR-11) -----------------------------------------
+  // The <head> script already applied a saved choice; this button flips and saves it.
+  var root = document.documentElement;
+  var toggle = document.querySelector("[data-theme-toggle]");
+  function isDark() { return root.getAttribute("data-theme") === "dark"; }
+  function showTheme() {
+    if (!toggle) return;
+    toggle.setAttribute("aria-pressed", isDark() ? "true" : "false");
+    toggle.setAttribute("aria-label", isDark() ? "Switch to light theme" : "Switch to dark theme");
+  }
+  if (toggle) {
+    showTheme();
+    toggle.addEventListener("click", function () {
+      var next = isDark() ? "light" : "dark";
+      root.setAttribute("data-theme", next);
+      try { localStorage.setItem("tturf-theme", next); } catch (e) { /* private mode: still switches */ }
+      showTheme();
+    });
+  }
+
   // --- mobile menu -------------------------------------------------------
   var openBtn = document.querySelector("[data-menu-open]");
   var closeBtn = document.querySelector("[data-menu-close]");

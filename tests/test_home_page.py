@@ -156,7 +156,7 @@ def test_pricing_section_shows_one_card_per_period(client, app):
         db.session.add(TurfSettings(turf_name="TTURFZONE", pricing={"morning": 1000, "afternoon": 1350, "night": 2000}))
         db.session.commit()
     section = client.get("/").get_data(as_text=True).split('id="pricing"')[1].split("</section>")[0]
-    for text in ("Morning", "6AM–12PM", "৳1,000", "Afternoon", "৳1,350", "Night", "6PM–6AM", "৳2,000"):
+    for text in ("Morning", "6AM–12PM", "১,০০০৳", "Afternoon", "১,৩৫০৳", "Night", "6PM–6AM", "২,০০০৳"):
         assert text in section
     assert "TODO(owner)" not in section
 
@@ -256,3 +256,37 @@ def test_sticky_bar_reserves_scroll_space_on_mobile(client):
     css = client.get("/static/css/main.css").get_data(as_text=True)
     sticky = css.split("/* --------------------------------------------------- sticky mobile actions */")[1]
     assert re.search(r"@media \(max-width: 899px\) \{[^@]*scroll-padding-bottom", sticky)
+
+
+# --- CR-11 reference look: theme, header, footer (M7.9) -------------------------
+
+def test_site_css_and_theme_script_in_head(client):
+    html = client.get("/").get_data(as_text=True)
+    head = html.split("</head>")[0]
+    assert "css/site.css" in head
+    assert "tturf-theme" in head
+    assert head.index("tturf-theme") < head.index("css/main.css")  # set before paint
+
+
+def test_theme_toggle_button(client):
+    html = client.get("/").get_data(as_text=True)
+    assert "data-theme-toggle" in html and 'aria-label="Switch to dark theme"' in html
+
+
+def test_admin_does_not_load_site_css(client):
+    assert "site.css" not in client.get("/admin/login").get_data(as_text=True)
+
+
+def test_prices_use_bangla_digits(client, app):
+    with app.app_context():
+        db.session.add(TurfSettings(id=1, turf_name="TTURFZONE",
+                                    pricing={"morning": 1000, "afternoon": 1350, "night": 2000}))
+        db.session.commit()
+    section = client.get("/").get_data(as_text=True).split('id="pricing"')[1].split("</section>")[0]
+    assert "১,০০০৳" in section and "১,৩৫০৳" in section and "২,০০০৳" in section
+
+
+def test_footer_is_the_dark_contact_close(client):
+    html = client.get("/").get_data(as_text=True)
+    footer = html.split('class="site-footer"')[1]
+    assert "tturfzone@gmail.com" in footer and "All rights reserved" in footer

@@ -55,10 +55,13 @@ HERO = {"name": "hero-aerial", "dir": "hero", "widths": (800, 1280, 1920), "widt
         "alt": "Illustration: aerial view of a football pitch at sunset"}
 
 
+BANGLA_DIGITS = str.maketrans("0123456789", "০১২৩৪৫৬৭৮৯")
+
+
 @bp.app_template_filter("taka")
 def taka(amount) -> str:
-    """4500 -> '৳4,500'. Used on the public site and in the admin."""
-    return f"৳{amount:,}"
+    """4500 -> '৪,৫০০৳': Bangla digits and a trailing taka sign, like the reference site (CR-11)."""
+    return f"{amount:,}".translate(BANGLA_DIGITS) + "৳"
 
 
 @bp.context_processor

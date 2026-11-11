@@ -77,8 +77,9 @@ def test_sections_come_back_once_the_owner_adds_content(prod_client):
     db.session.commit()
     html = prod_client.get("/").get_data(as_text=True)
     for section in ("pricing", "location", "reviews"):
-        assert f'id="{section}"' in html and f"#{section}" in html
-    assert "Floodlit six-a-side" in html and "৳4,000" in html and "wa.me/8801712345678" in html
+        assert f'id="{section}"' in html
+    assert "#pricing" in html  # the reference nav: Home, Book Turf, Pricing, About Us, Contact (CR-11)
+    assert "Floodlit six-a-side" in html and "৪,০০০৳" in html and "wa.me/8801712345678" in html
     assert "TODO" not in html and _dead_hash_links(html) == []
 
 

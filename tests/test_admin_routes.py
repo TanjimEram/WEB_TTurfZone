@@ -335,7 +335,7 @@ def test_settings_save_updates_public_site(as_admin, client, app):
     home = client.get("/").get_data(as_text=True)
     assert "Notin Rani ghat, Jashore" in home
     assert "wa.me/8801812345678" in home
-    assert "৳1,000" in home and "৳1,350" in home and "৳2,000" in home
+    assert "১,০০০৳" in home and "১,৩৫০৳" in home and "২,০০০৳" in home
 
 
 def test_period_prices_show_on_the_grid(as_admin, client):
