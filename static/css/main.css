@@ -869,3 +869,9 @@ a:hover { text-decoration: underline; }
 .wiring .slots .pending { background: #713f12; }
 .wiring .slots .booked { background: #7f1d1d; }
 .wiring .slots .blocked { background: #374151; }
+
+/* ---------------------------------------------------------- customer sign-in (CR-9) */
+.nav__account { display: flex; align-items: center; gap: var(--sp-2); margin: 0; }
+.nav__account-name { font-size: var(--fs-300); color: var(--text-muted); max-width: 12rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.login-card { max-width: 32rem; }
+.prose ul { padding-left: 1.25rem; }

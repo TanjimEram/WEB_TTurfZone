@@ -1,0 +1,10 @@
+{# Customer sign-in state (CR-9): "Sign in" or the Google name with a sign-out button. #}
+{% if customer %}
+  <form method="post" action="{{ url_for('auth.logout') }}" class="nav__account">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <span class="nav__account-name">{{ customer.name or customer.email }}</span>
+    <button class="btn btn--ghost btn--small" type="submit">Sign out</button>
+  </form>
+{% else %}
+  <a href="{{ url_for('auth.login', next=request.path if request.endpoint == 'public.book' else None) }}">Sign in</a>
+{% endif %}

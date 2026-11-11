@@ -43,6 +43,10 @@ class BaseConfig:
     MAIL_USERNAME = os.environ.get("MAIL_USERNAME", "")
     MAIL_PASSWORD = os.environ.get("MAIL_PASSWORD", "")
     MAIL_FROM = os.environ.get("MAIL_FROM", "")
+    # Google sign-in for customers and the Gmail API for booking emails (CR-9). Secrets: env only.
+    GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
+    GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
+    GMAIL_REFRESH_TOKEN = os.environ.get("GMAIL_REFRESH_TOKEN", "")
 
 
 class DevelopmentConfig(BaseConfig):
@@ -59,6 +63,10 @@ class TestingConfig(BaseConfig):
     SQLALCHEMY_ENGINE_OPTIONS = {}
     WTF_CSRF_ENABLED = False
     MAIL_SERVER = ""  # never send real email from tests, whatever .env says
+    SITE_URL = "http://localhost"  # the test client's host
+    GOOGLE_CLIENT_ID = "test-client-id"  # fakes: tests never call Google
+    GOOGLE_CLIENT_SECRET = "test-client-secret"
+    GMAIL_REFRESH_TOKEN = ""
 
 
 class ProductionConfig(BaseConfig):

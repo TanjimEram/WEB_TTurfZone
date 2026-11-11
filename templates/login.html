@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Sign in · TTURFZONE{% endblock %}
+{% block description %}Sign in with Google to book a slot at TTURFZONE.{% endblock %}
+
+{% block content %}
+<section class="section" aria-labelledby="login-title">
+  <div class="container stack login-card">
+    <p class="section__label">Booking</p>
+    <h1 class="section__title" id="login-title">Sign in to book</h1>
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}<div role="status" aria-live="polite">{% for m in messages %}<p class="form-error">{{ m }}</p>{% endfor %}</div>{% endif %}
+    {% endwith %}
+    {% if google_ready %}
+      <p class="muted">We use your Google account's name and email to send your booking confirmation.
+        We don't see your Google password.</p>
+      <p><a class="btn btn--primary" href="{{ url_for('auth.google_start', next=next_url) }}">Continue with Google</a></p>
+      <p class="muted"><small>By signing in you agree to our <a href="{{ url_for('public.privacy') }}">privacy policy</a>.</small></p>
+    {% else %}
+      <p class="muted">Online sign-in isn't set up yet. Please book by phone or WhatsApp for now.</p>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

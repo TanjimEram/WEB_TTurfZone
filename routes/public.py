@@ -234,6 +234,12 @@ def booking_success():
     )
 
 
+@bp.get("/privacy")
+def privacy():
+    """What the booking collects and why (CR-9; Google's sign-in screen links here)."""
+    return render_template("privacy.html")
+
+
 @bp.get("/healthz")
 def healthz():
     """Uptime check. Must not touch the database (plan D-12)."""

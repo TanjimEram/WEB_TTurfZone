@@ -71,10 +71,12 @@ def _apply_environment(app: Flask, env_name: str) -> None:
 def _register_blueprints(app: Flask) -> None:
     from routes.admin import bp as admin_bp
     from routes.api import bp as api_bp
+    from routes.auth import bp as auth_bp
     from routes.public import bp as public_bp
 
     app.register_blueprint(public_bp)
     app.register_blueprint(api_bp)
+    app.register_blueprint(auth_bp)
     app.register_blueprint(admin_bp)
 
     if app.config["ENABLE_DEV_TOOLS"]:
