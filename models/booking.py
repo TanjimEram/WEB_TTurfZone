@@ -42,6 +42,11 @@ class Booking(db.Model):
     slot_time = db.Column(db.Time, nullable=False)
     status = db.Column(db.String(10), nullable=False, default=PENDING)
     admin_note = db.Column(db.Text)            # block reason or rejection note
+    # CR-9: the customer pays the advance by bKash and gives the TrxID; the owner checks it.
+    customer_email = db.Column(db.String(254))  # from the Google sign-in, never from the form
+    payer_number = db.Column(db.String(14))     # bKash number the advance came from, 01XXXXXXXXX
+    trx_id = db.Column(db.String(20))           # bKash transaction ID, upper-case; one booking per TrxID
+    email_sent_at = db.Column(db.DateTime(timezone=True))  # UTC; set when the confirm/reject email went out
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
     updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow)
 
@@ -52,6 +57,7 @@ class Booking(db.Model):
             sqlite_where=db.text(ACTIVE_WHERE),
         ).ddl_if(dialect=("postgresql", "sqlite")),  # on MariaDB it would lose its WHERE
         db.Index("ix_bookings_status_date", "status", "booking_date"),
+        db.Index("uq_bookings_trx_id", "trx_id", unique=True),  # NULLs allowed (blocks), one booking per TrxID
         db.CheckConstraint("status IN ('PENDING', 'CONFIRMED', 'REJECTED', 'BLOCKED')", name="booking_status"),
         MYSQL_TABLE_OPTIONS,
     )

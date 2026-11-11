@@ -90,6 +90,23 @@ def normalize_phone(raw: str) -> str:
     return digits
 
 
+ADVANCE_DEFAULT_BDT = 500  # C-22; the owner can change it in Settings (turf_settings.advance_bdt)
+TRX_ID_RE = re.compile(r"^[A-Z0-9]{8,12}$")  # bKash TrxIDs are 10 letters/digits; allow a little slack
+
+
+def normalize_trx_id(raw: str) -> str:
+    """' 8n7a6d5e4f ' -> '8N7A6D5E4F'. Raises BookingValidationError unless 8-12 letters/digits."""
+    trx = (raw or "").strip().upper()
+    if not TRX_ID_RE.match(trx):
+        raise BookingValidationError(
+            {"trx_id": "Enter the bKash transaction ID (TrxID) from your payment message."})
+    return trx
+
+
+def _trx_id_taken(trx_id: str) -> bool:
+    return db.session.scalar(db.select(Booking.id).where(Booking.trx_id == trx_id).limit(1)) is not None
+
+
 def _clean_name(raw: str) -> str:
     name = (raw or "").strip()
     if not (1 <= len(name) <= 80):
@@ -99,48 +116,58 @@ def _clean_name(raw: str) -> str:
 
 # --------------------------------------------------------------- actions
 
-def create_booking_request(name: str, phone: str, booking_date, slot_time) -> Booking:
-    """Validate and insert a booking.
+def create_booking_request(name: str, phone: str, booking_date, slot_time, *,
+                           email: str, payer_number: str, trx_id: str) -> Booking:
+    """Validate and insert a booking that waits for the owner to check its bKash payment (CR-9).
 
-    No manual owner confirmation (CR-2/M4.6): the booking is CONFIRMED
-    immediately while PAYMENTS_ENABLED is off. Raises BookingValidationError
-    (bad name/phone, slot not bookable) or SlotUnavailableError (slot taken
-    between the page load and submit).
+    The customer has paid the advance to the merchant number and gives the TrxID and the
+    number they paid from. The booking is PENDING, which already holds the slot in the
+    database rule (D-42), until the owner confirms or rejects it. `email` comes from the
+    Google sign-in, never from the form. Every TrxID can be used once (unique index).
+
+    Raises BookingValidationError (errors keyed name / phone / payer_number / trx_id / slot)
+    or SlotUnavailableError (slot taken between the page load and submit).
     """
     errors: dict[str, str] = {}
-
-    try:
-        clean_name = _clean_name(name)
-    except BookingValidationError as exc:
-        errors.update(exc.errors)
-        clean_name = ""
-
-    try:
-        clean_phone = normalize_phone(phone)
-    except BookingValidationError as exc:
-        errors.update(exc.errors)
-        clean_phone = ""
+    clean = {}
+    for key, check, raw in (("name", _clean_name, name), ("phone", normalize_phone, phone),
+                            ("payer_number", normalize_phone, payer_number), ("trx_id", normalize_trx_id, trx_id)):
+        try:
+            clean[key] = check(raw)
+        except BookingValidationError as exc:
+            errors[key] = exc.errors.get(key) or next(iter(exc.errors.values()))
 
     if not is_bookable(booking_date, slot_time):
         errors["slot"] = "That slot can no longer be booked."
-
+    if "trx_id" not in errors and _trx_id_taken(clean["trx_id"]):
+        errors["trx_id"] = TRX_USED
     if errors:
         raise BookingValidationError(errors)
 
     if current_app.config.get("PAYMENTS_ENABLED"):
-        # ponytail: the Tk 500 bKash advance (PENDING_PAYMENT hold) needs the
-        # CR-1 schema and gateway (M2.6/M10), not built yet. Fail loudly
-        # rather than insert a booking under the wrong status.
-        raise NotImplementedError("PAYMENTS_ENABLED=true needs M2.6/M10 (not built yet).")
+        # ponytail: a bKash gateway (M10) would verify payments itself; not built.
+        # Fail loudly rather than insert a booking under the wrong flow.
+        raise NotImplementedError("PAYMENTS_ENABLED=true needs the bKash gateway (M10, not built).")
 
-    return save_booking(Booking(
-        booking_code=generate_booking_code(),
-        customer_name=clean_name,
-        phone=clean_phone,
-        booking_date=booking_date,
-        slot_time=slot_time,
-        status=Booking.CONFIRMED,
-    ))
+    try:
+        return save_booking(Booking(
+            booking_code=generate_booking_code(),
+            customer_name=clean["name"],
+            phone=clean["phone"],
+            booking_date=booking_date,
+            slot_time=slot_time,
+            status=Booking.PENDING,
+            customer_email=(email or "").strip().lower(),
+            payer_number=clean["payer_number"],
+            trx_id=clean["trx_id"],
+        ))
+    except IntegrityError as exc:
+        if "trx_id" in str(exc.orig):  # another request used this TrxID a moment ago
+            raise BookingValidationError({"trx_id": TRX_USED}) from exc
+        raise
+
+
+TRX_USED = "This transaction ID has already been used."
 
 
 def _get(booking_id: int) -> Booking:

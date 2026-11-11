@@ -206,3 +206,18 @@ def test_lockout_and_reset_throttle_compare_utc_on_mariadb(maria_app, monkeypatc
         auth.send_reset_email("owner@example.test")
         auth.send_reset_email("owner@example.test")  # inside 5 minutes: nothing
         assert sent == ["owner@example.test"]
+
+
+def test_trx_id_unique_on_mariadb(maria_app):
+    """CR-9: one booking per bKash TrxID; blocks (no TrxID) are not limited."""
+    with maria_app.app_context():
+        save_booking(Booking(booking_code=generate_booking_code(), customer_name="A", phone="01711111111",
+                             booking_date=DAY, slot_time=time(18), status=Booking.PENDING, trx_id="8N7A6D5E4F"))
+        with pytest.raises(IntegrityError) as exc:
+            save_booking(Booking(booking_code=generate_booking_code(), customer_name="B", phone="01722222222",
+                                 booking_date=DAY, slot_time=time(19), status=Booking.PENDING, trx_id="8N7A6D5E4F"))
+        assert "trx_id" in str(exc.value.orig)
+        for hour in (20, 21):
+            save_booking(Booking(booking_code=generate_booking_code(), booking_date=DAY, slot_time=time(hour),
+                                 status=Booking.BLOCKED))
+        assert db.session.scalar(db.select(db.func.count()).select_from(Booking)) == 3
