@@ -3,6 +3,9 @@
 {% block description %}Sign in with Google to book a slot at TTURFZONE.{% endblock %}
 
 {% block content %}
+{% include "partials/nav.html" %}
+
+<main id="main">
 <section class="section" aria-labelledby="login-title">
   <div class="container stack login-card">
     <p class="section__label">Booking</p>
@@ -20,4 +23,11 @@
     {% endif %}
   </div>
 </section>
+</main>
+
+{% include "partials/footer.html" %}
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
 {% endblock %}

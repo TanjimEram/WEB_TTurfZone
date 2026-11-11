@@ -3,6 +3,9 @@
 {% block description %}What TTURFZONE collects when you book a slot, and why.{% endblock %}
 
 {% block content %}
+{% include "partials/nav.html" %}
+
+<main id="main">
 <section class="section" aria-labelledby="privacy-title">
   <div class="container stack prose">
     <h1 class="section__title" id="privacy-title">Privacy</h1>
@@ -19,4 +22,11 @@
     <p>To ask about your data or have it deleted, email <a href="mailto:tturfzone@gmail.com">tturfzone@gmail.com</a>.</p>
   </div>
 </section>
+</main>
+
+{% include "partials/footer.html" %}
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
 {% endblock %}

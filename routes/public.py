@@ -12,7 +12,10 @@ from flask import (
 
 from extensions import db
 from models import Booking, TurfSettings
+from routes.auth import bp as auth_bp
+from routes.auth import current_customer, customer_login_required
 from services.bookings import (
+    ADVANCE_DEFAULT_BDT,
     BookingValidationError,
     SlotUnavailableError,
     create_booking_request,
@@ -89,6 +92,11 @@ def inject_common():
     }
 
 
+# The sign-in page (auth blueprint) shows the same nav and footer. Not app-wide: the
+# error pages must not read the database (the 500 page shows when the database fails).
+auth_bp.context_processor(inject_common)
+
+
 @bp.app_template_global("is_real")
 def _is_real(value) -> bool:
     """True when an owner text field has real content, not empty or still a TODO."""
@@ -138,15 +146,18 @@ def _render_booking_page(form, errors):
     valid = {chip["iso"] for chip in chips}
     wanted = _preselect_day(form)
     preselect_date = wanted if wanted in valid else chips[0]["iso"]
+    settings = TurfSettings.current_or_default()
     return render_template(
         "booking.html",
-        settings=TurfSettings.current_or_default(),
+        settings=settings,
         slot_labels=[slot_label(t) for t in slot_times()],
         date_chips=chips,
         preselect_date=preselect_date,
         preselect_slot=form["slot"],
         form=form,
         errors=errors,
+        advance=_advance(settings),
+        bkash_number=settings.bkash_number if _is_real(settings.bkash_number) else "",
     )
 
 
@@ -167,12 +178,21 @@ def home():
     )
 
 
+def _advance(settings) -> int:
+    return settings.advance_bdt or ADVANCE_DEFAULT_BDT
+
+
 @bp.get("/book")
+@customer_login_required
 def book():
-    """Booking page: date + slot picker (preselected from the query) and the details form."""
+    """Booking page: date + slot picker (preselected from the query), bKash payment box
+    and the details form (CR-9). Signed-in customers only."""
     form = {
-        "name": "",
+        "name": current_customer().get("name", ""),
         "phone": "",
+        "payer_number": "",
+        "trx_id": "",
+        "no_refund": "",
         "date": request.args.get("date", ""),
         "slot": request.args.get("slot", ""),
     }
@@ -180,14 +200,20 @@ def book():
 
 
 @bp.post("/book")
+@customer_login_required
 def book_submit():
-    """Create a booking, confirmed immediately (CR-2/M4.6). Server re-validates everything (D-04)."""
-    form = {
-        "name": request.form.get("name", "").strip(),
-        "phone": request.form.get("phone", "").strip(),
-        "date": request.form.get("date", ""),
-        "slot": request.form.get("slot", ""),
-    }
+    """Create a PENDING booking that waits for the owner to check the bKash payment (CR-9).
+
+    The server re-validates everything (D-04). The email is the Google session's, never
+    the form's. The slot is held until the owner confirms or rejects.
+    """
+    form = {key: request.form.get(key, "").strip()
+            for key in ("name", "phone", "payer_number", "trx_id", "no_refund", "date", "slot")}
+    settings = TurfSettings.current_or_default()
+    if not _is_real(settings.bkash_number):
+        return _render_booking_page(form, {}), 400  # the page itself says booking isn't open yet
+    if not form["no_refund"]:
+        return _render_booking_page(form, {"no_refund": "Please confirm you understand the advance isn't refunded if you cancel."}), 400
 
     try:
         booking_date = date.fromisoformat(form["date"])
@@ -196,7 +222,9 @@ def book_submit():
         return _render_booking_page(form, {"slot": "Pick a date and time above."}), 400
 
     try:
-        booking = create_booking_request(form["name"], form["phone"], booking_date, slot_time)
+        booking = create_booking_request(
+            form["name"], form["phone"], booking_date, slot_time,
+            email=current_customer()["email"], payer_number=form["payer_number"], trx_id=form["trx_id"])
     except BookingValidationError as exc:
         return _render_booking_page(form, exc.errors), 400
     except SlotUnavailableError:
@@ -219,8 +247,8 @@ def booking_success():
     settings = TurfSettings.current_or_default()
     slot_display = slot_label(booking.slot_time)
     wa_text = (
-        f"Hi, I have a confirmed booking at {settings.turf_name or 'TTURFZONE'}. "
-        f"Booking ID: {booking.booking_code}, "
+        f"Hi, I booked at {settings.turf_name or 'TTURFZONE'} and paid the bKash advance. "
+        f"Booking ID: {booking.booking_code}, TrxID: {booking.trx_id}, "
         f"Date: {booking.booking_date:%d %b %Y}, Time: {slot_display}"
     )
     return render_template(
@@ -228,6 +256,7 @@ def booking_success():
         settings=settings,
         booking=booking,
         slot_display=slot_display,
+        end_display=slot_label(slot_end(booking.slot_time)),
         date_display=f"{booking.booking_date:%A, %d %b %Y}",
         wa_text=wa_text,
         confirm_note=settings.confirm_time_text.strip() if _is_real(settings.confirm_time_text) else "",
@@ -237,7 +266,7 @@ def booking_success():
 @bp.get("/privacy")
 def privacy():
     """What the booking collects and why (CR-9; Google's sign-in screen links here)."""
-    return render_template("privacy.html")
+    return render_template("privacy.html", settings=TurfSettings.current_or_default())
 
 
 @bp.get("/healthz")

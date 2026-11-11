@@ -60,6 +60,17 @@
 
   <h2>Booking</h2>
   <div class="form-field">
+    <label for="s-bkash">bKash merchant number customers pay (leave empty to close online booking)</label>
+    <input id="s-bkash" name="bkash_number" type="tel" inputmode="tel" placeholder="01XXXXXXXXX"
+           value="{{ values.bkash_number }}"{{ invalid('bkash_number') }}>
+    {{ field_error('bkash_number') }}
+  </div>
+  <div class="form-field">
+    <label for="s-advance">Advance to pay by bKash (৳)</label>
+    <input id="s-advance" name="advance_bdt" inputmode="numeric" value="{{ values.advance_bdt }}"{{ invalid('advance_bdt') }}>
+    {{ field_error('advance_bdt') }}
+  </div>
+  <div class="form-field">
     <label for="s-window">How many days ahead customers can book</label>
     <input id="s-window" name="booking_window_days" inputmode="numeric" value="{{ values.booking_window_days }}"
            {{ invalid('booking_window_days') }}>

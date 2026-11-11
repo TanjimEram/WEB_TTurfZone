@@ -11,10 +11,28 @@
     <div class="container stack">
       <p class="section__label">Booking</p>
       <h1 class="section__title" id="book-title">Book a one-hour slot</h1>
-      <p class="muted">Pick a date, then a free slot. Your booking is confirmed instantly &mdash; there is no online payment yet, pay at the ground.</p>
+      <p class="muted">Pick a date and a free hour, pay the ৳{{ advance }} advance by bKash, then send us the
+        transaction ID. We check the payment and email you the confirmation. The rest is paid at the ground.</p>
 
       {% set picker_continue = false %}
       {% include "partials/slot_picker.html" %}
+
+      {% if not bkash_number %}
+      <div class="card stack">
+        <p><strong>Online booking isn't open yet.</strong></p>
+        {% if wa_link %}<p><a class="btn btn--whatsapp" href="{{ wa_link }}" rel="noopener" target="_blank">Book on WhatsApp</a></p>{% endif %}
+      </div>
+      {% else %}
+      <div class="card stack pay-box" aria-labelledby="pay-title">
+        <h2 class="section__title" id="pay-title">1. Pay the ৳{{ advance }} advance</h2>
+        <ol class="pay-steps">
+          <li>Open the bKash app and choose <strong>Payment</strong> (not Send Money).</li>
+          <li>Merchant number: <strong class="pay-number">{{ bkash_number }}</strong></li>
+          <li>Amount: <strong>৳{{ advance }}</strong></li>
+          <li>Keep the <strong>TrxID</strong> from the payment message and enter it below.</li>
+        </ol>
+        <p class="muted"><small>The advance is not refunded if you cancel. The rest is paid at the ground.</small></p>
+      </div>
 
       <form class="booking-form stack" method="post" action="{{ url_for('public.book_submit') }}"
             data-booking-form novalidate>
@@ -22,7 +40,8 @@
         <input type="hidden" name="date" value="{{ preselect_date }}" data-field-date>
         <input type="hidden" name="slot" value="{{ preselect_slot }}" data-field-slot>
 
-        <h2 class="section__title">Your details</h2>
+        <h2 class="section__title">2. Your details</h2>
+        <p class="muted">Signed in as <strong>{{ customer.email }}</strong>. We'll email your confirmation there.</p>
 
         {% if errors.slot %}<p class="form-error" id="err-slot" role="alert">{{ errors.slot }}</p>{% endif %}
 
@@ -42,9 +61,34 @@
           {% if errors.phone %}<p class="field-error" id="err-phone">{{ errors.phone }}</p>{% endif %}
         </div>
 
-        <button class="btn btn--primary" type="submit" data-submit>Book now</button>
-        <p class="muted"><small>You will get a booking ID and your slot is booked immediately.</small></p>
+        <div class="form-field">
+          <label for="f-payer">bKash number you paid from</label>
+          <input id="f-payer" name="payer_number" type="tel" inputmode="tel" placeholder="01XXXXXXXXX" required
+                 value="{{ form.payer_number }}"
+                 {% if errors.payer_number %}aria-invalid="true" aria-describedby="err-payer"{% endif %}>
+          {% if errors.payer_number %}<p class="field-error" id="err-payer">{{ errors.payer_number }}</p>{% endif %}
+        </div>
+
+        <div class="form-field">
+          <label for="f-trx">bKash transaction ID (TrxID)</label>
+          <input id="f-trx" name="trx_id" type="text" maxlength="12" autocomplete="off" autocapitalize="characters"
+                 placeholder="e.g. 8N7A6D5E4F" required value="{{ form.trx_id }}"
+                 {% if errors.trx_id %}aria-invalid="true" aria-describedby="err-trx"{% endif %}>
+          {% if errors.trx_id %}<p class="field-error" id="err-trx">{{ errors.trx_id }}</p>{% endif %}
+        </div>
+
+        <label class="check-field" for="f-norefund">
+          <input id="f-norefund" name="no_refund" type="checkbox" value="1" required
+                 {% if form.no_refund %}checked{% endif %}
+                 {% if errors.no_refund %}aria-invalid="true" aria-describedby="err-norefund"{% endif %}>
+          <span>I understand the ৳{{ advance }} advance is not refunded if I cancel.</span>
+        </label>
+        {% if errors.no_refund %}<p class="field-error" id="err-norefund">{{ errors.no_refund }}</p>{% endif %}
+
+        <button class="btn btn--primary" type="submit" data-submit>Send booking</button>
+        <p class="muted"><small>Your slot is held while we check the payment.</small></p>
       </form>
+      {% endif %}
 
       {% if is_real(settings.booking_rules_text) or show_todos %}
         <p>{{ owner_text(settings.booking_rules_text, "booking and cancellation rules (C-05)") }}</p>

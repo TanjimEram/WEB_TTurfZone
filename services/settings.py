@@ -19,6 +19,7 @@ from services.slots import ALL_HOURS, PERIODS, slot_label, slot_times, today_dha
 
 WINDOW_DAYS = (1, 60)
 MAX_PRICE_BDT = 100_000
+ADVANCE_LIMITS = (1, 100_000)
 TEXT_LIMITS = {  # VARCHAR columns must fit (MariaDB strict mode rejects longer); TEXT kept readable
     "opening_hours_text": 160,
     "confirm_time_text": 160,
@@ -93,6 +94,12 @@ def parse_settings_form(form) -> dict:
     else:
         values["booking_window_days"] = int(window)
 
+    values["bkash_number"] = _phone(form.get("bkash_number", ""), "bkash_number", errors)
+    advance = form.get("advance_bdt", "").strip()
+    if not advance.isdigit() or not ADVANCE_LIMITS[0] <= int(advance) <= ADVANCE_LIMITS[1]:
+        errors["advance_bdt"] = "Enter the advance in whole taka, e.g. 500."
+    else:
+        values["advance_bdt"] = int(advance)
     values["open_hours"] = parse_open_hours(form, errors)
     values["pricing"] = parse_period_prices(form, errors)
 
@@ -144,6 +151,8 @@ def save_owner_settings(form) -> TurfSettings:
     for field in TEXT_LIMITS:
         setattr(settings, field, values[field])
     settings.booking_window_days = values["booking_window_days"]
+    settings.bkash_number = values["bkash_number"]
+    settings.advance_bdt = values["advance_bdt"]
     hours = values["open_hours"]
     settings.slot_times = None if len(hours) == len(ALL_HOURS) else [t.strftime("%H:%M") for t in hours]
     settings.pricing = values["pricing"]

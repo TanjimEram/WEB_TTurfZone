@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Booking confirmed · {{ settings.turf_name or "TTURFZONE" }}{% endblock %}
+{% block title %}Payment being checked · {{ settings.turf_name or "TTURFZONE" }}{% endblock %}
 
 {% block content %}
 {% include "partials/nav.html" %}
@@ -13,15 +13,18 @@
         <circle class="success-check__circle" cx="26" cy="26" r="24" fill="none"/>
         <path class="success-check__mark" fill="none" d="M14 27l7 7 17-17"/>
       </svg>
-      <h1 class="section__title" id="ok-title">Booking confirmed!</h1>
+      <h1 class="section__title" id="ok-title">Payment being checked</h1>
+      <p>Your slot is held. We'll email <strong>{{ booking.customer_email }}</strong> as soon as we've checked
+        your bKash payment.</p>
 
       <div class="card stack success-pop">
         <p class="booking-code">Booking ID: <strong>{{ booking.booking_code }}</strong></p>
         <dl class="booking-summary">
           <div><dt>Date</dt><dd>{{ date_display }}</dd></div>
-          <div><dt>Time</dt><dd>{{ slot_display }} &ndash; 60 minutes</dd></div>
+          <div><dt>Time</dt><dd>{{ slot_display }} &ndash; {{ end_display }}</dd></div>
+          <div><dt>TrxID</dt><dd>{{ booking.trx_id }}</dd></div>
           <div><dt>Name</dt><dd>{{ booking.customer_name }}</dd></div>
-          <div><dt>Status</dt><dd><span class="status-pill status-pill--confirmed">Confirmed</span></dd></div>
+          <div><dt>Status</dt><dd><span class="status-pill status-pill--pending">Payment being checked</span></dd></div>
         </dl>
         {% if confirm_note %}<p class="muted">{{ confirm_note }}</p>{% endif %}
       </div>

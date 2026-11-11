@@ -1,22 +1,41 @@
-"""Public routes: homepage quick-book picker, /book page + form, /book/success (M4.2-M4.5)."""
+"""Public routes: homepage quick-book picker, /book page + form, /book/success (M4.2-M4.5, CR-9)."""
 import datetime as dt
+import itertools
 import re
+
+import pytest
 
 from extensions import db
 from models import Booking, TurfSettings
 from services.slots import TZ, current_operating_day, today_dhaka
+from tests.conftest import BKASH_NUMBER, CUSTOMER, open_booking, sign_in
 
 SOON = today_dhaka() + dt.timedelta(days=5)
 SIX_PM = dt.time(18, 0)
 
 
-def _post_booking(client, name="Rafi Ahmed", phone="01712345678", date=None, slot="18:00"):
-    return client.post("/book", data={
+_TRX = (f"TRX{n:07d}" for n in itertools.count(1))
+
+
+@pytest.fixture(autouse=True)
+def _signed_in_and_open(app, client):
+    """CR-9: booking needs a Google sign-in and the owner's bKash number in Settings."""
+    sign_in(client)
+    open_booking()
+
+
+def _post_booking(client, name="Rafi Ahmed", phone="01712345678", date=None, slot="18:00", **extra):
+    data = {
         "name": name,
         "phone": phone,
         "date": (date or SOON).isoformat() if hasattr(date or SOON, "isoformat") else (date or SOON),
         "slot": slot,
-    })
+        "payer_number": "01812345678",
+        "trx_id": next(_TRX),
+        "no_refund": "1",
+    }
+    data.update(extra)
+    return client.post("/book", data=data)
 
 
 def _make_booking(app, name="Hidden Customer", phone="01711111111"):
@@ -104,6 +123,52 @@ def test_booking_after_midnight_slot_uses_real_date(client, app, monkeypatch):
         assert (row.booking_date, row.slot_time) == (dt.date(2026, 11, 12), dt.time(1, 0))
 
 
+def test_book_requires_google_sign_in(app):
+    fresh = app.test_client()
+    for resp in (fresh.get("/book?date=2026-11-12&slot=01:00"), fresh.post("/book", data={})):
+        assert resp.status_code == 302 and "/login?next=" in resp.headers["Location"]
+
+
+def test_book_page_shows_payment_instructions_and_signed_in_email(client):
+    html = client.get("/book").get_data(as_text=True)
+    assert BKASH_NUMBER in html and "Payment" in html and "৳500" in html
+    assert CUSTOMER["email"] in html
+    assert 'value="Rafi Ahmed"' in html  # name prefilled from Google
+    for field in ("payer_number", "trx_id", "no_refund"):
+        assert f'name="{field}"' in html
+    assert 'name="email"' not in html
+
+
+def test_email_comes_from_google_session_not_form(client, app):
+    assert _post_booking(client, email="someone.else@example.test").status_code == 302
+    with app.app_context():
+        assert db.session.execute(db.select(Booking)).scalar_one().customer_email == CUSTOMER["email"]
+
+
+def test_no_refund_box_required(client, app):
+    resp = _post_booking(client, no_refund="")
+    html = resp.get_data(as_text=True)
+    assert resp.status_code == 400 and "advance" in html and "refunded" in html
+    with app.app_context():
+        assert db.session.execute(db.select(Booking)).first() is None
+
+
+def test_used_trx_id_is_refused_on_the_form(client, app):
+    _post_booking(client, trx_id="8N7A6D5E4F")
+    resp = _post_booking(client, slot="19:00", trx_id="8n7a6d5e4f")
+    assert resp.status_code == 400
+    assert "already been used" in resp.get_data(as_text=True)
+
+
+def test_booking_closed_without_bkash_number(client, app):
+    open_booking(bkash_number="")
+    html = client.get("/book").get_data(as_text=True)
+    assert "open yet" in html and 'name="trx_id"' not in html
+    assert _post_booking(client).status_code == 400
+    with app.app_context():
+        assert db.session.execute(db.select(Booking)).first() is None
+
+
 def test_book_passes_slot_through_to_js(client):
     html = client.get("/book?date=2099-01-01&slot=18:00").get_data(as_text=True)
     assert 'data-preselect-slot="18:00"' in html
@@ -126,15 +191,16 @@ def test_booking_happy_path(client, app):
     page = client.get("/book/success")
     assert page.status_code == 200
     html = page.get_data(as_text=True)
-    assert "Booking confirmed" in html
+    assert "Payment being checked" in html
     assert "Rafi Ahmed" in html
-    assert "success-check" in html  # M7.2 success animation
+    assert "player@gmail.com" in html  # where the confirmation will go
 
     with app.app_context():
         booking = db.session.execute(db.select(Booking)).scalar_one()
-        assert booking.status == Booking.CONFIRMED
+        assert booking.status == Booking.PENDING
         assert booking.phone == "01712345678"
-        assert booking.booking_code in html
+        assert booking.customer_email == "player@gmail.com"
+        assert booking.booking_code in html and booking.trx_id in html
 
 
 def test_booking_invalid_phone_rerenders_form(client, app):
@@ -167,7 +233,7 @@ def test_booking_past_slot_rejected(client, app):
 
 
 def test_booking_missing_slot_rejected(client, app):
-    resp = client.post("/book", data={"name": "Rafi", "phone": "01712345678", "date": "", "slot": ""})
+    resp = _post_booking(client, date="", slot="")
     assert resp.status_code == 400
     assert "Pick a date and time" in resp.get_data(as_text=True)
 
@@ -188,9 +254,7 @@ def test_success_is_one_time_only(client, app):
 
 
 def test_success_whatsapp_link_when_number_set(client, app):
-    with app.app_context():
-        db.session.add(TurfSettings(turf_name="TTURFZONE", whatsapp="8801712345678"))
-        db.session.commit()
+    open_booking(whatsapp="8801712345678")
     _post_booking(client)
     html = client.get("/book/success").get_data(as_text=True)
     assert "https://wa.me/8801712345678?text=" in html

@@ -8,6 +8,7 @@ from werkzeug.security import generate_password_hash
 from extensions import db
 from models import Admin, Booking, TurfSettings
 from services.slots import TZ, current_operating_day, today_dhaka
+from tests.conftest import open_booking, sign_in
 
 USERNAME = "owner"
 PASSWORD = "correct-horse-staple"
@@ -267,9 +268,12 @@ def test_block_taken_slot_flashes_error(as_admin, app):
 
 def test_blocked_slot_not_bookable_by_public(as_admin, client, app):
     as_admin.post("/admin/slots/block", data={"date": FUTURE.isoformat(), "slot": "18:00", "reason": ""})
-    resp = client.post("/book", data={
-        "name": "Late Comer", "phone": "01712345678",
-        "date": FUTURE.isoformat(), "slot": "18:00",
+    with app.app_context():
+        open_booking()
+    customer = sign_in(app.test_client())
+    resp = customer.post("/book", data={
+        "name": "Late Comer", "phone": "01712345678", "payer_number": "01712345678",
+        "trx_id": "8N7A6D5E4F", "no_refund": "1", "date": FUTURE.isoformat(), "slot": "18:00",
     })
     assert resp.status_code == 409
 
@@ -306,6 +310,7 @@ VALID_SETTINGS = {
     "price-morning": "1000",
     "price-afternoon": "1350",
     "price-night": "2000",
+    "advance_bdt": "500",
 }
 
 
@@ -348,6 +353,21 @@ def test_settings_bad_phone_saves_nothing_and_keeps_input(as_admin, app):
     assert 'value="123"' in html
     with app.app_context():
         assert TurfSettings.current() is None
+
+
+def test_settings_save_bkash_number_and_advance(as_admin, app):
+    resp = as_admin.post("/admin/settings", data={**VALID_SETTINGS, "bkash_number": "+8801827881299", "advance_bdt": "600"})
+    assert resp.status_code == 302
+    with app.app_context():
+        s = TurfSettings.current()
+        assert (s.bkash_number, s.advance_bdt) == ("01827881299", 600)
+    html = as_admin.get("/admin/settings").get_data(as_text=True)
+    assert 'value="01827881299"' in html and 'value="600"' in html
+
+
+def test_bad_advance_is_refused(as_admin, app):
+    resp = as_admin.post("/admin/settings", data={**VALID_SETTINGS, "advance_bdt": "0"})
+    assert resp.status_code == 400 and "advance" in resp.get_data(as_text=True)
 
 
 def test_missing_or_bad_period_price_is_refused(as_admin, app):

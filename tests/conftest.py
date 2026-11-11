@@ -44,3 +44,32 @@ def pg_url():
 @pytest.fixture
 def mariadb_url():
     return _test_db_url("mysql", "mariadb")
+
+
+# --- CR-9 booking helpers: a signed-in Google customer and an open booking form ---
+
+CUSTOMER = {"sub": "google-1", "email": "player@gmail.com", "name": "Rafi Ahmed"}
+BKASH_NUMBER = "01827881299"
+
+
+def sign_in(client, customer=None):
+    """Put a Google customer in the test client's session (no Google involved)."""
+    with client.session_transaction() as sess:
+        sess["customer"] = dict(customer or CUSTOMER)
+    return client
+
+
+def open_booking(**fields):
+    """Make sure turf_settings (id 1) has a bKash number, plus any other fields given.
+    Call inside an app context."""
+    from models import TurfSettings
+    from database.seed_data import DEFAULT_SETTINGS
+    row = TurfSettings.current()
+    if row is None:
+        row = TurfSettings(id=1, **DEFAULT_SETTINGS)
+        _db.session.add(row)
+    row.bkash_number = BKASH_NUMBER
+    for key, value in fields.items():
+        setattr(row, key, value)
+    _db.session.commit()
+    return row

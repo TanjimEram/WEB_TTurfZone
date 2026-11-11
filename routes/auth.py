@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 
 from flask import Blueprint, current_app, flash, redirect, render_template, request, session, url_for
 
+from models import TurfSettings
 from services import google
 
 bp = Blueprint("auth", __name__)
@@ -45,7 +46,8 @@ def inject_customer():
 @bp.get("/login")
 def login():
     """'Continue with Google'. Says so plainly if the Google client isn't configured."""
-    return render_template("login.html", next_url=safe_next(request.args.get("next")),
+    return render_template("login.html", settings=TurfSettings.current_or_default(),
+                           next_url=safe_next(request.args.get("next")),
                            google_ready=bool(current_app.config.get("GOOGLE_CLIENT_ID")))
 
 
