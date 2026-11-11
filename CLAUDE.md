@@ -7,15 +7,15 @@
 Website and self-sufficient slot-booking system for TTURFZONE, a single turf ground in Bangladesh.
 Flask + Jinja templates + vanilla JS. Production database: MariaDB 11.4 on the cPanel host (CR-4); PostgreSQL stays supported; SQLite for the fast local tests. Built by one developer with Claude Code, then handed to the owner.
 
-The owner should not have to confirm each online booking by hand. The site:
-- takes payment online (bKash direct gateway, verified server-to-server), then confirms the booking automatically;
-- holds a slot only while the customer is paying (`PENDING_PAYMENT`, expires after `HOLD_MINUTES`);
-- sends notifications: SMS + email to the customer, SMS + email alert to the owner, and a reminder before the slot;
-- runs scheduled jobs (cPanel cron, once a minute) to expire holds, send queued notifications and send reminders.
+**How booking works now (CR-9, built):** the customer signs in with Google, pays a ৳500 advance by bKash
+*Payment* to the owner's merchant number, and submits the TrxID and the number paid from. The booking is
+`PENDING` ("payment being checked") and holds its slot until the owner confirms or rejects it in the admin;
+the customer is then emailed from tturfzone@gmail.com through the Gmail API. `PAYMENTS_ENABLED=false` means
+this flow.
 
-Manual fallback: config flag `PAYMENTS_ENABLED`. When `false` (the launch state, until the bKash merchant account is
-approved) the site runs the original owner-confirmation flow: a booking is a `PENDING` request the owner confirms or rejects.
-When `true`, online bookings go through payment holds and auto-confirm. See CR-1 in the plan.
+**Later, if the owner gets bKash Payment Gateway keys (CR-1, not built):** online payment verified
+server-to-server and automatic confirmation (`PAYMENTS_ENABLED=true`, `PENDING_PAYMENT` holds that expire after
+`HOLD_MINUTES`), SMS notifications and scheduled jobs. See CR-1 in the plan.
 
 - Original MVP scope: `docs/brief/TTURFZONE_Claude_Code_Project_Brief.pdf`
 - CR-1 (self-sufficient architecture) overrides the brief where the plan's Change requests / Decisions say so.
@@ -79,7 +79,16 @@ Customer accounts (CR-3):
 - Never store or log a plain OTP code. Only `code_hash` is stored; never write the code itself to logs, flash messages, or error text.
 - Always rate-limit OTP requests: at most 3 codes per phone per hour and 5 per day; at most 5 wrong verification attempts per code before it is invalidated.
 - A logged-in customer may only ever see their own bookings — never another customer's, by id guessing or otherwise.
-- Guest booking must never be blocked behind login. An account is always optional, never required to book.
+- ~~Guest booking must never be blocked behind login.~~ Superseded by CR-9 (client, 2026-11-11): booking needs a Google sign-in.
+
+Google sign-in, TrxID booking and email (CR-9):
+
+- The email stored on a booking comes from the Google session (`session["customer"]`), never from a form field.
+- A bKash TrxID can be used for one booking only; the database enforces it (unique index `uq_bookings_trx_id`). Never weaken that to an app-only check.
+- Google redirect URIs are built from `SITE_URL`, never the request Host. `/auth/google` moves visitors to the `SITE_URL` host first (the OAuth state lives in that host's cookie).
+- Booking emails are sent after the status change is committed and never undo it; a failure shows the owner "Resend email".
+- `GOOGLE_CLIENT_SECRET` and `GMAIL_REFRESH_TOKEN` live only in env. Never log tokens, codes or Google response bodies; tests replace `services.google`'s network helpers and never call Google.
+- The public template context (`inject_common`) is attached to the public and auth blueprints only. Never make it app-wide: the 404/500 pages must not read the database.
 
 ## Commands
 
@@ -101,6 +110,7 @@ flask --app app db-check                         # connection, latency, tables, 
 flask --app app seed-settings [--force]          # create turf_settings row from database/seed_data.py
 flask --app app create-admin --username owner    # prints a generated password once
 flask --app app reset-admin-password --username owner   # recovery: new generated password, signs out every session (the owner's own route: "Forgot username or password?" by email, M5.10)
+flask --app app gmail-authorize                  # on your PC, once: sign in as tturfzone@gmail.com, prints GMAIL_REFRESH_TOKEN for cPanel (CR-9)
 flask --app app fake-bookings --count 10         # fake rows, codes start with FK-
 flask --app app fake-conflict-test               # proves the DB blocks double booking
 flask --app app fake-clear                       # deletes FK- rows only
