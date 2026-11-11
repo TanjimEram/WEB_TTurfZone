@@ -13,12 +13,14 @@
   <a class="btn btn--ghost" href="{{ url_for('admin.calendar', date=next_day) }}">Next &rarr;</a>
 </form>
 
+{% for group in groups %}
+<h2 class="cal-period">{{ group.name }} <span class="muted">({{ group.span }})</span></h2>
 <div class="cal-grid">
-  {% for s in slots %}
+  {% for s in group.slots %}
   {% set b = s.booking %}
   <div class="card cal-slot">
     <div class="cal-slot__head">
-      <span class="cal-slot__time">{{ s.label }}</span>
+      <span class="cal-slot__time">{{ s.label }}{% if s.date != day.isoformat() %} <small class="muted">{{ s.date }}</small>{% endif %}</span>
       <span class="pill pill--{{ b.status | lower if b else s.state }}">
         {{ (b.status | replace('_',' ') | title) if b else s.state | title }}
       </span>
@@ -61,7 +63,7 @@
     {% else %}
       <form method="post" action="{{ url_for('admin.slot_block') }}" class="cal-slot__block">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input type="hidden" name="date" value="{{ day.isoformat() }}">
+        <input type="hidden" name="date" value="{{ s.date }}">
         <input type="hidden" name="slot" value="{{ s.time }}">
         <input type="hidden" name="back" value="{{ request.full_path }}">
         <input type="text" name="reason" maxlength="200"
@@ -72,4 +74,5 @@
   </div>
   {% endfor %}
 </div>
+{% endfor %}
 {% endblock %}

@@ -11,10 +11,10 @@ bp = Blueprint("api", __name__, url_prefix="/api")
 
 @bp.get("/availability")
 def availability():
-    """GET /api/availability?date=YYYY-MM-DD -> slot states for that day.
+    """GET /api/availability?date=YYYY-MM-DD -> the slots of that operating day (CR-10).
 
     Public: never includes customer names or phone numbers - only each slot's
-    time, label, state and price_bdt (resolved from the price bands, M4.7).
+    time, label, real calendar date, period, state and price_bdt (its period's price, D-53).
     Not cached: slot states change the moment a booking is made.
     Dates outside the booking window are rejected (400) - the client is
     never trusted to stay inside it.

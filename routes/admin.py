@@ -34,18 +34,16 @@ from services.bookings import (
     reject_booking,
     unblock_slot,
 )
-from services.pricing import DAY_KINDS
-from services.settings import (
-    DAY_OPTIONS,
-    MAX_BANDS,
-    SLOT_COUNT,
-    SettingsValidationError,
-    current_price_summary,
-    missing_content,
-    preview_prices,
-    save_owner_settings,
+from services.pricing import period_prices
+from services.settings import SettingsValidationError, missing_content, missing_prices, save_owner_settings
+from services.slots import (
+    ALL_HOURS,
+    PERIODS,
+    current_operating_day,
+    get_day_availability,
+    slot_label,
+    slot_times,
 )
-from services.slots import get_day_availability, slot_label, slot_times, today_dhaka
 
 bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -139,9 +137,9 @@ def logout():
 @bp.get("/")
 @login_required
 def dashboard():
-    return render_template("admin/dashboard.html", summary=dashboard_summary(today_dhaka()),
-                           prices=current_price_summary(),
-                           missing=missing_content(TurfSettings.current_or_default()))
+    settings = TurfSettings.current_or_default()
+    return render_template("admin/dashboard.html", summary=dashboard_summary(current_operating_day()),
+                           missing_prices=missing_prices(settings), missing=missing_content(settings))
 
 
 @bp.get("/bookings")
@@ -198,30 +196,24 @@ def booking_reject(booking_id):
 @bp.get("/calendar")
 @login_required
 def calendar():
-    """One day, 12 slots, each with its state and the actions the owner can take."""
+    """One operating day (06:00 to 06:00), its open hours grouped by period, with the
+    actions the owner can take. After-midnight slots carry their real date (D-52)."""
     raw = request.args.get("date", "")
     try:
-        day = date.fromisoformat(raw) if raw else today_dhaka()
+        day = date.fromisoformat(raw) if raw else current_operating_day()
     except ValueError:
-        day = today_dhaka()
+        day = current_operating_day()
 
-    states = {s["time"]: s["state"] for s in get_day_availability(day)}
-    rows = {b.slot_time: b for b in bookings_for_day(day)}
-
-    slots = []
-    for t in slot_times():
-        key = t.strftime("%H:%M")
-        slots.append({
-            "time": key,
-            "label": slot_label(t),
-            "state": states.get(key, "available"),
-            "booking": rows.get(t),
-        })
+    rows = {(b.booking_date, b.slot_time): b for b in bookings_for_day(day)}
+    slots = [{**s, "booking": rows.get((date.fromisoformat(s["date"]), time.fromisoformat(s["time"])))}
+             for s in get_day_availability(day)]
+    groups = [{"name": p["name"], "span": p["span"], "slots": [s for s in slots if s["period"] == p["key"]]}
+              for p in PERIODS]
 
     return render_template(
         "admin/calendar.html",
         day=day,
-        slots=slots,
+        groups=[g for g in groups if g["slots"]],
         prev_day=(day - timedelta(days=1)).isoformat(),
         next_day=(day + timedelta(days=1)).isoformat(),
     )
@@ -265,55 +257,34 @@ TEXT_FIELDS = ("address", "opening_hours_text", "booking_rules_text", "confirm_t
 
 
 def _settings_form(settings) -> dict:
-    """Current values for the settings form (GET). Band slots become positions 0-11."""
-    times = slot_times(settings)
-    keys = [t.strftime("%H:%M") for t in times]
+    """Current values for the settings form (GET)."""
     wa = settings.whatsapp or ""
+    prices = period_prices(settings)
     values = {field: _clean(getattr(settings, field)) for field in TEXT_FIELDS}
     values.update({
         "phone": settings.phone or "",
         "whatsapp": wa[2:] if wa.startswith("88") else wa,
         "booking_window_days": str(settings.booking_window_days or 14),
-        "default_price_bdt": "" if settings.default_price_bdt is None else str(settings.default_price_bdt),
-        "slots": keys,
-        "bands": [
-            {"label": b.get("label", ""), "days": b.get("days", "all"), "price": str(b.get("price_bdt", "")),
-             "slots": [str(keys.index(k)) for k in b.get("slots", []) if k in keys]}
-            for b in (settings.pricing or [])
-        ],
+        "open_hours": [t.strftime("%H:%M") for t in slot_times(settings)],
+        "prices": {key: "" if price is None else str(price) for key, price in prices.items()},
     })
     return values
 
 
 def _posted_form(form) -> dict:
-    """What the owner just typed, so a failed save (or a preview) keeps their input."""
-    values = {field: form.get(field, "") for field in TEXT_FIELDS + ("phone", "whatsapp", "booking_window_days", "default_price_bdt")}
-    values["slots"] = [form.get(f"slot-{i}", "") for i in range(SLOT_COUNT)]
-    bands = [
-        {"label": form.get(f"band-{i}-label", ""), "days": form.get(f"band-{i}-days", "all"),
-         "price": form.get(f"band-{i}-price", ""), "slots": form.getlist(f"band-{i}-slots")}
-        for i in range(MAX_BANDS)
-    ]
-    values["bands"] = [b for b in bands if b["label"] or b["price"] or b["slots"]]
+    """What the owner just typed, so a failed save keeps their input."""
+    values = {field: form.get(field, "") for field in TEXT_FIELDS + ("phone", "whatsapp", "booking_window_days")}
+    values["open_hours"] = form.getlist("open_hours")
+    values["prices"] = {p["key"]: form.get(f"price-{p['key']}", "") for p in PERIODS}
     return values
-
-
-def _slot_label_or_raw(value: str) -> str:
-    try:
-        return slot_label(time.fromisoformat(value))
-    except ValueError:
-        return value
 
 
 @bp.route("/settings", methods=["GET", "POST"])
 @login_required
 def settings():
-    """Owner-editable business details, slot times and prices (M7.4, M7.7, D-23)."""
-    errors, preview = {}, None
-    if request.method == "POST" and request.form.get("action") == "preview":
-        values = _posted_form(request.form)  # no-JS "Preview prices": show, don't save
-        preview = preview_prices(request.form)
-    elif request.method == "POST":
+    """Owner-editable business details, open hours and the three period prices (D-23, CR-10)."""
+    errors = {}
+    if request.method == "POST":
         try:
             save_owner_settings(request.form)
             flash("Settings saved. The public site shows them now.")
@@ -323,21 +294,24 @@ def settings():
             values = _posted_form(request.form)
     else:
         values = _settings_form(TurfSettings.current_or_default())
-    return _render_settings(values, errors, preview)
+    return _render_settings(values, errors)
 
 
-def _render_settings(values, errors, preview=None, pw_errors=None, email_value=None):
+def _hour_groups() -> list[dict]:
+    """The 24 hours grouped by period, for the open-hours checkboxes."""
+    return [{**p, "slots": [{"key": t.strftime("%H:%M"), "label": slot_label(t)}
+                            for t in ALL_HOURS if t.hour in p["hours"]]} for p in PERIODS]
+
+
+def _render_settings(values, errors, pw_errors=None, email_value=None):
     """The settings page (business settings + password + recovery email forms). 400 when anything failed."""
-    values["bands"].append({"label": "", "days": "all", "price": "", "slots": []})  # one empty row to add a band without JS
     pw_errors = pw_errors or {}
     return render_template(
         "admin/settings.html", values=values, errors=errors, pw_errors=pw_errors,
         recovery_email=current_admin().email or "",
         email_value=(current_admin().email or "") if email_value is None else email_value,
         mail_ready=mail_configured(),
-        preview=preview or current_price_summary(),
-        slot_names=[_slot_label_or_raw(v) for v in values["slots"]],
-        day_options=DAY_OPTIONS, max_bands=MAX_BANDS, day_kinds=DAY_KINDS,
+        hour_groups=_hour_groups(), periods=PERIODS,
         min_password_length=MIN_PASSWORD_LENGTH,
     ), (400 if errors or pw_errors else 200)
 
@@ -367,10 +341,3 @@ def settings_email():
                                 pw_errors=exc.errors, email_value=email)
     flash("Recovery email saved. Password reset links will go there.")
     return redirect(url_for("admin.settings") + "#recovery")
-
-
-@bp.post("/settings/preview")
-@login_required
-def settings_preview():
-    """Live price preview for the settings form (admin_settings.js). Nothing is saved."""
-    return render_template("admin/_price_preview.html", preview=preview_prices(request.form), day_kinds=DAY_KINDS)

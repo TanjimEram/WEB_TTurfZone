@@ -80,31 +80,25 @@
     <div class="container stack reveal">
       <p class="section__label">Pricing</p>
       <h2 class="section__title" id="pricing-title">Slot prices</h2>
-      {# Built from the same resolved prices as the slot grid (services/pricing.py), so they never disagree. #}
-      {% if price_rundown %}
+      {# Same prices as the slot grid (services/pricing.py, D-53): one per period, every day. #}
+      {% if price_cards %}
         <div class="price-list">
-          {% for block in price_rundown %}
+          {% for card in price_cards %}
             <div class="card price-list__block">
-              <h3 class="price-list__days">{{ block.days }}</h3>
+              <h3 class="price-list__days">{{ card.name }}</h3>
               <ul class="price-list__rows">
-                {% for row in block.rows %}
-                  <li class="price-row">
-                    <span class="price-row__when">
-                      {{ row.start }} – {{ row.end }}
-                      {% if row.band %}<span class="price-row__band">{{ row.band }}</span>{% endif %}
-                    </span>
-                    <span class="price-row__price">{{ row.price_bdt | taka if row.price_bdt is not none else "Price on request" }}</span>
-                  </li>
-                {% endfor %}
+                <li class="price-row">
+                  <span class="price-row__when">{{ card.span }} · 60 min</span>
+                  <span class="price-row__price">{{ card.price_bdt | taka if card.price_bdt is not none else "Price on request" }}</span>
+                </li>
               </ul>
             </div>
           {% endfor %}
         </div>
       {% elif show_todos %}
-        <p class="todo-note">TODO(owner): price per slot, and whether day/night, weekday/weekend
-          or holiday prices differ (C-02)</p>
+        <p class="todo-note">TODO(owner): price per hour for morning, afternoon and night (C-02)</p>
       {% endif %}
-      <p class="muted"><small>Price per 90-minute slot, paid at the ground. No online payment yet.</small></p>
+      <p class="muted"><small>Price per one-hour slot, paid at the ground. No online payment yet.</small></p>
     </div>
   </section>
   {% endif %}

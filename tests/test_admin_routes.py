@@ -7,7 +7,7 @@ from werkzeug.security import generate_password_hash
 
 from extensions import db
 from models import Admin, Booking, TurfSettings
-from services.slots import today_dhaka
+from services.slots import TZ, current_operating_day, today_dhaka
 
 USERNAME = "owner"
 PASSWORD = "correct-horse-staple"
@@ -204,20 +204,38 @@ def test_confirm_bad_transition_flashes_not_crashes(as_admin, app):
     assert "Cannot confirm" in resp.get_data(as_text=True)
 
 
-# --- M5.4 calendar + block/unblock ---------------------------------
+# --- M5.4 calendar + block/unblock (one operating day, 24 slots, CR-10) ------
 
-FUTURE = today_dhaka() + dt.timedelta(days=3)
+FUTURE = current_operating_day() + dt.timedelta(days=3)
+FUTURE_NEXT = FUTURE + dt.timedelta(days=1)
 
 
-def test_calendar_shows_twelve_slots(as_admin):
+def test_calendar_shows_24_slots_in_three_periods(as_admin):
     html = as_admin.get(f"/admin/calendar?date={FUTURE.isoformat()}").get_data(as_text=True)
-    assert html.count("cal-slot__time") == 12
+    assert html.count("cal-slot__time") == 24
+    for heading in ("Morning", "Afternoon", "Night"):
+        assert heading in html
 
 
 def test_calendar_shows_booking_customer(as_admin, app):
     _add(app, customer_name="Calendar Karim", booking_date=FUTURE, slot_time=dt.time(18, 0))
     html = as_admin.get(f"/admin/calendar?date={FUTURE.isoformat()}").get_data(as_text=True)
     assert "Calendar Karim" in html
+
+
+def test_calendar_shows_after_midnight_booking_under_the_night_before(as_admin, app):
+    _add(app, customer_name="Night Owl", booking_date=FUTURE_NEXT, slot_time=dt.time(1, 0))
+    assert "Night Owl" in as_admin.get(f"/admin/calendar?date={FUTURE.isoformat()}").get_data(as_text=True)
+    assert "Night Owl" not in as_admin.get(f"/admin/calendar?date={FUTURE_NEXT.isoformat()}").get_data(as_text=True)
+
+
+def test_calendar_blocks_after_midnight_slot_on_real_date(as_admin, app):
+    html = as_admin.get(f"/admin/calendar?date={FUTURE.isoformat()}").get_data(as_text=True)
+    assert f'name="date" value="{FUTURE_NEXT.isoformat()}"' in html  # the 00:00-05:00 block forms
+    as_admin.post("/admin/slots/block", data={"date": FUTURE_NEXT.isoformat(), "slot": "01:00", "reason": ""})
+    with app.app_context():
+        blocked = db.session.scalar(db.select(Booking).where(Booking.status == Booking.BLOCKED))
+        assert (blocked.booking_date, blocked.slot_time) == (FUTURE_NEXT, dt.time(1, 0))
 
 
 def test_block_then_unblock(as_admin, app):
@@ -263,10 +281,19 @@ def test_calendar_block_requires_login(client, app):
         assert db.session.scalar(db.select(Booking)) is None
 
 
-# --- M7.4 settings ------------------------------------------------------
+def test_dashboard_today_is_the_operating_day(as_admin, app, monkeypatch):
+    two_am_thu = dt.datetime(2026, 11, 12, 2, 0, tzinfo=TZ)
+    monkeypatch.setattr("services.slots.now_dhaka", lambda: two_am_thu)
+    _add(app, customer_name="Late Night", booking_date=dt.date(2026, 11, 12), slot_time=dt.time(1, 0),
+         status=Booking.CONFIRMED)
+    html = as_admin.get("/admin/").get_data(as_text=True)
+    today_part, week_part = html.split("Next 7 days")
+    assert "Late Night" in today_part and "Late Night" not in week_part  # today = Wednesday's operating day
 
-DEFAULT_TIMES = ["06:00", "07:30", "09:00", "10:30", "12:00", "13:30",
-                 "15:00", "16:30", "18:00", "19:30", "21:00", "22:30"]
+
+# --- settings (M7.4, CR-6, CR-10): contact, text, window, open hours, period prices ----
+
+ALL_HOUR_KEYS = [f"{h:02d}:00" for h in list(range(6, 24)) + list(range(0, 6))]
 
 VALID_SETTINGS = {
     "phone": "01712345678",
@@ -275,22 +302,20 @@ VALID_SETTINGS = {
     "opening_hours_text": "Every day, 6 AM to 12 AM",
     "booking_rules_text": "Cancel 6 hours ahead.",
     "booking_window_days": "14",
-    "default_price_bdt": "1000",
-    **{f"slot-{i}": t for i, t in enumerate(DEFAULT_TIMES)},
-    "band-0-label": "Day",
-    "band-0-price": "1200",
-    "band-0-days": "all",
-    "band-0-slots": ["0", "1"],  # positions: the 1st and 2nd slot
-    "band-1-label": "",  # a blank row is ignored
-    "band-1-price": "",
+    "open_hours": ALL_HOUR_KEYS,
+    "price-morning": "1000",
+    "price-afternoon": "1350",
+    "price-night": "2000",
 }
 
 
 def test_settings_page_hides_seed_todos(as_admin):
     html = as_admin.get("/admin/settings").get_data(as_text=True)
     assert "TODO(owner)" not in html  # placeholders never prefill the form
-    assert html.count('type="time"') == 12  # the 12 slot start times
-    assert 'value="06:00"' in html and 'value="22:30"' in html
+    assert html.count('name="open_hours"') == 24
+    for name in ("price-morning", "price-afternoon", "price-night"):
+        assert f'name="{name}"' in html
+    assert 'type="time"' not in html and "band-0" not in html
 
 
 def test_settings_save_updates_public_site(as_admin, client, app):
@@ -300,11 +325,19 @@ def test_settings_save_updates_public_site(as_admin, client, app):
         s = TurfSettings.current()
         assert s.phone == "01712345678"
         assert s.whatsapp == "8801812345678"  # wa.me format
-        assert s.pricing == [{"label": "Day", "slots": ["06:00", "07:30"], "days": "all", "price_bdt": 1200}]
+        assert s.pricing == {"morning": 1000, "afternoon": 1350, "night": 2000}
+        assert s.slot_times is None  # all 24 open
     home = client.get("/").get_data(as_text=True)
     assert "Notin Rani ghat, Jashore" in home
     assert "wa.me/8801812345678" in home
-    assert "৳1,200" in home and "৳1,000" in home  # band + default price
+    assert "৳1,000" in home and "৳1,350" in home and "৳2,000" in home
+
+
+def test_period_prices_show_on_the_grid(as_admin, client):
+    as_admin.post("/admin/settings", data=VALID_SETTINGS)
+    day = (current_operating_day() + timedelta(days=3)).isoformat()
+    prices = {s["time"]: s["price_bdt"] for s in client.get(f"/api/availability?date={day}").get_json()["slots"]}
+    assert prices["07:00"] == 1000 and prices["13:00"] == 1350 and prices["01:00"] == 2000
 
 
 def test_settings_bad_phone_saves_nothing_and_keeps_input(as_admin, app):
@@ -317,11 +350,13 @@ def test_settings_bad_phone_saves_nothing_and_keeps_input(as_admin, app):
         assert TurfSettings.current() is None
 
 
-def test_settings_band_needs_slots(as_admin):
-    data = {**VALID_SETTINGS, "band-0-slots": []}
-    resp = as_admin.post("/admin/settings", data=data)
-    assert resp.status_code == 400
-    assert "Tick at least one slot" in resp.get_data(as_text=True)
+def test_missing_or_bad_period_price_is_refused(as_admin, app):
+    for bad in ("", "abc", "0"):
+        resp = as_admin.post("/admin/settings", data={**VALID_SETTINGS, "price-night": bad})
+        assert resp.status_code == 400
+        assert "Enter a price in whole taka." in resp.get_data(as_text=True)
+    with app.app_context():
+        assert TurfSettings.current() is None
 
 
 def test_settings_post_requires_login(client, app):
@@ -330,8 +365,6 @@ def test_settings_post_requires_login(client, app):
     with app.app_context():
         assert TurfSettings.current() is None
 
-
-# --- M7.7 settings (CR-6): text, window, slot times, default price, preview ----
 
 def _save(as_admin, **changes):
     return as_admin.post("/admin/settings", data={**VALID_SETTINGS, **changes})
@@ -349,40 +382,37 @@ def test_settings_saves_homepage_text_window_and_note(as_admin, client, app):
     assert home.count('class="datechip"') == 21
 
 
-def test_settings_rejects_bad_window_and_missing_default_price(as_admin, app):
-    resp = _save(as_admin, booking_window_days="0", default_price_bdt="")
+def test_settings_rejects_bad_window(as_admin, app):
+    resp = _save(as_admin, booking_window_days="0")
     assert resp.status_code == 400
-    html = resp.get_data(as_text=True)
-    assert "from 1 to 60" in html and "Set a default price" in html
+    assert "from 1 to 60" in resp.get_data(as_text=True)
     with app.app_context():
         assert TurfSettings.current() is None
 
 
-def test_slot_times_change_moves_bands_and_public_grid(as_admin, client, app):
-    times = {**{f"slot-{i}": t for i, t in enumerate(DEFAULT_TIMES)}, "slot-0": "05:30"}
-    assert _save(as_admin, **times).status_code == 302
+def test_settings_closes_hours_and_public_grid_hides_them(as_admin, client, app):
+    night = [f"{h:02d}:00" for h in list(range(18, 24)) + list(range(0, 6))]
+    assert _save(as_admin, open_hours=night).status_code == 302
     with app.app_context():
-        s = TurfSettings.current()
-        assert s.slot_times[0] == "05:30"
-        assert s.pricing[0]["slots"] == ["05:30", "07:30"]  # band followed slot 1 to its new time
-    day = (today_dhaka() + timedelta(days=3)).isoformat()
+        assert TurfSettings.current().slot_times == night
+    day = (current_operating_day() + timedelta(days=3)).isoformat()
     slots = client.get(f"/api/availability?date={day}").get_json()["slots"]
-    assert slots[0]["time"] == "05:30" and slots[0]["price_bdt"] == 1200
+    assert [s["time"] for s in slots] == night and {s["period"] for s in slots} == {"night"}
 
 
-def test_slot_times_must_be_in_order_without_overlap(as_admin, app):
-    resp = _save(as_admin, **{"slot-1": "06:30"})  # 30 min after 06:00
+def test_no_open_hours_is_refused(as_admin, app):
+    resp = _save(as_admin, open_hours=[])
     assert resp.status_code == 400
-    assert "less than 90 minutes" in resp.get_data(as_text=True)
+    assert "Tick at least one hour the ground is open." in resp.get_data(as_text=True)
 
 
-def test_slot_time_change_blocked_by_an_upcoming_booking(as_admin, app):
+def test_closing_an_hour_with_an_upcoming_booking_is_refused(as_admin, app):
     soon = today_dhaka() + timedelta(days=2)
     with app.app_context():
         db.session.add(Booking(booking_code="TZ-KEEP01", customer_name="A", phone="01711111111",
-                               booking_date=soon, slot_time=time(6, 0), status=Booking.CONFIRMED))
+                               booking_date=soon, slot_time=time(7, 0), status=Booking.CONFIRMED))
         db.session.commit()
-    resp = _save(as_admin, **{"slot-0": "05:30"})
+    resp = _save(as_admin, open_hours=[k for k in ALL_HOUR_KEYS if k != "07:00"])
     assert resp.status_code == 400
     html = resp.get_data(as_text=True)
     assert "TZ-KEEP01" in html and "Cancel or unblock them first" in html
@@ -390,52 +420,22 @@ def test_slot_time_change_blocked_by_an_upcoming_booking(as_admin, app):
         assert TurfSettings.current() is None  # nothing saved
 
 
-def test_past_bookings_do_not_block_a_slot_time_change(as_admin, app):
+def test_past_bookings_do_not_stop_closing_an_hour(as_admin, app):
     with app.app_context():
         db.session.add(Booking(booking_code="TZ-OLD001", customer_name="A", phone="01711111111",
-                               booking_date=today_dhaka() - timedelta(days=3), slot_time=time(6, 0),
+                               booking_date=today_dhaka() - timedelta(days=3), slot_time=time(7, 0),
                                status=Booking.CONFIRMED))
         db.session.commit()
-    assert _save(as_admin, **{"slot-0": "05:30"}).status_code == 302
+    assert _save(as_admin, open_hours=[k for k in ALL_HOUR_KEYS if k != "07:00"]).status_code == 302
 
 
-def test_band_order_is_saved_as_submitted(as_admin, app):
-    data = {"band-0-label": "Second", "band-0-price": "2000", "band-0-days": "all", "band-0-slots": ["0"],
-            "band-1-label": "First", "band-1-price": "1500", "band-1-days": "all", "band-1-slots": ["0"]}
-    assert _save(as_admin, **data).status_code == 302
-    with app.app_context():
-        assert [b["label"] for b in TurfSettings.current().pricing] == ["Second", "First"]
+def test_preview_endpoint_is_gone(as_admin):
+    assert as_admin.post("/admin/settings/preview", data=VALID_SETTINGS).status_code == 404
 
 
-def test_price_preview_marks_default_and_missing_without_saving(as_admin, app):
-    resp = as_admin.post("/admin/settings/preview", data=VALID_SETTINGS)
-    html = resp.get_data(as_text=True)
-    assert resp.status_code == 200
-    assert "৳1,200" in html and "Day" in html          # band slots
-    assert "default" in html and "৳1,000" in html      # the other 10 slots, both day types
-    assert "20 slot price(s) use the default price" in html
-    missing = as_admin.post("/admin/settings/preview", data={**VALID_SETTINGS, "default_price_bdt": ""})
-    assert "20 slot price(s) are missing" in missing.get_data(as_text=True)
-    with app.app_context():
-        assert TurfSettings.current() is None
-
-
-def test_preview_button_without_js_shows_prices_and_saves_nothing(as_admin, app):
-    resp = as_admin.post("/admin/settings", data={**VALID_SETTINGS, "action": "preview"})
-    assert resp.status_code == 200 and "৳1,200" in resp.get_data(as_text=True)
-    with app.app_context():
-        assert TurfSettings.current() is None
-
-
-def test_settings_preview_requires_login(client):
-    resp = client.post("/admin/settings/preview", data=VALID_SETTINGS)
-    assert resp.status_code == 302 and "/admin/login" in resp.headers["Location"]
-
-
-def test_dashboard_warns_when_slots_have_no_price(as_admin):
+def test_dashboard_warns_when_period_prices_are_missing(as_admin):
     html = as_admin.get("/admin/").get_data(as_text=True)
-    assert "24 slot price(s) are not set" in html
-
+    assert "3 period price(s) are not set" in html
 
 
 # --- M5.9 password change (D-49) -------------------------------------------

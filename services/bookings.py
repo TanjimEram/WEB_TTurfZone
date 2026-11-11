@@ -13,7 +13,7 @@ from sqlalchemy.exc import IntegrityError
 
 from extensions import db
 from models import Booking
-from services.slots import is_bookable
+from services.slots import DAY_START, is_bookable
 
 CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no 0/O or 1/I, easy to read out on the phone
 
@@ -196,16 +196,22 @@ def unblock_slot(booking_id: int) -> None:
 
 
 def bookings_for_day(day: date) -> list[Booking]:
-    """Every active row for one day (admin view - includes customer data)."""
-    return list(db.session.scalars(
-        db.select(Booking)
-        .where(Booking.booking_date == day, Booking.status.in_(Booking.ACTIVE_STATUSES))
-        .order_by(Booking.slot_time)
-    ))
+    """Every active row of operating day `day` (06:00 on `day` to 06:00 the next day),
+    in time order (admin view - includes customer data)."""
+    rows = db.session.scalars(
+        db.select(Booking).where(
+            Booking.status.in_(Booking.ACTIVE_STATUSES),
+            db.or_(
+                db.and_(Booking.booking_date == day, Booking.slot_time >= DAY_START),
+                db.and_(Booking.booking_date == day + timedelta(days=1), Booking.slot_time < DAY_START),
+            ),
+        )
+    )
+    return sorted(rows, key=lambda b: (b.booking_date, b.slot_time))
 
 
 def dashboard_summary(today: date) -> dict:
-    """Numbers and lists for the admin dashboard."""
+    """Numbers and lists for the admin dashboard. `today` is the current operating day (CR-10)."""
     week_end = today + timedelta(days=6)
     week = list(db.session.scalars(
         db.select(Booking)
@@ -223,7 +229,7 @@ def dashboard_summary(today: date) -> dict:
     )
     return {
         "today": today,
-        "todays_bookings": [b for b in week if b.booking_date == today],
+        "todays_bookings": bookings_for_day(today),
         "week": week,
         "pending_count": pending_count or 0,
         "confirmed_this_week": sum(1 for b in week if b.status == Booking.CONFIRMED),

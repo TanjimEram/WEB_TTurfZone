@@ -17,7 +17,7 @@ from services.bookings import (
     SlotUnavailableError,
     create_booking_request,
 )
-from services.pricing import rundown
+from services.pricing import price_cards
 from services.slots import (
     booking_window,
     date_chip_label,
@@ -74,7 +74,7 @@ def inject_common():
         "show_todos": show_todos,
         # D-50: in production a section with nothing real to show is hidden (with its links)
         "sections": {
-            "pricing": show_todos or bool(rundown(settings)),
+            "pricing": show_todos or bool(price_cards(settings)),
             "location": show_todos or any(_is_real(v) for v in (settings.address, settings.map_embed_url, settings.map_link)),
             "reviews": show_todos or bool(settings.reviews),
         },
@@ -147,7 +147,7 @@ def home():
         "index.html",
         settings=settings,
         slot_labels=[slot_label(t) for t in slot_times()],
-        price_rundown=rundown(settings),
+        price_cards=price_cards(settings),
         date_chips=_date_chips(),
         json_ld=_local_business_json_ld(settings),
         photos=PHOTOS,
