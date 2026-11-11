@@ -10,9 +10,6 @@
   <div class="container stack login-card">
     <p class="section__label">Booking</p>
     <h1 class="section__title" id="login-title">Sign in to book</h1>
-    {% with messages = get_flashed_messages() %}
-      {% if messages %}<div role="status" aria-live="polite">{% for m in messages %}<p class="form-error">{{ m }}</p>{% endfor %}</div>{% endif %}
-    {% endwith %}
     {% if google_ready %}
       <p class="muted">We use your Google account's name and email to send your booking confirmation.
         We don't see your Google password.</p>
