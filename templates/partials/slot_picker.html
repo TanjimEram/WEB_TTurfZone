@@ -1,19 +1,24 @@
-{# Date + slot picker (M4.2). Progressive enhancement:
-   - without JS, `[data-fallback]` shows (a link to the booking page / WhatsApp);
-   - booking.js hides the fallback, reveals `[data-picker-ui]`, and fills the
-     slot grid from /api/availability.
-   Context: date_chips [{iso,label}], slot_labels [str], optional preselect_date,
-   preselect_slot, picker_continue (bool, default true). #}
-{% set _continue = picker_continue if picker_continue is defined else true %}
+{# Book Your Turf picker (CR-11, reference layout; 24 hourly slots CR-10).
+   A date box (‹ native date input ›) with Available / Booked counts, then Morning /
+   Afternoon / Night tabs, then one card per slot. booking.js fills the cards from
+   /api/availability. Progressive enhancement: without JS, `[data-fallback]` links to
+   the booking page.
+   Context: date_chips [{iso,label}] (the bookable operating days), preselect_date,
+   preselect_label, optional preselect_slot, picker_continue (true on the homepage:
+   cards link to /book; false on /book: cards select the slot into the form). #}
+{% set _link_mode = picker_continue if picker_continue is defined else true %}
 {% set _selected_date = preselect_date or (date_chips[0].iso if date_chips else "") %}
 <div class="slotpicker" data-slotpicker
+     data-mode="{{ 'link' if _link_mode else 'select' }}"
      data-book-url="{{ url_for('public.book') }}"
+     data-logo="{{ url_for('static', filename='images/logo-emblem-96.webp') }}"
+     data-brand="{{ settings.turf_name or 'TTURFZONE' }}"
      {% if preselect_slot %}data-preselect-slot="{{ preselect_slot }}"{% endif %}>
 
   <div class="slotpicker__fallback" data-fallback>
     <p class="muted">
-      Pick a date and time below. If the picker does not load,
-      <a href="{{ url_for('public.book') }}">open the booking page</a>{% if wa_link %} or
+      Pick a date and time on the
+      <a href="{{ url_for('public.book') }}">booking page</a>{% if wa_link %} or
       <a href="{{ wa_link }}" rel="noopener" target="_blank">message us on WhatsApp</a>{% endif %}.
     </p>
     <ul class="quickbook__grid" aria-hidden="true">
@@ -24,20 +29,33 @@
   </div>
 
   <div class="slotpicker__ui" data-picker-ui hidden>
-    <div class="datechips" role="group" aria-label="Choose a date">
-      {% for chip in date_chips %}
-        <button type="button" class="datechip" data-date="{{ chip.iso }}"
-                aria-pressed="{{ 'true' if chip.iso == _selected_date else 'false' }}">{{ chip.label }}</button>
+    <p class="book__today" data-day-label>{{ preselect_label }}</p>
+
+    <div class="daybar">
+      <div class="daybar__picker">
+        <button type="button" class="daybar__step" data-day-prev aria-label="Previous day">&lsaquo;</button>
+        <label class="sr-only" for="pick-date-{{ 'home' if _link_mode else 'book' }}">Date</label>
+        <input id="pick-date-{{ 'home' if _link_mode else 'book' }}" class="daybar__date" type="date" data-day-input
+               value="{{ _selected_date }}" min="{{ date_chips[0].iso }}" max="{{ date_chips[-1].iso }}">
+        <button type="button" class="daybar__step" data-day-next aria-label="Next day">&rsaquo;</button>
+      </div>
+      <div class="daybar__counts" aria-live="polite">
+        <div class="daybar__count daybar__count--free"><strong data-count-free>–</strong><span>Available</span></div>
+        <div class="daybar__count daybar__count--taken"><strong data-count-taken>–</strong><span>Booked</span></div>
+      </div>
+    </div>
+
+    <div class="periodtabs" role="tablist" aria-label="Time of day">
+      {% for p in periods %}
+        <button type="button" role="tab" class="periodtab" id="tab-{{ p.key }}-{{ 'home' if _link_mode else 'book' }}"
+                data-period="{{ p.key }}" aria-selected="{{ 'true' if loop.first else 'false' }}"
+                aria-controls="slotcards-{{ 'home' if _link_mode else 'book' }}">{{ p.name }} <small>({{ p.span }})</small></button>
       {% endfor %}
     </div>
 
     <p class="slotpicker__status" data-status role="status" aria-live="polite"></p>
-    <div class="quickbook__grid" data-slots role="group" aria-label="Available time slots"></div>
+    <div class="slotcards" id="slotcards-{{ 'home' if _link_mode else 'book' }}" role="tabpanel"
+         aria-label="Slots" data-slots></div>
     <p class="slotpicker__summary" data-summary role="status" aria-live="polite" hidden></p>
-
-    {% if _continue %}
-      <a class="btn btn--primary" data-continue aria-disabled="true"
-         href="{{ url_for('public.book') }}">Continue</a>
-    {% endif %}
   </div>
 </div>

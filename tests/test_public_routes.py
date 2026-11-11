@@ -67,51 +67,55 @@ def test_homepage_has_picker_and_script(client):
     assert "data-fallback" in html
 
 
-def test_picker_has_one_chip_per_window_day(client):
-    """Default booking_window_days is 14, so 14 date chips render."""
+def _date_box(html):
+    """(value, min, max) of the picker's native date input (CR-11)."""
+    m = re.search(r'<input[^>]*data-day-input[^>]*>', html)
+    attrs = dict(re.findall(r'(value|min|max)="([^"]*)"', m.group(0)))
+    return attrs.get("value"), attrs.get("min"), attrs.get("max")
+
+
+def test_picker_markup_has_tabs_and_date_box(client):
+    """CR-11: a date box with prev/next and counts, then Morning / Afternoon / Night tabs."""
     html = client.get("/").get_data(as_text=True)
-    assert html.count('class="datechip"') == 14
-
-
-def _chip_dates(html):
-    return re.findall(r'data-date="(\d{4}-\d{2}-\d{2})"', html)
-
-
-def _pressed_date(html):
-    """The iso date of the chip button that has aria-pressed=true."""
-    match = re.search(
-        r'data-date="(\d{4}-\d{2}-\d{2})"\s+aria-pressed="true"', html
-    )
-    return match.group(1) if match else None
+    first = current_operating_day()
+    assert _date_box(html) == (first.isoformat(), first.isoformat(), (first + dt.timedelta(days=13)).isoformat())
+    assert "data-day-prev" in html and "data-day-next" in html
+    assert "data-count-free" in html and "data-count-taken" in html
+    tabs = re.findall(r'<button[^>]*role="tab"[^>]*>(.*?)</button>', html, re.S)
+    assert [" ".join(re.sub(r"<[^>]+>", "", t).split()) for t in tabs] == [
+        "Morning (6AM–12PM)", "Afternoon (12PM–6PM)", "Night (6PM–6AM)"]
+    assert 'role="tabpanel"' in html
 
 
 def test_book_preselects_valid_date(client):
-    target = _chip_dates(client.get("/").get_data(as_text=True))[3]
+    target = (current_operating_day() + dt.timedelta(days=3)).isoformat()
     html = client.get(f"/book?date={target}").get_data(as_text=True)
-    assert _pressed_date(html) == target
-    assert html.count('aria-pressed="true"') == 1
+    assert _date_box(html)[0] == target
 
 
 def test_book_ignores_out_of_window_date(client):
     html = client.get("/book?date=2099-01-01").get_data(as_text=True)
-    assert 'data-date="2099-01-01"' not in html
-    # falls back to the first chip
-    assert _pressed_date(html) == _chip_dates(html)[0]
-    assert html.count('aria-pressed="true"') == 1
+    assert _date_box(html)[0] == current_operating_day().isoformat()
 
 
-def test_date_chips_show_dates_not_today(client):
+def test_date_label_is_a_date_not_today(client):
     html = client.get("/book").get_data(as_text=True)
-    chips = re.findall(r'class="datechip"[^>]*>([^<]+)<', html)
-    assert "Today" not in chips and "Tomorrow" not in chips
-    assert chips[0] == current_operating_day().strftime("%a %d %b")
+    first = current_operating_day()
+    assert f"{first:%A, %B} {first.day}, {first.year}" in html
+    picker = html.split("data-slotpicker")[1]
+    assert ">Today<" not in picker and ">Tomorrow<" not in picker
 
 
 def test_book_page_preselects_operating_day_for_night_slot(client):
     day = current_operating_day() + dt.timedelta(days=2)
     html = client.get(f"/book?date={(day + dt.timedelta(days=1)).isoformat()}&slot=01:00").get_data(as_text=True)
-    assert _pressed_date(html) == day.isoformat()
+    assert _date_box(html)[0] == day.isoformat()
     assert 'data-preselect-slot="01:00"' in html
+
+
+def test_homepage_cards_link_and_booking_page_cards_select(client):
+    assert 'data-mode="link"' in client.get("/").get_data(as_text=True)
+    assert 'data-mode="select"' in client.get("/book").get_data(as_text=True)
 
 
 def test_booking_after_midnight_slot_uses_real_date(client, app, monkeypatch):

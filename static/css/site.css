@@ -123,8 +123,17 @@ a { color: var(--accent-text); }
 @media (max-width: 899px) {
   .nav__end .nav__account-name { display: none; }
 }
+.nav-menu__theme { display: flex; align-items: center; gap: 8px; color: var(--text); }
+@media (min-width: 420px) { .nav-menu__theme { display: none; } }
+@media (max-width: 419px) {
+  .nav__end .theme-toggle { display: none; }   /* it moves into the phone menu */
+  .nav__brand { font-size: 1rem; }
+  .btn--login { padding: 8px 14px; }
+}
 
 /* ------------------------------------------------------------- hero */
+/* The header is sticky (main.css); on the homepage the hero slides up under it. */
+.site-header + main > .hero:first-child { margin-top: -60px; }
 .hero { position: relative; min-height: min(100svh, 820px); display: flex; align-items: center; overflow: hidden; color: #fff; }
 .hero__slides { position: absolute; inset: 0; }
 .hero__slide { position: absolute; inset: 0; opacity: 0; transition: opacity 900ms ease; }

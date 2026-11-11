@@ -23,6 +23,7 @@ from services.bookings import (
 from services.pricing import price_cards
 from services.slots import (
     ALL_HOURS,
+    PERIODS,
     booking_window,
     current_operating_day,
     date_chip_label,
@@ -134,6 +135,12 @@ def _date_chips():
             for d in booking_window(current_operating_day(), days)]
 
 
+def _day_label(iso: str) -> str:
+    """'2026-11-11' -> 'Wednesday, November 11, 2026' (the picker's heading line, CR-11)."""
+    d = date.fromisoformat(iso)
+    return f"{d:%A, %B} {d.day}, {d.year}"
+
+
 def _preselect_day(form) -> str:
     """The operating day to open the picker on: a night slot after midnight (real date
     Thursday 01:00) belongs to the evening before (Wednesday)."""
@@ -156,7 +163,9 @@ def _render_booking_page(form, errors):
         slot_labels=[slot_label(t) for t in slot_times()],
         date_chips=chips,
         preselect_date=preselect_date,
+        preselect_label=_day_label(preselect_date),
         preselect_slot=form["slot"],
+        periods=PERIODS,
         form=form,
         errors=errors,
         advance=_advance(settings),
@@ -168,12 +177,16 @@ def _render_booking_page(form, errors):
 def home():
     """Homepage. All business content comes from turf_settings (plan D-13)."""
     settings = TurfSettings.current_or_default()
+    chips = _date_chips()
     return render_template(
         "index.html",
         settings=settings,
         slot_labels=[slot_label(t) for t in slot_times()],
         price_cards=price_cards(settings),
-        date_chips=_date_chips(),
+        date_chips=chips,
+        preselect_date=chips[0]["iso"],
+        preselect_label=_day_label(chips[0]["iso"]),
+        periods=PERIODS,
         json_ld=_local_business_json_ld(settings),
         photos=PHOTOS,
         pics=PHOTO_BY_NAME,

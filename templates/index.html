@@ -54,15 +54,12 @@
     </div>
   </section>
 
-  {# ----------------------------------------------------- quick booking #}
-  <section class="section" id="book" aria-labelledby="book-title">
-    <div class="container stack reveal">
-      <p class="section__label">Availability</p>
-      <h2 class="section__title" id="book-title">Book a one-hour slot</h2>
-      <p class="muted">
-        {% if slot_span %}Open {{ slot_span[0] }} to {{ slot_span[1] }}.{% else %}Open 24 hours.{% endif %}
-        Pick a date, then a free hour.
-      </p>
+  {# ----------------------------------------------------- Book Your Turf #}
+  <section class="section section--alt" id="book" aria-labelledby="book-title">
+    <div class="container">
+      <div class="book__head">
+        <h2 id="book-title">Book Your Turf</h2>
+      </div>
       {% include "partials/slot_picker.html" %}
     </div>
   </section>

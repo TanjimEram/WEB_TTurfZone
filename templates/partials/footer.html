@@ -36,7 +36,7 @@
 
       <div>
         <h3>Opening Hours</h3>
-        {% if slot_span %}<p>Bookable {{ slot_span[0] }} to {{ slot_span[1] }}</p>{% else %}<p>Bookable 24 hours</p>{% endif %}
+        {% if slot_span %}<p>Open {{ slot_span[0] }} to {{ slot_span[1] }} for online booking</p>{% else %}<p>Open 24 hours for online booking</p>{% endif %}
         {% if is_real(settings.opening_hours_text) or show_todos %}<p>{{ owner_text(settings.opening_hours_text, "opening hours (C-15)") }}</p>{% endif %}
         <p><a href="{{ book_href }}">Book a slot online</a></p>
       </div>

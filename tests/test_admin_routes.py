@@ -399,7 +399,8 @@ def test_settings_saves_homepage_text_window_and_note(as_admin, client, app):
         assert (s.tagline, s.about_text, s.booking_window_days) == ("Floodlit six-a-side", "Our ground.", 21)
     home = client.get("/").get_data(as_text=True)
     assert "Floodlit six-a-side" in home and "Our ground." in home
-    assert home.count('class="datechip"') == 21
+    first = current_operating_day()
+    assert f'max="{(first + timedelta(days=20)).isoformat()}"' in home  # the date box covers 21 days
 
 
 def test_settings_rejects_bad_window(as_admin, app):

@@ -9,40 +9,35 @@
   var hero = document.querySelector(".hero");
 
   if (header) {
-    var solidAfter = hero ? hero.offsetHeight - 80 : 200;
-
+    // CR-11: transparent only over the homepage hero, and only until the first 40px of scrolling
     function updateHeader() {
-      var atTop = window.scrollY < Math.max(solidAfter, 40);
-      header.classList.toggle("at-top", atTop);
+      header.classList.toggle("at-top", Boolean(hero) && window.scrollY < 40);
     }
 
     updateHeader();
     window.addEventListener("scroll", updateHeader, { passive: true });
-    window.addEventListener("resize", function () {
-      solidAfter = hero ? hero.offsetHeight - 80 : 200;
-      updateHeader();
-    });
   }
 
   // --- light / dark theme (CR-11) -----------------------------------------
   // The <head> script already applied a saved choice; this button flips and saves it.
   var root = document.documentElement;
-  var toggle = document.querySelector("[data-theme-toggle]");
+  var toggles = Array.prototype.slice.call(document.querySelectorAll("[data-theme-toggle]"));  // header + phone menu
   function isDark() { return root.getAttribute("data-theme") === "dark"; }
   function showTheme() {
-    if (!toggle) return;
-    toggle.setAttribute("aria-pressed", isDark() ? "true" : "false");
-    toggle.setAttribute("aria-label", isDark() ? "Switch to light theme" : "Switch to dark theme");
+    toggles.forEach(function (toggle) {
+      toggle.setAttribute("aria-pressed", isDark() ? "true" : "false");
+      toggle.setAttribute("aria-label", isDark() ? "Switch to light theme" : "Switch to dark theme");
+    });
   }
-  if (toggle) {
-    showTheme();
+  showTheme();
+  toggles.forEach(function (toggle) {
     toggle.addEventListener("click", function () {
       var next = isDark() ? "light" : "dark";
       root.setAttribute("data-theme", next);
       try { localStorage.setItem("tturf-theme", next); } catch (e) { /* private mode: still switches */ }
       showTheme();
     });
-  }
+  });
 
   // --- mobile menu -------------------------------------------------------
   var openBtn = document.querySelector("[data-menu-open]");

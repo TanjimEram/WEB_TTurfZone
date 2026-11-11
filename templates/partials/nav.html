@@ -1,6 +1,6 @@
 {# Site header: brand, desktop links, mobile menu button.
    main.js toggles `.at-top` (transparent over the hero) and opens the menu. #}
-<header class="site-header at-top" id="top" data-site-header>
+<header class="site-header{{ ' at-top' if request.endpoint == 'public.home' }}" id="top" data-site-header>
   <div class="container nav">
     <a class="nav__brand" href="{{ url_for('public.home') }}#top">
       <img src="{{ url_for('static', filename='images/logo-emblem-96.webp') }}" width="40" height="40" alt="">
@@ -37,6 +37,7 @@
     {% if sections.pricing %}<a href="{{ url_for('public.home') }}#pricing" data-menu-link>Pricing</a>{% endif %}
     <a href="{{ url_for('public.home') }}#about" data-menu-link>About Us</a>
     <a href="{{ url_for('public.home') }}#contact" data-menu-link>Contact</a>
+    <div class="nav-menu__theme">{% include "partials/theme_toggle.html" %} <span>Light / dark</span></div>
     {% include "partials/account_link.html" %}
     <a class="btn btn--primary" href="{{ book_href }}" data-menu-link>Book now</a>
   </div>
