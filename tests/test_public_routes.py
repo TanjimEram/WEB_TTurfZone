@@ -4,7 +4,7 @@ import re
 
 from extensions import db
 from models import Booking, TurfSettings
-from services.slots import today_dhaka
+from services.slots import TZ, current_operating_day, today_dhaka
 
 SOON = today_dhaka() + dt.timedelta(days=5)
 SIX_PM = dt.time(18, 0)
@@ -79,6 +79,29 @@ def test_book_ignores_out_of_window_date(client):
     # falls back to the first chip
     assert _pressed_date(html) == _chip_dates(html)[0]
     assert html.count('aria-pressed="true"') == 1
+
+
+def test_date_chips_show_dates_not_today(client):
+    html = client.get("/book").get_data(as_text=True)
+    chips = re.findall(r'class="datechip"[^>]*>([^<]+)<', html)
+    assert "Today" not in chips and "Tomorrow" not in chips
+    assert chips[0] == current_operating_day().strftime("%a %d %b")
+
+
+def test_book_page_preselects_operating_day_for_night_slot(client):
+    day = current_operating_day() + dt.timedelta(days=2)
+    html = client.get(f"/book?date={(day + dt.timedelta(days=1)).isoformat()}&slot=01:00").get_data(as_text=True)
+    assert _pressed_date(html) == day.isoformat()
+    assert 'data-preselect-slot="01:00"' in html
+
+
+def test_booking_after_midnight_slot_uses_real_date(client, app, monkeypatch):
+    monkeypatch.setattr("services.slots.now_dhaka", lambda: dt.datetime(2026, 11, 11, 12, 0, tzinfo=TZ))
+    resp = _post_booking(client, date=dt.date(2026, 11, 12), slot="01:00")
+    assert resp.status_code == 302
+    with app.app_context():
+        row = db.session.scalar(db.select(Booking))
+        assert (row.booking_date, row.slot_time) == (dt.date(2026, 11, 12), dt.time(1, 0))
 
 
 def test_book_passes_slot_through_to_js(client):

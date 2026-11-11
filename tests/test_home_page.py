@@ -31,8 +31,8 @@ def test_hero_and_footer_present(home):
     html = home.get_data(as_text=True)
     assert "hero__title" in html
     assert "site-footer" in html
-    # the 12 slot labels show in the quick-book placeholder grid
-    assert "06:00 AM" in html and "10:30 PM" in html
+    # the 24 hourly slot labels show in the no-JS placeholder grid
+    assert "06:00 AM" in html and "11:00 PM" in html and "05:00 AM" in html
 
 
 def test_sticky_mobile_bar_present(home):
@@ -150,22 +150,27 @@ def test_json_ld_includes_confirmed_fields(client, app):
     assert data["address"] == "123 Real Street, Jashore"
 
 
-def test_pricing_section_lists_resolved_bands(client, app):
-    """M4.7: the price list is built from the same resolution as the slot grid."""
-    evening = ["16:30", "18:00", "19:30", "21:00", "22:30"]
+def test_pricing_section_shows_one_card_per_period(client, app):
+    """D-53: one price per period, the same every day, from the same function as the slot grid."""
     with app.app_context():
-        db.session.add(TurfSettings(turf_name="TTURFZONE", pricing=[
-            {"label": "Daytime", "slots": ["06:00", "07:30", "09:00", "10:30", "12:00", "13:30", "15:00"],
-             "days": "all", "price_bdt": 4000},
-            {"label": "Evening", "slots": evening, "days": "all", "price_bdt": 4500},
-            {"label": "Weekend evening", "slots": evening, "days": "weekend", "price_bdt": 5000},
-        ]))
+        db.session.add(TurfSettings(turf_name="TTURFZONE", pricing={"morning": 1000, "afternoon": 1350, "night": 2000}))
         db.session.commit()
     section = client.get("/").get_data(as_text=True).split('id="pricing"')[1].split("</section>")[0]
-    assert "Sunday to Thursday" in section and "Friday and Saturday" in section
-    assert "06:00 AM – 04:30 PM" in section and "৳4,000" in section
-    assert "৳4,500" in section and "৳5,000" in section
+    for text in ("Morning", "6AM–12PM", "৳1,000", "Afternoon", "৳1,350", "Night", "6PM–6AM", "৳2,000"):
+        assert text in section
     assert "TODO(owner)" not in section
+
+
+def test_home_says_open_24_hours_when_all_hours_open(client):
+    html = client.get("/").get_data(as_text=True)
+    assert "Open 24 hours" in html and "90-minute" not in html
+
+
+def test_home_span_follows_open_hours(client, app):
+    with app.app_context():
+        db.session.add(TurfSettings(turf_name="T", slot_times=["18:00", "19:00", "20:00", "21:00", "22:00", "23:00"]))
+        db.session.commit()
+    assert "06:00 PM to 12:00 AM" in client.get("/").get_data(as_text=True)
 
 
 def test_hidden_attribute_beats_component_display(client):

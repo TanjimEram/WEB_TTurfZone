@@ -131,9 +131,9 @@ def test_booking_window_never_empty():
     assert booking_window(TODAY, 0) == [TODAY]
 
 
-def test_date_chip_label():
-    assert date_chip_label(TODAY, TODAY) == "Today"
-    assert date_chip_label(dt.date(2026, 9, 18), TODAY) == "Fri 18 Sep"
+def test_date_chip_label_is_always_the_date():
+    assert date_chip_label(TODAY) == "Fri 11 Sep"
+    assert date_chip_label(dt.date(2026, 9, 18)) == "Fri 18 Sep"
 
 
 def test_is_within_window_counts_operating_days():

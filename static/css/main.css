@@ -509,6 +509,10 @@ a:hover { text-decoration: underline; }
               transform var(--transition), box-shadow var(--transition);
 }
 .slot__time { font-size: var(--fs-400); font-weight: 600; color: var(--text-muted); white-space: nowrap; }
+.slot__date { font-size: var(--fs-300); color: var(--text-muted); white-space: nowrap; }
+/* CR-10: Morning / Afternoon / Night headings span the whole slot grid */
+.slot-period { grid-column: 1 / -1; margin: var(--sp-3) 0 0; font-size: var(--fs-400); color: var(--text); }
+.slot-period:first-child { margin-top: 0; }
 .slot__price { font-size: var(--fs-500); font-weight: 800; white-space: nowrap; }
 /* narrow phones: the time shrinks, the price never does */
 @media (max-width: 400px) { .slot__time { font-size: var(--fs-300); } }

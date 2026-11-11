@@ -96,12 +96,8 @@ def booking_window(today: date, days: int) -> list[date]:
     return [today + timedelta(days=offset) for offset in range(max(days, 1))]
 
 
-def date_chip_label(d: date, today: date) -> str:
-    """Short label for a date chip: 'Today', 'Tomorrow', or 'Fri 12 Sep'."""
-    if d == today:
-        return "Today"
-    if d == today + timedelta(days=1):
-        return "Tomorrow"
+def date_chip_label(d: date) -> str:
+    """Label for a date chip: always the date, e.g. 'Fri 12 Sep' (never 'Today')."""
     return d.strftime("%a %d %b")
 
 

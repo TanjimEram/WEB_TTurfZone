@@ -29,7 +29,7 @@
           {%- if is_real(settings.tagline) or show_todos -%}
             {{ owner_text(settings.tagline, "short tagline (C-17)") }}
           {%- else -%}
-            Book a 90-minute slot online and get confirmed instantly.
+            Book a one-hour slot online and get confirmed instantly.
           {%- endif -%}
         </p>
         <div class="hero__actions">
@@ -49,9 +49,10 @@
   <section class="section" id="book" aria-labelledby="book-title">
     <div class="container stack reveal">
       <p class="section__label">Availability</p>
-      <h2 class="section__title" id="book-title">Book a 90-minute slot</h2>
+      <h2 class="section__title" id="book-title">Book a one-hour slot</h2>
       <p class="muted">
-        Fixed slots, {{ slot_span[0] }} to {{ slot_span[1] }}. Pick a date, then a free slot.
+        {% if slot_span %}Open {{ slot_span[0] }} to {{ slot_span[1] }}.{% else %}Open 24 hours.{% endif %}
+        Pick a date, then a free hour.
       </p>
       {% include "partials/slot_picker.html" %}
     </div>

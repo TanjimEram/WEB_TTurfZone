@@ -19,8 +19,11 @@ from services.bookings import (
 )
 from services.pricing import price_cards
 from services.slots import (
+    ALL_HOURS,
     booking_window,
+    current_operating_day,
     date_chip_label,
+    operating_day,
     slot_end,
     slot_label,
     slot_times,
@@ -60,7 +63,8 @@ def inject_common():
     """Values every public template needs.
 
     show_todos / sections: whether TODO notes and empty sections show (D-50).
-    slot_span: first slot start and last slot end, e.g. ("06:00 AM", "12:00 AM").
+    slot_span: first open slot start and last open slot end, e.g. ("06:00 PM", "12:00 AM");
+               None when all 24 hours are open ("Open 24 hours").
     now_year:  footer copyright.
     wa_link:   wa.me deep link, or "" when the owner has not given a number (C-06).
     book_href: every "Book now" link - the inline picker on the homepage,
@@ -78,7 +82,7 @@ def inject_common():
             "location": show_todos or any(_is_real(v) for v in (settings.address, settings.map_embed_url, settings.map_link)),
             "reviews": show_todos or bool(settings.reviews),
         },
-        "slot_span": (slot_label(times[0]), slot_label(slot_end(times[-1]))),
+        "slot_span": None if len(times) == len(ALL_HOURS) else (slot_label(times[0]), slot_label(slot_end(times[-1]))),
         "now_year": today_dhaka().year,
         "wa_link": f"https://wa.me/{digits}" if digits else "",
         "book_href": "#book" if request.endpoint == "public.home" else url_for("public.book"),
@@ -113,20 +117,27 @@ def _local_business_json_ld(settings: TurfSettings) -> dict:
 
 
 def _date_chips():
-    """Bookable dates for the slot picker: [{"iso", "label"}, ...] in Dhaka time (D-10)."""
-    today = today_dhaka()
+    """Bookable operating days for the slot picker: [{"iso", "label"}, ...], Dhaka time (D-10, D-52)."""
     days = TurfSettings.current_or_default().booking_window_days or 14
-    return [
-        {"iso": d.isoformat(), "label": date_chip_label(d, today)}
-        for d in booking_window(today, days)
-    ]
+    return [{"iso": d.isoformat(), "label": date_chip_label(d)}
+            for d in booking_window(current_operating_day(), days)]
+
+
+def _preselect_day(form) -> str:
+    """The operating day to open the picker on: a night slot after midnight (real date
+    Thursday 01:00) belongs to the evening before (Wednesday)."""
+    try:
+        return operating_day(date.fromisoformat(form["date"]), time.fromisoformat(form["slot"])).isoformat()
+    except ValueError:
+        return form["date"]
 
 
 def _render_booking_page(form, errors):
     """Render the booking page with the picker + details form (GET, or a failed POST)."""
     chips = _date_chips()
     valid = {chip["iso"] for chip in chips}
-    preselect_date = form["date"] if form["date"] in valid else chips[0]["iso"]
+    wanted = _preselect_day(form)
+    preselect_date = wanted if wanted in valid else chips[0]["iso"]
     return render_template(
         "booking.html",
         settings=TurfSettings.current_or_default(),

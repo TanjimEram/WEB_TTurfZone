@@ -10,7 +10,6 @@ from models import TurfSettings
 from services.slots import today_dhaka
 
 PUBLIC_PAGES = ["/", "/book"]
-ALL = ["06:00", "07:30", "09:00", "10:30", "12:00", "13:30", "15:00", "16:30", "18:00", "19:30", "21:00", "22:30"]
 
 
 @pytest.fixture
@@ -55,7 +54,7 @@ def test_empty_sections_and_their_links_are_hidden(prod_client):
         assert f'id="{section}"' not in html
         assert f"#{section}" not in html
     assert _dead_hash_links(html) == []
-    assert "Book a 90-minute slot online and get confirmed instantly." in html  # neutral hero line
+    assert "Book a one-hour slot online and get confirmed instantly." in html  # neutral hero line
     assert "WhatsApp" not in html.split('class="hero__actions"')[1].split("</div>")[0]  # no dead button
     assert 'id="gallery"' in html and 'id="about"' in html and 'id="facebook"' in html
 
@@ -63,8 +62,8 @@ def test_empty_sections_and_their_links_are_hidden(prod_client):
 def test_sections_come_back_once_the_owner_adds_content(prod_client):
     db.session.add(TurfSettings(
         turf_name="TTURFZONE", tagline="Floodlit six-a-side", address="Notin Rani ghat",
-        default_price_bdt=4000, whatsapp="8801712345678",
-        pricing=[{"label": "Flat", "slots": ALL, "days": "all", "price_bdt": 4000}],
+        whatsapp="8801712345678",
+        pricing={"morning": 4000, "afternoon": 4000, "night": 4000},
         reviews=[{"text": "Great pitch", "name": "Real Customer"}],
     ))
     db.session.commit()
@@ -75,7 +74,7 @@ def test_sections_come_back_once_the_owner_adds_content(prod_client):
     assert "TODO" not in html and _dead_hash_links(html) == []
 
 
-def test_slot_span_follows_the_owner_slot_times(prod_client):
-    db.session.add(TurfSettings(turf_name="T", slot_times=["05:30"] + ALL[1:]))
+def test_slot_span_follows_the_open_hours(prod_client):
+    db.session.add(TurfSettings(turf_name="T", slot_times=["08:00", "09:00", "10:00"]))
     db.session.commit()
-    assert "Fixed slots, 05:30 AM to 12:00 AM." in prod_client.get("/").get_data(as_text=True)
+    assert "08:00 AM to 11:00 AM" in prod_client.get("/").get_data(as_text=True)
