@@ -11,7 +11,9 @@ trusted without checking a signed ID token.
 The three _post_form / _get_json / _post_json helpers are the only network calls;
 tests replace them. Never log tokens, codes or response bodies.
 """
+import base64
 import json
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -91,3 +93,70 @@ def user_from_code(code: str) -> dict:
     if not email or profile.get("email_verified") is not True:
         raise GoogleError("Google account email is not verified")
     return {"sub": str(profile.get("sub", "")), "email": email, "name": (profile.get("name") or "").strip()}
+
+
+# --- Gmail API: booking emails from tturfzone@gmail.com (CR-9) -------------------------
+# The host blocks outgoing SMTP (ports 465/587), so mail goes over HTTPS. The developer
+# authorises the Gmail account once on their PC (`flask gmail-authorize`), which prints a
+# refresh token for the GMAIL_REFRESH_TOKEN environment variable. Scope: send only.
+
+GMAIL_SEND_URL = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send"
+GMAIL_SCOPE = "https://www.googleapis.com/auth/gmail.send"
+GMAIL_REDIRECT_URI = "http://localhost:8765/gmail-callback"  # registered on the Google client
+_gmail_token: dict = {}  # {"value": access token, "expires": unix time}; per process, never logged
+
+
+def gmail_access_token() -> str:
+    """A short-lived Gmail access token from the refresh token, reused until 60 s before it expires."""
+    if _gmail_token and time.time() < _gmail_token["expires"] - 60:
+        return _gmail_token["value"]
+    cfg = current_app.config
+    answer = _post_form(TOKEN_URL, {
+        "client_id": cfg["GOOGLE_CLIENT_ID"],
+        "client_secret": cfg["GOOGLE_CLIENT_SECRET"],
+        "refresh_token": cfg["GMAIL_REFRESH_TOKEN"],
+        "grant_type": "refresh_token",
+    })
+    if not answer.get("access_token"):
+        raise GoogleError("no access token for Gmail (re-run flask gmail-authorize?)")
+    _gmail_token.update(value=answer["access_token"], expires=time.time() + int(answer.get("expires_in", 3600)))
+    return _gmail_token["value"]
+
+
+def gmail_send(raw_message: bytes) -> None:
+    """Send one RFC 822 message as the authorised Gmail account. Raises GoogleError."""
+    token = gmail_access_token()
+    try:
+        _post_json(GMAIL_SEND_URL, token, {"raw": base64.urlsafe_b64encode(raw_message).decode("ascii")})
+    except GoogleError:
+        _gmail_token.clear()  # a refused token is dropped; the next send fetches a new one
+        raise
+
+
+def gmail_consent_url(state: str) -> str:
+    """Google's consent page asking the Gmail account for permission to send email."""
+    query = urllib.parse.urlencode({
+        "client_id": current_app.config["GOOGLE_CLIENT_ID"],
+        "redirect_uri": GMAIL_REDIRECT_URI,
+        "response_type": "code",
+        "scope": GMAIL_SCOPE,
+        "access_type": "offline",
+        "prompt": "consent",
+        "state": state,
+    })
+    return f"{AUTH_URL}?{query}"
+
+
+def refresh_token_from_code(code: str) -> str:
+    """Swap the one-time consent code for a long-lived refresh token. Raises GoogleError."""
+    cfg = current_app.config
+    answer = _post_form(TOKEN_URL, {
+        "code": code,
+        "client_id": cfg["GOOGLE_CLIENT_ID"],
+        "client_secret": cfg["GOOGLE_CLIENT_SECRET"],
+        "redirect_uri": GMAIL_REDIRECT_URI,
+        "grant_type": "authorization_code",
+    })
+    if not answer.get("refresh_token"):
+        raise GoogleError("Google gave no refresh token")
+    return answer["refresh_token"]

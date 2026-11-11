@@ -1,7 +1,11 @@
-"""Plain-text email through the hosting mailbox (SMTP, stdlib only; D-30).
+"""Plain-text email (stdlib only, no new dependency).
 
-Settings come from the MAIL_* environment variables (config.py). Port 465 uses SSL
-from the start; any other port (587) upgrades with STARTTLS. Never log the password.
+Two transports, picked by configuration:
+- **Gmail API over HTTPS** (CR-9): when GMAIL_REFRESH_TOKEN is set. Production uses this,
+  because the host blocks outgoing SMTP ports. Sent as MAIL_FROM (tturfzone@gmail.com).
+- **SMTP** (D-30): MAIL_SERVER etc. Port 465 uses SSL from the start; any other port
+  upgrades with STARTTLS. Kept for hosts where SMTP works.
+Never log passwords or tokens.
 """
 import smtplib
 import ssl
@@ -9,20 +13,28 @@ from email.message import EmailMessage
 
 from flask import current_app
 
+from services import google
+
 
 def mail_configured() -> bool:
     cfg = current_app.config
-    return bool(cfg.get("MAIL_SERVER") and cfg.get("MAIL_FROM"))
+    if not cfg.get("MAIL_FROM"):
+        return False
+    return bool(cfg.get("GMAIL_REFRESH_TOKEN") or cfg.get("MAIL_SERVER"))
 
 
 def send_email(to: str, subject: str, body: str) -> None:
-    """Send one email. Raises on any SMTP/network error; the caller decides what to show."""
+    """Send one email. Raises on any failure; the caller decides what to show."""
     cfg = current_app.config
     msg = EmailMessage()
     msg["From"] = cfg["MAIL_FROM"]
     msg["To"] = to
     msg["Subject"] = subject
     msg.set_content(body)
+
+    if cfg.get("GMAIL_REFRESH_TOKEN"):
+        google.gmail_send(msg.as_bytes())
+        return
 
     port = int(cfg.get("MAIL_PORT") or 465)
     context = ssl.create_default_context()

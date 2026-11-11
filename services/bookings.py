@@ -183,6 +183,7 @@ def confirm_booking(booking_id: int) -> Booking:
     if booking.status != Booking.PENDING:
         raise InvalidTransitionError(f"Cannot confirm a {booking.status} booking.")
     booking.status = Booking.CONFIRMED
+    booking.email_sent_at = None  # the customer hasn't heard about this status yet
     return save_booking(booking)
 
 
@@ -192,6 +193,7 @@ def reject_booking(booking_id: int, note: str | None = None) -> Booking:
     if booking.status not in (Booking.PENDING, Booking.CONFIRMED):
         raise InvalidTransitionError(f"Cannot reject a {booking.status} booking.")
     booking.status = Booking.REJECTED
+    booking.email_sent_at = None
     if note:
         booking.admin_note = note
     return save_booking(booking)
@@ -254,8 +256,15 @@ def dashboard_summary(today: date) -> dict:
         .select_from(Booking)
         .where(Booking.status == Booking.PENDING, Booking.booking_date >= today)
     )
+    to_check = [b for b in week if b.status == Booking.PENDING]
+    to_check += db.session.scalars(  # PENDING further ahead than this week
+        db.select(Booking)
+        .where(Booking.status == Booking.PENDING, Booking.booking_date > week_end)
+        .order_by(Booking.booking_date, Booking.slot_time)
+    ).all()
     return {
         "today": today,
+        "to_check": to_check,
         "todays_bookings": bookings_for_day(today),
         "week": week,
         "pending_count": pending_count or 0,

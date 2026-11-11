@@ -31,7 +31,7 @@
         {{ b.customer_name }} &middot;
         <a href="tel:{{ b.phone }}">{{ b.phone }}</a> &middot;
         <a href="https://wa.me/{{ wa_number(b.phone) }}" rel="noopener" target="_blank">WhatsApp</a><br>
-        {{ b.booking_code }}
+        {{ b.booking_code }}{% if b.trx_id %} &middot; bKash {{ b.trx_id }} from {{ b.payer_number }}{% endif %}
       </div>
       <div class="admin-actions">
         {% if b.status == "PENDING" %}

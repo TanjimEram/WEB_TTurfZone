@@ -34,6 +34,7 @@ from services.bookings import (
     reject_booking,
     unblock_slot,
 )
+from services.booking_emails import send_booking_email
 from services.bookings import ADVANCE_DEFAULT_BDT
 from services.pricing import period_prices
 from services.settings import SettingsValidationError, missing_content, missing_prices, save_owner_settings
@@ -174,12 +175,27 @@ def bookings():
 @bp.post("/bookings/<int:booking_id>/confirm")
 @login_required
 def booking_confirm(booking_id):
+    """The owner found the bKash payment: confirm, then email the customer (CR-9)."""
     try:
         booking = confirm_booking(booking_id)
-        flash(f"Confirmed {booking.booking_code}.")
     except InvalidTransitionError as exc:
         flash(str(exc))
+    else:
+        result = _email_result(booking)
+        if result.startswith("The email couldn't"):
+            flash(f"Confirmed, but the email couldn't be sent ({booking.booking_code}). Use Resend email in Bookings.")
+        else:
+            flash(f"Confirmed {booking.booking_code}. {result}".strip())
     return redirect(_safe_back("admin.bookings"))
+
+
+def _email_result(booking) -> str:
+    """Send the status email (never raises) and say what happened, for the flash message."""
+    if not booking.customer_email:
+        return ""
+    if send_booking_email(booking):
+        return f"Email sent to {booking.customer_email}."
+    return "The email couldn't be sent; use Resend email in Bookings."
 
 
 @bp.post("/bookings/<int:booking_id>/reject")
@@ -188,9 +204,22 @@ def booking_reject(booking_id):
     note = request.form.get("note", "").strip() or None
     try:
         booking = reject_booking(booking_id, note=note)
-        flash(f"{booking.booking_code} rejected. The slot is free again.")
     except InvalidTransitionError as exc:
         flash(str(exc))
+    else:
+        flash(f"{booking.booking_code} rejected. The slot is free again. " + _email_result(booking))
+    return redirect(_safe_back("admin.bookings"))
+
+
+@bp.post("/bookings/<int:booking_id>/email")
+@login_required
+def booking_email_resend(booking_id):
+    """Send the confirmed / not-confirmed email again after a failure."""
+    booking = db.session.get(Booking, booking_id)
+    if booking is None or booking.status not in (Booking.CONFIRMED, Booking.REJECTED):
+        flash("Only confirmed or rejected bookings get an email.")
+    else:
+        flash(_email_result(booking) or "This booking has no email address.")
     return redirect(_safe_back("admin.bookings"))
 
 

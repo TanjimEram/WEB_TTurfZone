@@ -1,5 +1,8 @@
 """Command-line tools:  flask --app app <command>"""
 import secrets
+import webbrowser
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from urllib.parse import parse_qs, urlparse
 
 import click
 from flask import Flask
@@ -8,6 +11,7 @@ from flask.cli import with_appcontext
 from database.seed_data import DEFAULT_SETTINGS
 from extensions import db
 from models import Admin, TurfSettings
+from services import google
 from services.db_health import check_database
 from services.fake_data import clear_fake_data, make_fake_bookings, try_double_booking
 
@@ -78,6 +82,64 @@ def reset_admin_password(username):
     click.echo("Save it now in a password manager. It will not be shown again. All sessions are signed out.")
 
 
+def _open_browser(url: str) -> None:
+    webbrowser.open(url)
+
+
+def _wait_for_gmail_code(state: str, port: int = 8765, timeout: int = 300) -> dict:
+    """Serve one request on localhost:8765 (Google's redirect after consent) and return its
+    query: {"code", "state"} or {"error"}. Stdlib http.server, nothing kept on disk."""
+    result: dict = {}
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):  # noqa: N802 (http.server's name)
+            query = parse_qs(urlparse(self.path).query)
+            result.update({key: values[0] for key, values in query.items()})
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(b"Done. You can close this tab and go back to the terminal.")
+
+        def log_message(self, *args):  # keep the code out of the terminal log
+            pass
+
+    server = HTTPServer(("localhost", port), Handler)
+    server.timeout = timeout
+    server.handle_request()
+    server.server_close()
+    return result
+
+
+@click.command("gmail-authorize")
+@with_appcontext
+def gmail_authorize():
+    """One time, on your PC: let the site send email as the Gmail account (CR-9).
+
+    Opens Google's consent page; sign in as tturfzone@gmail.com and allow "send email".
+    Prints a refresh token once, for GMAIL_REFRESH_TOKEN in the cPanel environment.
+    Needs GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env.
+    """
+    state = secrets.token_urlsafe(24)
+    url = google.gmail_consent_url(state)
+    click.echo("Opening Google's consent page. If it doesn't open, paste this into your browser:")
+    click.echo(url)
+    _open_browser(url)
+    answer = _wait_for_gmail_code(state)
+    if answer.get("error"):
+        raise click.ClickException(f"Google said: {answer['error']}. Nothing was saved.")
+    if not answer.get("code") or not secrets.compare_digest(answer.get("state", ""), state):
+        raise click.ClickException("That reply didn't come from this request. Run the command again.")
+    try:
+        token = google.refresh_token_from_code(answer["code"])
+    except google.GoogleError as exc:
+        raise click.ClickException(f"Couldn't get the token: {exc}") from None
+    click.echo("")
+    click.echo("Put this in cPanel -> Setup Python App -> Environment variables as GMAIL_REFRESH_TOKEN:")
+    click.echo(token)
+    click.echo("")
+    click.echo("It is not saved anywhere. Keep it secret like a password; then restart the app.")
+
+
 @click.command("fake-bookings")
 @click.option("--count", default=10, show_default=True)
 @with_appcontext
@@ -105,7 +167,7 @@ def fake_clear():
 
 def register_cli(app: Flask) -> None:
     """Fake-data commands exist only with ENABLE_DEV_TOOLS (D-18), never in production."""
-    commands = [db_check, seed_settings, create_admin, reset_admin_password]
+    commands = [db_check, seed_settings, create_admin, reset_admin_password, gmail_authorize]
     if app.config["ENABLE_DEV_TOOLS"]:
         commands += [fake_bookings, fake_conflict_test, fake_clear]
     for command in commands:
