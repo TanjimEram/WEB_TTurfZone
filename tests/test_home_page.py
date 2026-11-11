@@ -205,7 +205,7 @@ def test_homepage_shows_real_photos_with_alt_text(home):
     assert "Owner photo:" not in html  # no photo placeholders left
     imgs = re.findall(r"<img\s[^>]*>", html)
     photos = [i for i in imgs if "/images/photos/" in i]
-    assert len(photos) == 2 + 6  # about, gallery
+    assert len(photos) == 6 + 2 + 6  # hero slides (CR-11), about, gallery
     for tag in photos:
         alt = re.search(r'alt="([^"]*)"', tag).group(1)
         assert alt.strip(), f"photo without alt text: {tag}"
@@ -290,3 +290,21 @@ def test_footer_is_the_dark_contact_close(client):
     html = client.get("/").get_data(as_text=True)
     footer = html.split('class="site-footer"')[1]
     assert "tturfzone@gmail.com" in footer and "All rights reserved" in footer
+
+
+def test_hero_slideshow_slides_and_dots(home):
+    html = home.get_data(as_text=True)
+    hero = html.split('class="hero"')[1].split("</section>")[0]
+    slides = hero.count("data-hero-slide")
+    assert slides == 1 + 6  # the CR-7 illustration first, then the six real photos
+    assert hero.count('class="hero__dot"') == slides
+    assert hero.count('loading="eager"') == 1 and hero.count('loading="lazy"') == slides - 1
+    assert "js/hero.js" in html
+
+
+def test_hero_has_one_h1_with_the_turf_name(home):
+    html = home.get_data(as_text=True)
+    assert html.count("<h1") == 1
+    h1 = html.split("<h1")[1].split("</h1>")[0]
+    assert "Welcome to" in h1 and "TTURFZONE" in h1
+    assert "Book Your Slot" in html.split('class="hero"')[1].split("</section>")[0]

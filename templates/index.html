@@ -18,13 +18,20 @@
 <main id="main">
 
   {# ---------------------------------------------------------------- hero #}
-  <section class="hero" aria-label="Introduction">
-    <div class="hero__media">
-      {{ img(hero, "100vw", loading="eager", priority=true, cls="") }}
+  {# CR-11: photo slideshow like the reference. The illustration (CR-7) first, then the real
+     photos. Without JS only the first slide shows; hero.js rotates them unless motion is reduced. #}
+  {% set slides = [hero] + photos %}
+  <section class="hero" aria-label="Introduction" data-hero>
+    <div class="hero__slides">
+      {% for p in slides %}
+        <div class="hero__slide{{ ' is-active' if loop.first }}" data-hero-slide{% if not loop.first %} aria-hidden="true"{% endif %}>
+          {{ img(p, "100vw", loading="eager" if loop.first else "lazy", priority=loop.first, cls="") }}
+        </div>
+      {% endfor %}
     </div>
     <div class="container">
       <div class="hero__inner">
-        <h1 class="hero__title">{{ settings.turf_name or "TTURFZONE" }}</h1>
+        <h1 class="hero__title"><span>Welcome to</span> <span class="hero__name">{{ settings.turf_name or "TTURFZONE" }}</span></h1>
         <p class="hero__tagline">
           {%- if is_real(settings.tagline) or show_todos -%}
             {{ owner_text(settings.tagline, "short tagline (C-17)") }}
@@ -32,16 +39,18 @@
             Book a one-hour slot online with a bKash advance.
           {%- endif -%}
         </p>
-        <div class="hero__actions">
-          <a class="btn btn--primary" href="#book">Book now</a>
-          {% if wa_link %}
-            <a class="btn btn--whatsapp" href="{{ wa_link }}" rel="noopener" target="_blank">WhatsApp</a>
-          {% elif show_todos %}
-            <a class="btn btn--whatsapp" aria-disabled="true"
-               title="WhatsApp number not set yet">WhatsApp</a>
-          {% endif %}
-        </div>
+        <a class="btn btn--hero" href="#book">Book Your Slot
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
       </div>
+    </div>
+    <div class="hero__dots" role="group" aria-label="Pictures">
+      {% for p in slides %}
+        <button type="button" class="hero__dot" data-hero-dot="{{ loop.index0 }}"
+                aria-label="Show picture {{ loop.index }} of {{ slides | length }}"
+                aria-current="{{ 'true' if loop.first else 'false' }}"></button>
+      {% endfor %}
     </div>
   </section>
 
@@ -202,6 +211,7 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/hero.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/booking.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/gallery.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/reveal.js') }}" defer></script>
