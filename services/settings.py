@@ -20,6 +20,31 @@ from services.slots import ALL_HOURS, PERIODS, slot_label, slot_times, today_dha
 WINDOW_DAYS = (1, 60)
 MAX_PRICE_BDT = 100_000
 ADVANCE_LIMITS = (1, 100_000)
+WHY_MAX_POINTS = 8
+WHY_TITLE_MAX = 60
+WHY_TEXT_MAX = 200
+
+
+def parse_why_points(raw: str, errors: dict) -> list[dict]:
+    """'Why Choose Us' (CR-11): one point per line, 'Title: one line' or just 'Title'.
+
+    Stored in turf_settings.facilities as [{"title", "text"}] (the column CR-5 left unused).
+    Only what the owner writes is shown; nothing is filled in for them (never-invent rule).
+    """
+    points = []
+    for line in (raw or "").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        title, _, text = line.partition(":")
+        title, text = title.strip(), text.strip()
+        if len(title) > WHY_TITLE_MAX or len(text) > WHY_TEXT_MAX:
+            errors["why_text"] = (f"Keep each point short: a title up to {WHY_TITLE_MAX} characters, "
+                                  f"then a colon and up to {WHY_TEXT_MAX} characters.")
+        points.append({"title": title, "text": text})
+    if len(points) > WHY_MAX_POINTS:
+        errors["why_text"] = f"Add up to {WHY_MAX_POINTS} points (now {len(points)})."
+    return points
 TEXT_LIMITS = {  # VARCHAR columns must fit (MariaDB strict mode rejects longer); TEXT kept readable
     "opening_hours_text": 160,
     "confirm_time_text": 160,
@@ -100,6 +125,7 @@ def parse_settings_form(form) -> dict:
         errors["advance_bdt"] = "Enter the advance in whole taka, e.g. 500."
     else:
         values["advance_bdt"] = int(advance)
+    values["why"] = parse_why_points(form.get("why_text", ""), errors)
     values["open_hours"] = parse_open_hours(form, errors)
     values["pricing"] = parse_period_prices(form, errors)
 
@@ -152,12 +178,19 @@ def save_owner_settings(form) -> TurfSettings:
         setattr(settings, field, values[field])
     settings.booking_window_days = values["booking_window_days"]
     settings.bkash_number = values["bkash_number"]
+    settings.facilities = values["why"]
     settings.advance_bdt = values["advance_bdt"]
     hours = values["open_hours"]
     settings.slot_times = None if len(hours) == len(ALL_HOURS) else [t.strftime("%H:%M") for t in hours]
     settings.pricing = values["pricing"]
     db.session.commit()
     return settings
+
+
+def why_points(settings) -> list[dict]:
+    """The owner's Why Choose Us points, or [] (also for the old unused facilities shape)."""
+    items = settings.facilities if isinstance(settings.facilities, list) else []
+    return [i for i in items if isinstance(i, dict) and (i.get("title") or "").strip()]
 
 
 def missing_prices(settings) -> int:
@@ -184,6 +217,7 @@ def missing_content(settings) -> list[dict]:
         ("Opening hours", "settings", _filled(settings.opening_hours_text)),
         ("Tagline", "settings", _filled(settings.tagline)),
         ("About the ground", "settings", _filled(settings.about_text)),
+        ("Why Choose Us points", "settings", bool(why_points(settings))),
         ("Booking and cancellation rules", "settings", _filled(settings.booking_rules_text)),
         ("Google Maps location", "developer", _filled(settings.map_embed_url) or _filled(settings.map_link)),
         ("Customer reviews", "developer", bool(settings.reviews)),

@@ -21,6 +21,7 @@ from services.bookings import (
     create_booking_request,
 )
 from services.pricing import price_cards
+from services.settings import why_points
 from services.slots import (
     ALL_HOURS,
     PERIODS,
@@ -88,6 +89,8 @@ def inject_common():
             "pricing": show_todos or bool(price_cards(settings)),
             "location": show_todos or any(_is_real(v) for v in (settings.address, settings.map_embed_url, settings.map_link)),
             "reviews": show_todos or bool(settings.reviews),
+            "why": show_todos or bool(why_points(settings)),
+            "rules": show_todos or _is_real(settings.booking_rules_text),
         },
         "slot_span": None if len(times) == len(ALL_HOURS) else (slot_label(times[0]), slot_label(slot_end(times[-1]))),
         "now_year": today_dhaka().year,
@@ -189,6 +192,9 @@ def home():
         periods=PERIODS,
         json_ld=_local_business_json_ld(settings),
         photos=PHOTOS,
+        why=why_points(settings),
+        rules=[line.strip() for line in (settings.booking_rules_text or "").splitlines()
+               if line.strip() and "TODO" not in line][:10],
         pics=PHOTO_BY_NAME,
         hero=HERO,
     )

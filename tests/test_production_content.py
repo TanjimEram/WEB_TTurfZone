@@ -87,3 +87,10 @@ def test_slot_span_follows_the_open_hours(prod_client):
     db.session.add(TurfSettings(turf_name="T", slot_times=["08:00", "09:00", "10:00"]))
     db.session.commit()
     assert "08:00 AM to 11:00 AM" in prod_client.get("/").get_data(as_text=True)
+
+
+def test_why_and_rules_hidden_in_production_when_empty(prod_client):
+    html = prod_client.get("/").get_data(as_text=True)
+    assert 'id="why"' not in html and 'id="rules"' not in html
+    assert 'id="contact"' in html  # always: it has the email address
+    assert _dead_hash_links(html) == []

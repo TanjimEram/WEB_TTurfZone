@@ -9,7 +9,7 @@ import pytest
 from extensions import db
 from models import Booking, TurfSettings
 
-SECTION_IDS = ["book", "about", "pricing", "gallery", "location", "reviews", "facebook"]
+SECTION_IDS = ["book", "pricing", "about", "gallery", "why", "rules", "contact", "location", "reviews", "facebook"]
 
 
 @pytest.fixture
@@ -54,7 +54,7 @@ def test_nav_has_mobile_menu_and_script(home):
 def test_gallery_lightbox_present(home):
     """M7.2: every gallery photo is a lightbox trigger, plus the overlay + scripts."""
     html = home.get_data(as_text=True)
-    assert html.count("data-lightbox-item") == 6
+    assert html.count("data-lightbox-item") == 5  # About Our Turf: one tall photo + 2x2 (CR-11)
     assert 'data-lightbox-overlay' in html
     assert 'role="dialog"' in html
     assert "js/gallery.js" in html
@@ -205,7 +205,7 @@ def test_homepage_shows_real_photos_with_alt_text(home):
     assert "Owner photo:" not in html  # no photo placeholders left
     imgs = re.findall(r"<img\s[^>]*>", html)
     photos = [i for i in imgs if "/images/photos/" in i]
-    assert len(photos) == 6 + 2 + 6  # hero slides (CR-11), about, gallery
+    assert len(photos) == 6 + 5 + 1  # hero slides, About Our Turf grid, contact (until a map is set) (CR-11)
     for tag in photos:
         alt = re.search(r'alt="([^"]*)"', tag).group(1)
         assert alt.strip(), f"photo without alt text: {tag}"
@@ -308,3 +308,49 @@ def test_hero_has_one_h1_with_the_turf_name(home):
     h1 = html.split("<h1")[1].split("</h1>")[0]
     assert "Welcome to" in h1 and "TTURFZONE" in h1
     assert "Book Your Slot" in html.split('class="hero"')[1].split("</section>")[0]
+
+
+# --- CR-11: the reference's lower sections ------------------------------------------
+
+def _section(html, section_id):
+    return html.split(f'id="{section_id}"')[1].split("</section>")[0]
+
+
+def test_section_titles_follow_the_reference(client):
+    html = client.get("/").get_data(as_text=True)
+    for title in ("Book Your Turf", "Flexible Pricing Plans", "About Our Turf", "Why Choose Us",
+                  "Ground Rules", "Get In Touch"):
+        assert title in html
+
+
+def test_why_choose_us_from_settings(client, app):
+    with app.app_context():
+        db.session.add(TurfSettings(id=1, turf_name="TTURFZONE", facilities=[
+            {"title": "Floodlights", "text": "LED lights for night games"},
+            {"title": "Parking", "text": ""}]))
+        db.session.commit()
+    why = _section(client.get("/").get_data(as_text=True), "why")
+    assert "Floodlights" in why and "LED lights for night games" in why and "Parking" in why
+    assert "TODO" not in why
+
+
+def test_why_choose_us_todo_in_development_when_empty(client):
+    assert "C-32" in _section(client.get("/").get_data(as_text=True), "why")
+
+
+def test_ground_rules_one_card_per_line(client, app):
+    with app.app_context():
+        db.session.add(TurfSettings(id=1, turf_name="TTURFZONE",
+                                    booking_rules_text="No metal studs\n\nArrive 15 minutes early\n"))
+        db.session.commit()
+    rules = _section(client.get("/").get_data(as_text=True), "rules")
+    assert rules.count('class="feature"') == 2
+    assert "No metal studs" in rules and "Arrive 15 minutes early" in rules
+
+
+def test_contact_section_lists_email_and_location(client, app):
+    with app.app_context():
+        db.session.add(TurfSettings(id=1, turf_name="TTURFZONE", phone="01700000000", address="Notin Rani ghat"))
+        db.session.commit()
+    contact = _section(client.get("/").get_data(as_text=True), "contact")
+    assert "tturfzone@gmail.com" in contact and "01700000000" in contact and "Notin Rani ghat" in contact

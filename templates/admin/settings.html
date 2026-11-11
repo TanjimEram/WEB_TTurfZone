@@ -58,6 +58,12 @@
     {{ field_error('about_text') }}
   </div>
 
+  <div class="form-field">
+    <label for="s-why">Why Choose Us (one point per line, e.g. "Floodlights: LED lights for night games")</label>
+    <textarea id="s-why" name="why_text" rows="5"{{ invalid('why_text') }}>{{ values.why_text }}</textarea>
+    {{ field_error('why_text') }}
+  </div>
+
   <h2>Booking</h2>
   <div class="form-field">
     <label for="s-bkash">bKash merchant number customers pay (leave empty to close online booking)</label>

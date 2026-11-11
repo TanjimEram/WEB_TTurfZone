@@ -521,3 +521,19 @@ def test_dashboard_lists_what_the_public_site_still_hides(as_admin):
                   "Opening hours", "Tagline", "About the ground", "Google Maps location", "Customer reviews"):
         assert label in html
     assert "send it to your developer" in html and "add it in Settings" in html
+
+
+def test_settings_save_why_choose_us_lines(as_admin, app):
+    text = "Floodlights: LED lights for night games\n\nParking\nWater: Free drinking water"
+    assert _save(as_admin, why_text=text).status_code == 302
+    with app.app_context():
+        assert TurfSettings.current().facilities == [
+            {"title": "Floodlights", "text": "LED lights for night games"},
+            {"title": "Parking", "text": ""},
+            {"title": "Water", "text": "Free drinking water"}]
+    assert "Floodlights: LED lights for night games" in as_admin.get("/admin/settings").get_data(as_text=True)
+
+
+def test_settings_why_choose_us_limits(as_admin, app):
+    resp = _save(as_admin, why_text="\n".join(f"Point {n}" for n in range(9)))
+    assert resp.status_code == 400 and "up to 8" in resp.get_data(as_text=True)

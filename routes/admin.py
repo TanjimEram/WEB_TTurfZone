@@ -37,7 +37,13 @@ from services.bookings import (
 from services.booking_emails import send_booking_email
 from services.bookings import ADVANCE_DEFAULT_BDT
 from services.pricing import period_prices
-from services.settings import SettingsValidationError, missing_content, missing_prices, save_owner_settings
+from services.settings import (
+    SettingsValidationError,
+    missing_content,
+    missing_prices,
+    save_owner_settings,
+    why_points,
+)
 from services.slots import (
     ALL_HOURS,
     PERIODS,
@@ -296,6 +302,8 @@ def _settings_form(settings) -> dict:
         "whatsapp": wa[2:] if wa.startswith("88") else wa,
         "booking_window_days": str(settings.booking_window_days or 14),
         "bkash_number": settings.bkash_number or "",
+        "why_text": "\n".join(f"{p['title']}: {p['text']}" if p.get("text") else p["title"]
+                              for p in why_points(settings)),
         "advance_bdt": str(settings.advance_bdt or ADVANCE_DEFAULT_BDT),
         "open_hours": [t.strftime("%H:%M") for t in slot_times(settings)],
         "prices": {key: "" if price is None else str(price) for key, price in prices.items()},
@@ -306,7 +314,7 @@ def _settings_form(settings) -> dict:
 def _posted_form(form) -> dict:
     """What the owner just typed, so a failed save keeps their input."""
     values = {field: form.get(field, "") for field in
-              TEXT_FIELDS + ("phone", "whatsapp", "booking_window_days", "bkash_number", "advance_bdt")}
+              TEXT_FIELDS + ("phone", "whatsapp", "booking_window_days", "bkash_number", "advance_bdt", "why_text")}
     values["open_hours"] = form.getlist("open_hours")
     values["prices"] = {p["key"]: form.get(f"price-{p['key']}", "") for p in PERIODS}
     return values
