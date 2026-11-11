@@ -27,7 +27,7 @@ class TurfSettings(db.Model):
     max_pending_per_phone = db.Column(db.Integer, nullable=False, default=2)
     pricing = db.Column(db.JSON, nullable=False, default=list)       # price bands, services/pricing.py
     default_price_bdt = db.Column(db.Integer)                         # for slots no band covers (D-47)
-    slot_times = db.Column(db.JSON)                                   # 12 "HH:MM" starts; NULL = SLOT_TIMES (CR-6)
+    slot_times = db.Column(db.JSON)                                   # open hours "HH:00"; NULL = all 24 (CR-10, D-52)
     facilities = db.Column(db.JSON, nullable=False, default=list)  # unused since CR-5; kept so it can return without a migration
     reviews = db.Column(db.JSON, nullable=False, default=list)
     gallery = db.Column(db.JSON, nullable=False, default=list)
