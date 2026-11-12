@@ -28,6 +28,12 @@ PHOTOS = {
 }
 WIDTHS = (400, 800, 1280)  # gallery thumb, gallery/about 2x, lightbox (originals are 1280 wide)
 
+# CR-12 hero (D-57): the floodlights photo, enlarged to 1920 with sharpening for wide screens. The one
+# exception to "never upscale": a browser stretching the 1280 file looks softer than this. Replace with
+# the original camera file when it arrives (C-13), and drop the enlargement.
+HERO_RAW, HERO_NAME, HERO_WIDTHS = "WhatsApp Image 2026-10-07 at 12.17.43.jpeg", "night-floodlights", (800, 1280, 1920)
+HERO_OUT = ROOT / "static" / "images" / "hero"
+
 LOGO = "Logo.jpeg"
 EMBLEM_CENTER, EMBLEM_RADIUS = (512, 497), 268  # the round badge in the 1024px logo
 LOGO_BOX = (150, 135, 874, 859)                  # badge + "T TURF ZONE", clear of the corner sparkle
@@ -94,7 +100,19 @@ def build_share_image() -> None:
     print("share  og-image.jpg 1200x630")
 
 
+def build_hero() -> None:
+    HERO_OUT.mkdir(parents=True, exist_ok=True)
+    im = load(HERO_RAW)
+    for width in HERO_WIDTHS:
+        out = im.resize((width, round(im.height * width / im.width)), Image.LANCZOS)
+        if width > im.width:  # enlarged: an unsharp mask brings the netting and lines back into focus
+            out = out.filter(ImageFilter.UnsharpMask(radius=1.6, percent=70, threshold=3))
+        out.save(HERO_OUT / f"{HERO_NAME}-{width}.webp", "WEBP", quality=85, method=6)
+    print(f"hero   {HERO_NAME:18} {im.size} -> {HERO_WIDTHS}")
+
+
 if __name__ == "__main__":
     build_photos()
+    build_hero()
     build_logo()
     build_share_image()

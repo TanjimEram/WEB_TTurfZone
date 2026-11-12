@@ -54,6 +54,8 @@ PHOTO_BY_NAME = {p["name"]: p for p in PHOTOS}
 
 # CR-12: the hero is the owner's floodlights photo, picked by the client (it replaced the CR-7 illustration).
 HERO_PHOTO = "night-floodlights"
+# Its own files in images/hero/, up to 1920 wide and sharpened (scripts/build_images.py, D-57).
+HERO = {**PHOTO_BY_NAME[HERO_PHOTO], "dir": "hero", "widths": (800, 1280, 1920), "width": 1920, "height": 1440}
 # One photo per part of the day for the "One day, 24 hours" list, and the Find the ground backdrop.
 DAY_PHOTOS = {"morning": "day-palms", "afternoon": "day-pitch", "night": "night-wide"}
 VISIT_PHOTO = "night-goal"
@@ -197,7 +199,7 @@ def home():
         why=why_points(settings),
         rules=[line.strip() for line in (settings.booking_rules_text or "").splitlines()
                if line.strip() and "TODO" not in line][:10],
-        hero=PHOTO_BY_NAME[HERO_PHOTO],
+        hero=HERO,
         visit_photo=PHOTO_BY_NAME[VISIT_PHOTO],
         advance=_advance(settings),
         booking_open=_is_real(settings.bkash_number),

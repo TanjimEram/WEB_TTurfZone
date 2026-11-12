@@ -206,23 +206,30 @@ def test_homepage_shows_real_photos_with_alt_text(home):
     assert "Owner photo:" not in html  # no photo placeholders left
     imgs = re.findall(r"<img\s[^>]*>", html)
     photos = [i for i in imgs if "/images/photos/" in i]
-    assert len(photos) == 1 + 3 + 5 + 1  # hero, one per part of the day, About our turf grid, Find the ground (CR-12)
+    assert len(photos) == 3 + 5 + 1  # one per part of the day, About our turf grid, Find the ground (CR-12)
     for tag in photos:
         alt = re.search(r'alt="([^"]*)"', tag).group(1)
         assert alt.strip(), f"photo without alt text: {tag}"
         assert "srcset=" in tag and 'width="1280"' in tag and 'height="960"' in tag
-    assert sum('loading="eager"' in t for t in photos) == 1  # only the hero
+        assert 'loading="lazy"' in tag  # only the hero (its own sharpened files) loads eagerly
 
 
-def test_hero_is_the_real_night_photo(home):
-    """CR-12: the hero is the owner's floodlit night photo (the CR-7 illustration is gone)."""
+def test_hero_is_the_real_night_photo_sharpened_for_wide_screens(home):
+    """CR-12: the hero is the owner's floodlights photo (the CR-7 illustration is gone), served from
+    its own files: enlarged to 1920 with sharpening so wide screens don't stretch the 1280 photo (D-57)."""
+    from PIL import Image
+
+    from routes.public import HERO
     html = home.get_data(as_text=True)
     hero = html.split('class="hero"')[1].split("</section>")[0]
     tags = re.findall(r"<img\s[^>]*>", hero)
-    assert len(tags) == 1 and "night-floodlights-" in tags[0]  # the photo the client picked (2026-11-13)
+    assert len(tags) == 1 and "/images/hero/night-floodlights-" in tags[0]  # the photo the client picked
     assert 'loading="eager"' in tags[0] and 'fetchpriority="high"' in tags[0]
-    assert "/images/hero/" not in html and "Illustration" not in html
-    assert not (STATIC / "images" / "hero").exists()
+    assert "1920w" in tags[0] and 'width="1920"' in tags[0] and 'height="1440"' in tags[0]
+    assert "Illustration" not in html and "hero-aerial" not in html
+    for w in HERO["widths"]:
+        with Image.open(STATIC / "images" / "hero" / f"night-floodlights-{w}.webp") as im:
+            assert im.size == (w, w * 3 // 4) and not im.getexif()
 
 
 def test_logo_icons_and_share_image(home):
@@ -277,14 +284,14 @@ def test_prices_use_bangla_digits(client, app):
     assert "১,০০০৳" in section and "১,৩৫০৳" in section and "২,০০০৳" in section
 
 
-def test_hero_has_the_giant_name_live_line_and_book_button(home):
+def test_hero_has_the_giant_name_and_live_line(home):
     html = home.get_data(as_text=True)
     assert html.count("<h1") == 1
     h1 = html.split("<h1")[1].split("</h1>")[0]
     assert "TTURFZONE" in h1 and "hero__name" in h1
     hero = html.split('class="hero"')[1].split("</section>")[0]
     assert "data-night-line" in hero  # "Night hours start in ..." in Dhaka time (main.js)
-    assert 'href="#book"' in hero and "Book an hour" in hero
+    assert "Book an hour" not in hero and "btn" not in hero  # the menu and the phone bar have Book (client, 2026-11-13)
     assert "hero__tagline" not in hero and "Book a one-hour slot online" not in hero  # dropped (client, 2026-11-13)
     assert "js/hero.js" not in html and "data-hero-slide" not in html
 
