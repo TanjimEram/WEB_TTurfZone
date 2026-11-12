@@ -219,7 +219,7 @@ def test_hero_is_the_real_night_photo(home):
     html = home.get_data(as_text=True)
     hero = html.split('class="hero"')[1].split("</section>")[0]
     tags = re.findall(r"<img\s[^>]*>", hero)
-    assert len(tags) == 1 and "night-wide-" in tags[0]
+    assert len(tags) == 1 and "night-floodlights-" in tags[0]  # the photo the client picked (2026-11-13)
     assert 'loading="eager"' in tags[0] and 'fetchpriority="high"' in tags[0]
     assert "/images/hero/" not in html and "Illustration" not in html
     assert not (STATIC / "images" / "hero").exists()
@@ -285,6 +285,7 @@ def test_hero_has_the_giant_name_live_line_and_book_button(home):
     hero = html.split('class="hero"')[1].split("</section>")[0]
     assert "data-night-line" in hero  # "Night hours start in ..." in Dhaka time (main.js)
     assert 'href="#book"' in hero and "Book an hour" in hero
+    assert "hero__tagline" not in hero and "Book a one-hour slot online" not in hero  # dropped (client, 2026-11-13)
     assert "js/hero.js" not in html and "data-hero-slide" not in html
 
 

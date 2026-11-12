@@ -106,6 +106,8 @@ h2.display, .section__title { font-size: clamp(2.6rem, 1.6rem + 4vw, 5.5rem); }
 .site-header .nav__brand { color: var(--text); font-family: var(--font-display); font-weight: 400; font-size: 1.6rem; letter-spacing: 0.02em; }
 .site-header .nav__brand img { border-radius: 50%; }
 .site-header .nav__links a { color: var(--text); font-weight: 500; }
+.site-header.at-top .nav__brand, .site-header.at-top .nav__links a, .site-header.at-top .btn--login {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9), 0 0 16px rgba(0, 0, 0, 0.75); }
 .site-header .nav__links a:hover { color: var(--gold-hover); }
 .nav__end { display: flex; align-items: center; gap: 12px; margin-left: auto; }
 .nav__book { min-height: 44px; padding: 0 18px; font-size: 1.2rem; }
@@ -123,27 +125,27 @@ h2.display, .section__title { font-size: clamp(2.6rem, 1.6rem + 4vw, 5.5rem); }
 .site-header + main > .hero:first-child { margin-top: -60px; }
 .hero { position: relative; min-height: 100svh; display: flex; align-items: flex-end; padding: 0; overflow: hidden; color: var(--text); isolation: isolate; }
 .hero__photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2;
-  filter: brightness(0.8); transform: scale(1.08); animation: hero-drift 20s ease-out forwards; }
+  filter: brightness(0.68) saturate(1.05); transform: scale(1.08); animation: hero-drift 20s ease-out forwards; }
 @keyframes hero-drift { to { transform: none; } }
 .hero::after {  /* readable text over the photo, then the photo fades into the page */
   content: ""; position: absolute; inset: 0; z-index: -1;
-  background: linear-gradient(180deg, rgba(4, 11, 5, 0.25) 0%, transparent 30%, rgba(4, 11, 5, 0.72) 76%, var(--bg) 100%);
+  background: linear-gradient(180deg, rgba(3, 8, 4, 0.82) 0%, rgba(3, 8, 4, 0.35) 16%, transparent 32%, transparent 42%,
+    rgba(4, 11, 5, 0.8) 66%, rgba(4, 11, 5, 0.9) 84%, var(--bg) 100%);
 }
 .hero__foot { width: 100%; max-width: none; padding-bottom: 12px; }
-.hero__line { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px 32px; margin-bottom: 8px; }
-.hero__tagline { color: var(--text); font-size: clamp(1.2rem, 1rem + 0.8vw, 1.6rem); line-height: 1.3; max-width: 30ch; margin: 0; }
-.hero__end { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 12px 20px; }
-.hero__live { margin: 0; color: var(--text-muted); max-width: 32ch; }
-.hero__live b { color: var(--gold-hover); font-weight: 500; text-shadow: 0 0 14px rgba(240, 192, 80, 0.7); }
+.hero__line { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 12px 28px; margin-bottom: 12px; text-align: center; }
+.hero__live { margin: 0; color: #fff; font-size: clamp(1.2rem, 1.05rem + 0.7vw, 1.6rem); line-height: 1.3; max-width: 36ch;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95), 0 0 22px rgba(0, 0, 0, 0.85); }
+.hero__live b { color: #f3c962; font-weight: 600; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95), 0 0 18px rgba(240, 192, 80, 0.55); }
 .hero__name { margin: 0; line-height: 0; }
-.hero__name svg { display: block; width: 100%; height: auto; }
+.hero__name svg { display: block; width: 88%; height: auto; margin-inline: auto; }
 .hero__name text, .footer__word text { font-family: var(--font-display); }
 /* the photo's fade carries on into the booking section, over the light band */
 .hero + .book { background: linear-gradient(var(--bg), transparent 30vh); }
 @media (max-width: 760px) {
   .hero { min-height: 92svh; }
-  .hero__end { justify-content: flex-start; }
-  .hero__end .btn { display: none; }  /* the sticky bar has Book now on phones */
+  .hero__line .btn { display: none; }  /* the sticky bar has Book now on phones */
+  .hero__name svg { width: 94%; }
 }
 @media (prefers-reduced-motion: reduce) { .hero__photo { animation: none; transform: none; } }
 

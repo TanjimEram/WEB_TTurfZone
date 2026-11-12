@@ -62,7 +62,7 @@ def test_empty_sections_and_their_links_are_hidden(prod_client):
         assert f'id="{section}"' not in html
         assert f"#{section}" not in html
     assert _dead_hash_links(html) == []
-    assert "Book a one-hour slot online with a bKash advance." in html  # neutral hero line
+    assert "Book a one-hour slot online" not in html  # the hero has no tagline line any more (CR-12)
     assert "btn--whatsapp" not in html.split('class="hero"')[1].split("</section>")[0]  # no dead button
     assert 'id="gallery"' in html and 'id="about"' in html and 'id="facebook"' in html
 

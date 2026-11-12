@@ -19,23 +19,14 @@
 <main id="main">
 
   {# ---------------------------------------------------------------- hero #}
-  {# CR-12: the floodlit night photo, the name in giant letters along the bottom, and a line
+  {# CR-12: the floodlights photo, the name in giant letters centred along the bottom, and a line
      that counts down to the night hours in Dhaka time (main.js). The photo fades into the page. #}
   <section class="hero" aria-labelledby="hero-name">
     {{ img(hero, "100vw", loading="eager", priority=true, cls="hero__photo") }}
     <div class="container hero__foot">
       <div class="hero__line">
-        <p class="hero__tagline">
-          {%- if is_real(settings.tagline) or show_todos -%}
-            {{ owner_text(settings.tagline, "short tagline (C-17)") }}
-          {%- else -%}
-            Book a one-hour slot online with a bKash advance.
-          {%- endif -%}
-        </p>
-        <div class="hero__end">
-          <p class="hero__live" data-night-line>Night hours run from 6 PM to 6 AM.</p>
-          <a class="btn btn--primary" href="#book">Book an hour</a>
-        </div>
+        <p class="hero__live" data-night-line>Night hours run from 6 PM to 6 AM.</p>
+        <a class="btn btn--primary" href="#book">Book an hour</a>
       </div>
       <h1 class="hero__name" id="hero-name">
         <svg viewBox="0 0 1000 214" role="img" aria-label="{{ name }}"><text x="0" y="206" textLength="1000"

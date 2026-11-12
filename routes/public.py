@@ -52,10 +52,10 @@ PHOTOS = [
 ]
 PHOTO_BY_NAME = {p["name"]: p for p in PHOTOS}
 
-# CR-12: the hero is the owner's floodlit night photo (it replaced the CR-7 illustration).
-HERO_PHOTO = "night-wide"
+# CR-12: the hero is the owner's floodlights photo, picked by the client (it replaced the CR-7 illustration).
+HERO_PHOTO = "night-floodlights"
 # One photo per part of the day for the "One day, 24 hours" list, and the Find the ground backdrop.
-DAY_PHOTOS = {"morning": "day-palms", "afternoon": "day-pitch", "night": "night-floodlights"}
+DAY_PHOTOS = {"morning": "day-palms", "afternoon": "day-pitch", "night": "night-wide"}
 VISIT_PHOTO = "night-goal"
 
 
