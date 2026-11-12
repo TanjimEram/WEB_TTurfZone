@@ -37,7 +37,7 @@ If the brief and the plan disagree, the plan wins only where a Decision (D-n) or
 - Commit after each task: `git commit -m "<type>(<task id>): <summary>"`. Types: feat, fix, test, docs, chore, style.
 - After each completed milestone: run `pytest -q`, then `git push` to `origin`.
 - Never invent business information (prices, facilities, reviews, hours, address). Use `TODO(owner): ...` placeholders and make sure each one appears in the Client inputs table. The notes show in development only; production hides them and the empty sections (`SHOW_TODO_NOTES`, D-50), and the admin dashboard lists what is missing.
-- Photos: only real photos of the ground, except the hero (CR-7: the developer chose an AI-generated aerial pitch; its alt text must say "Illustration" and never claim it is TTURFZONE). Originals go in `assets_raw/` (gitignored); run `python scripts/build_images.py` and commit the output (D-45).
+- Photos: only real photos of the ground (the CR-7 illustration hero was removed by CR-12). Background textures and the turf glow are drawn in CSS or cut from the owner's own photos, never stock. Originals go in `assets_raw/` (gitignored); run `python scripts/build_images.py` and commit the output (D-45).
 - Prefer the simplest implementation that meets the brief. Note assumptions in the Decisions table.
 
 ## End of every task (mandatory)

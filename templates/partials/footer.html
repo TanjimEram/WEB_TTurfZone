@@ -1,50 +1,44 @@
 {% from "partials/_macros.html" import owner_text %}
+{% set name = settings.turf_name or "TTURFZONE" %}
 {% set wa_digits = settings.whatsapp if settings.whatsapp and settings.whatsapp|trim else '' %}
-{# CR-11: dark close like the reference: brand, contact, opening hours, copyright. #}
+{# CR-12: four short columns, then the name across the full width. #}
 <footer class="site-footer">
   <div class="container">
-    <h2 class="sr-only">More about {{ settings.turf_name or "TTURFZONE" }}</h2>
-    <div class="footer__grid">
-      <div class="footer__brand">
-        <p class="footer__name">
-          <img src="{{ url_for('static', filename='images/logo-emblem-96.webp') }}" width="44" height="44" alt="">
-          {{ settings.turf_name or "TTURFZONE" }}
-        </p>
-        <p>
-          {%- if is_real(settings.tagline) or show_todos -%}
-            {{ owner_text(settings.tagline, "short tagline (C-17)") }}
-          {%- else -%}
-            Book a one-hour slot online with a bKash advance.
-          {%- endif -%}
-        </p>
-      </div>
-
+    <h2 class="sr-only">More about {{ name }}</h2>
+    <div class="footer__cols">
       <div>
-        <h3>Contact Us</h3>
-        {% if settings.phone and settings.phone|trim %}
-          <p><a href="tel:{{ settings.phone|trim }}">{{ settings.phone|trim }}</a></p>
-        {% elif show_todos %}
-          <p><span class="todo-note">TODO(owner): phone number (C-06)</span></p>
-        {% endif %}
-        {% if wa_digits %}<p><a href="https://wa.me/{{ wa_digits }}">WhatsApp</a></p>{% endif %}
-        <p><a href="mailto:tturfzone@gmail.com">tturfzone@gmail.com</a></p>
+        <h3>Visit</h3>
         {% if is_real(settings.address) or show_todos %}<p>{{ owner_text(settings.address, "exact address (C-07)") }}</p>{% endif %}
+        <p><a href="{{ url_for('public.home') }}#contact">How to find us</a></p>
+      </div>
+      <div>
+        <h3>Book</h3>
+        <p><a href="{{ book_href }}">Book an hour</a></p>
+        <p><a href="{{ url_for('public.home') }}#faq">Good to know</a></p>
+      </div>
+      <div>
+        <h3>Hours</h3>
+        {% if slot_span %}<p>Open {{ slot_span[0] }} to {{ slot_span[1] }} for online booking</p>{% else %}<p>Open 24 hours for online booking</p>{% endif %}
+        {% if is_real(settings.opening_hours_text) or show_todos %}<p>{{ owner_text(settings.opening_hours_text, "opening hours (C-15)") }}</p>{% endif %}
+      </div>
+      <div>
+        <h3>Contact</h3>
         {% if settings.facebook_url and settings.facebook_url|trim %}
           <p><a href="{{ settings.facebook_url|trim }}" rel="noopener" target="_blank">Facebook</a></p>
         {% endif %}
-      </div>
-
-      <div>
-        <h3>Opening Hours</h3>
-        {% if slot_span %}<p>Open {{ slot_span[0] }} to {{ slot_span[1] }} for online booking</p>{% else %}<p>Open 24 hours for online booking</p>{% endif %}
-        {% if is_real(settings.opening_hours_text) or show_todos %}<p>{{ owner_text(settings.opening_hours_text, "opening hours (C-15)") }}</p>{% endif %}
-        <p><a href="{{ book_href }}">Book a slot online</a></p>
+        {% if settings.phone and settings.phone|trim and 'TODO' not in settings.phone %}
+          <p><a href="tel:{{ settings.phone|trim }}">{{ settings.phone|trim }}</a></p>
+        {% endif %}
+        {% if wa_digits %}<p><a href="https://wa.me/{{ wa_digits }}">WhatsApp</a></p>{% endif %}
+        <p><a href="mailto:tturfzone@gmail.com">tturfzone@gmail.com</a></p>
       </div>
     </div>
 
+    <svg class="reveal footer__word" viewBox="0 0 1000 205" role="img" aria-label="{{ name }}"><text x="0" y="198" textLength="1000"
+         lengthAdjust="spacingAndGlyphs" font-size="262" fill="currentColor">{{ name | upper }}</text></svg>
+
     <div class="footer__bottom">
-      <p>&copy; {{ now_year }} {{ settings.turf_name or "TTURFZONE" }}. All rights reserved.
-        &middot; <a href="{{ url_for('public.privacy') }}">Privacy</a></p>
+      <p>&copy; {{ now_year }} {{ name }}. All rights reserved. &middot; <a href="{{ url_for('public.privacy') }}">Privacy</a></p>
       <p class="footer__disclaimer">
         Book online with a bKash advance; we email your confirmation once the payment is checked.
         The rest is paid at the ground, and the advance isn't refunded if you cancel.

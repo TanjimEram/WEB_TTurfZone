@@ -3,9 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#ffffff">
-  {# CR-11: light by default, dark if the visitor chose it. Set before any CSS loads, so no flash. #}
-  <script>try{var t=localStorage.getItem("tturf-theme");if(t==="dark"||t==="light"){document.documentElement.setAttribute("data-theme",t);}}catch(e){}</script>
+  <meta name="theme-color" content="#040b05">
   <meta name="description" content="{% block description %}{{ settings.tagline if settings and settings.tagline and 'TODO' not in settings.tagline else 'Book a slot at TTURFZONE turf ground.' }}{% endblock %}">
   <title>{% block title %}TTURFZONE{% endblock %}</title>
   <link rel="canonical" href="{{ request.url }}">
@@ -21,11 +19,17 @@
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="T Turf Zone logo next to the floodlit pitch at night">
   <meta name="twitter:card" content="summary_large_image">
+  {# CR-12 (D-56): stadium capitals + a book serif, from Google Fonts; system fonts if they don't load. #}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=EB+Garamond:ital,wght@0,400;0,500;0,700;1,400&display=swap">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/site.css') }}">
   {% block json_ld %}{% endblock %}
 </head>
 <body>
+  {# CR-12: the band of field-green light behind every public page (site.css). #}
+  <div class="turf-glow" aria-hidden="true"></div>
   <a class="skip-link" href="#main">Skip to content</a>
   {% with messages = get_flashed_messages() %}
     {% if messages %}

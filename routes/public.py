@@ -29,6 +29,7 @@ from services.slots import (
     current_operating_day,
     date_chip_label,
     operating_day,
+    period_of,
     slot_end,
     slot_label,
     slot_times,
@@ -51,10 +52,11 @@ PHOTOS = [
 ]
 PHOTO_BY_NAME = {p["name"]: p for p in PHOTOS}
 
-# CR-7: hero image chosen by the developer. It is an AI-generated aerial pitch, not a photo
-# of this ground, so its alt text says what it is and never claims to show TTURFZONE.
-HERO = {"name": "hero-aerial", "dir": "hero", "widths": (800, 1280, 1920), "width": 1920, "height": 1072,
-        "alt": "Illustration: aerial view of a football pitch at sunset"}
+# CR-12: the hero is the owner's floodlit night photo (it replaced the CR-7 illustration).
+HERO_PHOTO = "night-wide"
+# One photo per part of the day for the "One day, 24 hours" list, and the Find the ground backdrop.
+DAY_PHOTOS = {"morning": "day-palms", "afternoon": "day-pitch", "night": "night-floodlights"}
+VISIT_PHOTO = "night-goal"
 
 
 BANGLA_DIGITS = str.maketrans("0123456789", "০১২৩৪৫৬৭৮৯")
@@ -185,7 +187,7 @@ def home():
         "index.html",
         settings=settings,
         slot_labels=[slot_label(t) for t in slot_times()],
-        price_cards=price_cards(settings),
+        day_rows=_day_rows(settings),
         date_chips=chips,
         preselect_date=chips[0]["iso"],
         preselect_label=_day_label(chips[0]["iso"]),
@@ -195,9 +197,22 @@ def home():
         why=why_points(settings),
         rules=[line.strip() for line in (settings.booking_rules_text or "").splitlines()
                if line.strip() and "TODO" not in line][:10],
-        pics=PHOTO_BY_NAME,
-        hero=HERO,
+        hero=PHOTO_BY_NAME[HERO_PHOTO],
+        visit_photo=PHOTO_BY_NAME[VISIT_PHOTO],
+        advance=_advance(settings),
+        booking_open=_is_real(settings.bkash_number),
     )
+
+
+def _day_rows(settings) -> list[dict]:
+    """Rows for "One day, 24 hours" (CR-12): each open part of the day with its price per hour
+    (None until the owner sets it) and its photo. Prices come from the same function as the
+    slot cards (D-53)."""
+    prices = {card["key"]: card["price_bdt"] for card in price_cards(settings)}
+    open_keys = {period_of(t) for t in slot_times(settings)}
+    return [{"key": p["key"], "name": p["name"], "span": p["span"], "price_bdt": prices.get(p["key"]),
+             "photo": PHOTO_BY_NAME[DAY_PHOTOS[p["key"]]]}
+            for p in PERIODS if p["key"] in open_keys]
 
 
 def _advance(settings) -> int:

@@ -8,8 +8,9 @@ import pytest
 
 from extensions import db
 from models import Booking, TurfSettings
+from tests.conftest import open_booking
 
-SECTION_IDS = ["book", "pricing", "about", "gallery", "why", "rules", "contact", "location", "reviews", "facebook"]
+SECTION_IDS = ["book", "pricing", "about", "gallery", "why", "faq", "rules", "contact", "location", "reviews", "facebook"]
 
 
 @pytest.fixture
@@ -29,7 +30,7 @@ def test_every_section_present(home):
 
 def test_hero_and_footer_present(home):
     html = home.get_data(as_text=True)
-    assert "hero__title" in html
+    assert "hero__name" in html
     assert "site-footer" in html
     # the 24 hourly slot labels show in the no-JS placeholder grid
     assert "06:00 AM" in html and "11:00 PM" in html and "05:00 AM" in html
@@ -205,29 +206,23 @@ def test_homepage_shows_real_photos_with_alt_text(home):
     assert "Owner photo:" not in html  # no photo placeholders left
     imgs = re.findall(r"<img\s[^>]*>", html)
     photos = [i for i in imgs if "/images/photos/" in i]
-    assert len(photos) == 6 + 5 + 1  # hero slides, About Our Turf grid, contact (until a map is set) (CR-11)
+    assert len(photos) == 1 + 3 + 5 + 1  # hero, one per part of the day, About our turf grid, Find the ground (CR-12)
     for tag in photos:
         alt = re.search(r'alt="([^"]*)"', tag).group(1)
         assert alt.strip(), f"photo without alt text: {tag}"
         assert "srcset=" in tag and 'width="1280"' in tag and 'height="960"' in tag
-        assert 'loading="lazy"' in tag
+    assert sum('loading="eager"' in t for t in photos) == 1  # only the hero
 
 
-def test_hero_uses_the_chosen_hero_image(home):
-    """CR-7: hero.jpg (an illustration, not the ground) - loaded first, alt says what it is."""
-    from PIL import Image
-
-    from routes.public import HERO
+def test_hero_is_the_real_night_photo(home):
+    """CR-12: the hero is the owner's floodlit night photo (the CR-7 illustration is gone)."""
     html = home.get_data(as_text=True)
-    hero = [i for i in re.findall(r"<img\s[^>]*>", html) if "/images/hero/" in i]
-    assert len(hero) == 1
-    tag = hero[0]
-    assert 'loading="eager"' in tag and 'fetchpriority="high"' in tag
-    assert 'width="1920"' in tag and 'height="1072"' in tag
-    assert 'alt="Illustration: ' in tag  # never claims to show TTURFZONE itself
-    for w in HERO["widths"]:
-        with Image.open(STATIC / "images" / "hero" / f"hero-aerial-{w}.webp") as im:
-            assert im.width == w and not im.getexif()
+    hero = html.split('class="hero"')[1].split("</section>")[0]
+    tags = re.findall(r"<img\s[^>]*>", hero)
+    assert len(tags) == 1 and "night-wide-" in tags[0]
+    assert 'loading="eager"' in tags[0] and 'fetchpriority="high"' in tags[0]
+    assert "/images/hero/" not in html and "Illustration" not in html
+    assert not (STATIC / "images" / "hero").exists()
 
 
 def test_logo_icons_and_share_image(home):
@@ -258,19 +253,15 @@ def test_sticky_bar_reserves_scroll_space_on_mobile(client):
     assert re.search(r"@media \(max-width: 899px\) \{[^@]*scroll-padding-bottom", sticky)
 
 
-# --- CR-11 reference look: theme, header, footer (M7.9) -------------------------
+# --- CR-12 design G: dark turf glow, giant name, gold actions -------------------
 
-def test_site_css_and_theme_script_in_head(client):
+def test_dark_only_with_the_turf_glow_and_fonts(client):
     html = client.get("/").get_data(as_text=True)
     head = html.split("</head>")[0]
     assert "css/site.css" in head
-    assert "tturf-theme" in head
-    assert head.index("tturf-theme") < head.index("css/main.css")  # set before paint
-
-
-def test_theme_toggle_button(client):
-    html = client.get("/").get_data(as_text=True)
-    assert "data-theme-toggle" in html and 'aria-label="Switch to dark theme"' in html
+    assert "Bebas+Neue" in head and "EB+Garamond" in head  # Google Fonts (D-56)
+    assert 'class="turf-glow"' in html  # the fixed band of field-green light
+    assert "tturf-theme" not in html and "data-theme-toggle" not in html  # one dark look, no switch
 
 
 def test_admin_does_not_load_site_css(client):
@@ -286,41 +277,50 @@ def test_prices_use_bangla_digits(client, app):
     assert "১,০০০৳" in section and "১,৩৫০৳" in section and "২,০০০৳" in section
 
 
-def test_footer_is_the_dark_contact_close(client):
-    html = client.get("/").get_data(as_text=True)
-    footer = html.split('class="site-footer"')[1]
-    assert "tturfzone@gmail.com" in footer and "All rights reserved" in footer
-
-
-def test_hero_slideshow_slides_and_dots(home):
-    html = home.get_data(as_text=True)
-    hero = html.split('class="hero"')[1].split("</section>")[0]
-    slides = hero.count("data-hero-slide")
-    assert slides == 1 + 6  # the CR-7 illustration first, then the six real photos
-    assert hero.count('class="hero__dot"') == slides
-    assert hero.count('loading="eager"') == 1 and hero.count('loading="lazy"') == slides - 1
-    assert "js/hero.js" in html
-
-
-def test_hero_has_one_h1_with_the_turf_name(home):
+def test_hero_has_the_giant_name_live_line_and_book_button(home):
     html = home.get_data(as_text=True)
     assert html.count("<h1") == 1
     h1 = html.split("<h1")[1].split("</h1>")[0]
-    assert "Welcome to" in h1 and "TTURFZONE" in h1
-    assert "Book Your Slot" in html.split('class="hero"')[1].split("</section>")[0]
+    assert "TTURFZONE" in h1 and "hero__name" in h1
+    hero = html.split('class="hero"')[1].split("</section>")[0]
+    assert "data-night-line" in hero  # "Night hours start in ..." in Dhaka time (main.js)
+    assert 'href="#book"' in hero and "Book an hour" in hero
+    assert "js/hero.js" not in html and "data-hero-slide" not in html
 
 
-# --- CR-11: the reference's lower sections ------------------------------------------
+def test_footer_has_columns_facebook_and_the_wordmark(client):
+    html = client.get("/").get_data(as_text=True)
+    footer = html.split('class="site-footer"')[1]
+    assert 'href="https://www.facebook.com/TTURFZONE"' in footer
+    assert "tturfzone@gmail.com" in footer and "/privacy" in footer
+    assert 'footer__word' in footer and 'aria-label="TTURFZONE"' in footer
+
+
+# --- CR-12: the lower sections ------------------------------------------------------
 
 def _section(html, section_id):
     return html.split(f'id="{section_id}"')[1].split("</section>")[0]
 
 
-def test_section_titles_follow_the_reference(client):
+def test_section_titles(client):
     html = client.get("/").get_data(as_text=True)
-    for title in ("Book Your Turf", "Flexible Pricing Plans", "About Our Turf", "Why Choose Us",
-                  "Ground Rules", "Get In Touch"):
+    for title in ("Book your turf", "One day, 24 hours", "About our turf", "Why choose us",
+                  "Good to know", "Find the ground"):
         assert title in html
+
+
+def test_advance_band_only_when_online_booking_is_open(client, app):
+    assert 'id="advance"' not in client.get("/").get_data(as_text=True)  # no bKash number yet
+    with app.app_context():
+        open_booking(advance_bdt=700)
+    band = _section(client.get("/").get_data(as_text=True), "advance")
+    assert "৳700" in band and "holds any hour" in band and "not refunded" in band
+
+
+def test_good_to_know_states_the_booking_rules_of_the_site(client):
+    faq = _section(client.get("/").get_data(as_text=True), "faq")
+    for text in ("refunded", "TrxID", "1 AM", "Google", "email"):
+        assert text in faq
 
 
 def test_why_choose_us_from_settings(client, app):
@@ -338,13 +338,14 @@ def test_why_choose_us_todo_in_development_when_empty(client):
     assert "C-32" in _section(client.get("/").get_data(as_text=True), "why")
 
 
-def test_ground_rules_one_card_per_line(client, app):
+def test_ground_rules_one_row_per_line(client, app):
     with app.app_context():
         db.session.add(TurfSettings(id=1, turf_name="TTURFZONE",
                                     booking_rules_text="No metal studs\n\nArrive 15 minutes early\n"))
         db.session.commit()
-    rules = _section(client.get("/").get_data(as_text=True), "rules")
-    assert rules.count('class="feature"') == 2
+    html = client.get("/").get_data(as_text=True)
+    rules = html.split('id="rules"')[1].split("</div>")[0]
+    assert rules.count('class="rule"') == 2
     assert "No metal studs" in rules and "Arrive 15 minutes early" in rules
 
 

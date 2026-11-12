@@ -22,3 +22,7 @@ CLAUDE.local.md
 
 # original owner photos (only resized WebP copies in static/images are committed)
 assets_raw/
+
+# Design mockups and design-check output (CR-12); the mockups are published as a private artifact
+mockups/
+.taste-skill/

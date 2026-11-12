@@ -22,7 +22,7 @@
 {%- endmacro %}
 
 {# A responsive WebP image: an owner photo from routes/public.py PHOTOS (4:3, widths = PHOTO_WIDTHS,
-   in images/photos/) or the HERO dict, which names its own dir, widths and size (CR-7).
+   in images/photos/). A dict may name its own dir, widths and size.
    `sizes` tells the browser how wide it is shown, so phones fetch the 400/800 file.
    Pass loading="eager" (+ priority) only for the hero, which is on screen at load. #}
 {% macro img(p, sizes, loading='lazy', priority=false, cls='photo') -%}
