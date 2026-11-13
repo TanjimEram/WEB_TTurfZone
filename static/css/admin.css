@@ -155,3 +155,8 @@
 .missing-content { margin-bottom: var(--sp-6); }
 .missing-content h2 { font-size: var(--fs-500); margin: 0; }
 .missing-content ul { margin: 0; padding-left: 1.2rem; }
+
+/* Reject / Cancel: an optional reason, emailed to the customer (pre-handover audit) */
+.admin-actions form:has(.admin-note) { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.admin-note { min-height: 40px; min-width: 0; flex: 1 1 12rem; padding: 6px 10px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font: inherit; }

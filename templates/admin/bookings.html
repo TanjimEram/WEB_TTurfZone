@@ -63,6 +63,9 @@
                     onsubmit="return confirm('Free this slot? The customer is emailed that the booking is not going ahead.');">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="back" value="{{ request.full_path }}">
+                <label class="sr-only" for="note-{{ b.id }}">Reason (optional, emailed to the customer)</label>
+                <input class="admin-note" id="note-{{ b.id }}" name="note" maxlength="200"
+                       placeholder="Reason (optional)">
                 <button class="btn btn--ghost" type="submit" aria-label="{{ verb }} {{ who }}">{{ verb }}</button>
               </form>
             {% endif %}

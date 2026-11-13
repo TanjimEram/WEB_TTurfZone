@@ -14,6 +14,7 @@ from database.seed_data import DEFAULT_SETTINGS
 from extensions import db
 from models import Booking, TurfSettings
 from services.bookings import BookingValidationError, normalize_phone
+from services.mailer import mail_configured
 from services.pricing import period_prices
 from services.slots import ALL_HOURS, PERIODS, slot_label, slot_times, today_dhaka
 
@@ -210,6 +211,8 @@ def missing_content(settings) -> list[dict]:
     [{"label": "Prices", "where": "settings" | "developer"}, ...] in the order the owner should fix them.
     """
     checks = [
+        ("bKash merchant number (online booking stays closed without it)", "settings", _filled(settings.bkash_number)),
+        ("Email sending: booking emails and password resets (Gmail setup)", "developer", mail_configured()),
         ("Prices for every slot", "settings", not missing_prices(settings)),
         ("Phone number", "settings", _filled(settings.phone)),
         ("WhatsApp number", "settings", _filled(settings.whatsapp)),

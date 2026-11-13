@@ -199,6 +199,8 @@ def _email_result(booking) -> str:
     """Send the status email (never raises) and say what happened, for the flash message."""
     if not booking.customer_email:
         return ""
+    if not mail_configured():
+        return "Email isn't set up yet, so the customer wasn't emailed (developer: Gmail setup)."
     if send_booking_email(booking):
         return f"Email sent to {booking.customer_email}."
     return "The email couldn't be sent; use Resend email in Bookings."
@@ -207,13 +209,15 @@ def _email_result(booking) -> str:
 @bp.post("/bookings/<int:booking_id>/reject")
 @login_required
 def booking_reject(booking_id):
-    note = request.form.get("note", "").strip() or None
+    note = request.form.get("note", "").strip()[:200] or None
+    existing = db.session.get(Booking, booking_id)
+    verb = "cancelled" if existing is not None and existing.status == Booking.CONFIRMED else "rejected"
     try:
         booking = reject_booking(booking_id, note=note)
     except InvalidTransitionError as exc:
         flash(str(exc))
     else:
-        flash(f"{booking.booking_code} rejected. The slot is free again. " + _email_result(booking))
+        flash(f"{booking.booking_code} {verb}. The slot is free again. " + _email_result(booking))
     return redirect(_safe_back("admin.bookings"))
 
 

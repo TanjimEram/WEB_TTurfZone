@@ -187,15 +187,25 @@ def confirm_booking(booking_id: int) -> Booking:
     return save_booking(booking)
 
 
+CANCELLED_NOTE = "Cancelled by the ground."
+
+
 def reject_booking(booking_id: int, note: str | None = None) -> Booking:
-    """PENDING or CONFIRMED -> REJECTED (frees the slot). Used for 'reject' and 'cancel'."""
+    """PENDING or CONFIRMED -> REJECTED (frees the slot). Used for 'reject' and 'cancel'.
+
+    `note` is the owner's reason; the customer's email quotes it. Cancelling a CONFIRMED
+    booking without a reason records CANCELLED_NOTE, so the email says it was cancelled.
+    """
     booking = _get(booking_id)
     if booking.status not in (Booking.PENDING, Booking.CONFIRMED):
         raise InvalidTransitionError(f"Cannot reject a {booking.status} booking.")
+    was_confirmed = booking.status == Booking.CONFIRMED
     booking.status = Booking.REJECTED
     booking.email_sent_at = None
     if note:
         booking.admin_note = note
+    elif was_confirmed:
+        booking.admin_note = CANCELLED_NOTE
     return save_booking(booking)
 
 

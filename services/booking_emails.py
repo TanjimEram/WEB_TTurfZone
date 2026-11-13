@@ -48,7 +48,12 @@ def booking_email(booking: Booking, settings: TurfSettings) -> tuple[str, str]:
         f"Hi {booking.customer_name},",
         "",
         f"Your {name} booking {booking.booking_code} for {when} is not going ahead.",
-        f"We couldn't confirm your bKash payment (TrxID {booking.trx_id}), or the booking was cancelled.",
+    ]
+    if booking.admin_note:
+        lines.append(f"Reason: {booking.admin_note}")
+    else:
+        lines.append(f"We couldn't confirm your bKash payment (TrxID {booking.trx_id}).")
+    lines += [
         "",
         f"If you think this is a mistake, please contact us with your TrxID: {contact}",
     ]
