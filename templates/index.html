@@ -214,10 +214,6 @@
           {% if is_real(settings.map_link) %}
             <p><a href="{{ settings.map_link|trim }}" rel="noopener" target="_blank">Get directions</a></p>
           {% elif show_todos %}<p><span class="todo-note">TODO(owner): Google Maps pin link (C-07)</span></p>{% endif %}
-          {% if has_map_embed %}
-            <iframe class="visit__map" src="{{ settings.map_embed_url|trim }}" title="Map to {{ name }}"
-                    loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
-          {% endif %}
         </div>
       {% endif %}
       <dl class="visit__hours">
@@ -235,6 +231,20 @@
       <a class="btn btn--primary btn--block" href="#book">Book an hour</a>
     </div>
   </section>
+
+  {# ------------------------------------------------------- the map, just before the footer #}
+  {% if has_map_embed %}
+  <section class="map" id="map" aria-labelledby="map-title">
+    <div class="container map__head">
+      <h2 class="reveal display" id="map-title">On the map</h2>
+      {% if is_real(settings.map_link) %}
+        <a class="btn btn--ghost" href="{{ settings.map_link|trim }}" rel="noopener" target="_blank">Open in Google Maps</a>
+      {% endif %}
+    </div>
+    <iframe class="map__frame" src="{{ settings.map_embed_url|trim }}" title="Map to {{ name }}"
+            loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
+  </section>
+  {% endif %}
 
 </main>
 

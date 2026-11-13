@@ -363,3 +363,27 @@ def test_contact_section_lists_email_and_location(client, app):
         db.session.commit()
     contact = _section(client.get("/").get_data(as_text=True), "contact")
     assert "tturfzone@gmail.com" in contact and "01700000000" in contact and "Notin Rani ghat" in contact
+
+
+# --- the map before the footer (client, 2026-11-13) ------------------------------------------
+
+MAP_LINK = "https://maps.app.goo.gl/aDJKZxWBbtHC5p6E7?g_st=aw"
+MAP_EMBED = "https://www.google.com/maps/embed?origin=mfe&pb=!1m3!2m1!1sT+Turf+Zone,+2C42%2BWQ9,+Feni!6i17"
+
+
+def test_map_section_sits_just_before_the_footer(client, app):
+    with app.app_context():
+        db.session.add(TurfSettings(id=1, turf_name="TTURFZONE", map_link=MAP_LINK, map_embed_url=MAP_EMBED))
+        db.session.commit()
+    html = client.get("/").get_data(as_text=True)
+    section = html.split('id="map"')[1].split("</section>")[0]
+    assert f'src="{MAP_EMBED.replace("&", "&amp;")}"' in section and 'title="Map to TTURFZONE"' in section
+    assert f'href="{MAP_LINK.replace("&", "&amp;")}"' in section and "Open in Google Maps" in section
+    after = html.split('id="map"')[1]
+    assert after.index("</section>") < after.index('class="site-footer"')  # nothing else in between
+    assert "</section>" not in after.split("</section>", 1)[1].split('class="site-footer"')[0]
+    assert html.count("<iframe") == 1  # only here, not again in the Find the ground card
+
+
+def test_no_map_section_without_an_embed_url(client):
+    assert 'id="map"' not in client.get("/").get_data(as_text=True)
