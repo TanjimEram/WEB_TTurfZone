@@ -435,3 +435,60 @@ def test_admin_pages_need_the_owner_and_wrong_passwords_lock_out(site):
                       "confirm_password": new_password})
     assert owner_login(owner, OWNER_PASSWORD).status_code == 200  # the old password no longer works
     assert owner_login(owner, new_password).status_code == 302
+
+
+# --- 5. the whole pipeline in one unbroken run ------------------------------------------------
+
+def test_full_pipeline_from_sign_in_to_sign_out(site):
+    """One customer, start to finish: sign in with Google, book and pay, the owner confirms
+    (email), the owner cancels with a reason (email), the slot is free again, sign out."""
+    app, fake = site
+    player, owner = app.test_client(), app.test_client()
+    when = night(20)
+
+    # 1. the customer lands on the homepage and opens booking: signed out, so sent to sign in
+    assert player.get("/").status_code == 200
+    gate = player.get(f"/book?date={when[0]}&slot={when[1]}")
+    assert gate.status_code == 302 and "/login" in gate.location
+
+    # 2. signs in with Google and comes back to the booking page with the same slot
+    back = sign_in(player, fake, ALICE, next_path=f"/book?date={when[0]}%26slot={when[1]}")
+    assert back.status_code == 302
+    form = page_text(player, f"/book?date={when[0]}&slot={when[1]}")
+    assert ALICE["email"] in form and BKASH in form and "৳500" in form and "Sign out" in form
+
+    # 3. pays ৳500 by bKash and submits the TrxID: the slot is held, payment being checked
+    sent = book(player, when, "PIPE0TRX01")
+    assert sent.status_code == 302 and sent.location.endswith("/book/success")
+    assert "Payment being checked" in page_text(player, "/book/success")
+    assert state_of(player, when) == "pending"
+    row = booking_row(app, "PIPE0TRX01")
+    assert row.status == Booking.PENDING and row.customer_email == ALICE["email"]
+
+    # 4. the owner signs in, sees it under Payments to check, confirms: customer emailed
+    assert owner_login(owner).status_code == 302
+    assert "PIPE0TRX01" in page_text(owner, "/admin/")
+    confirmed = admin_post(owner, f"/admin/bookings/{row.id}/confirm", back="/admin/")
+    assert f"Confirmed {row.booking_code}" in confirmed and f"Email sent to {ALICE['email']}" in confirmed
+    subject, body = fake.last(ALICE["email"])
+    assert subject == f"Your TTURFZONE booking is confirmed ({row.booking_code})"
+    assert "PIPE0TRX01" in body and "Advance paid: ৳500" in body and "Pay at the ground: ৳1,500" in body
+    assert state_of(player, when) == "booked"
+
+    # 5. the owner cancels it with a reason: customer emailed again, slot free for others
+    cancelled = admin_post(owner, f"/admin/bookings/{row.id}/reject", note="Floodlight repairs that night")
+    assert f"{row.booking_code} cancelled" in cancelled
+    subject, body = fake.last(ALICE["email"])
+    assert subject == f"Your TTURFZONE booking {row.booking_code} is not going ahead"
+    assert "Reason: Floodlight repairs that night" in body
+    assert state_of(player, when) == "available"
+    assert [m["Subject"] for m in fake.sent if m["To"] == ALICE["email"]] == [
+        f"Your TTURFZONE booking is confirmed ({row.booking_code})",
+        f"Your TTURFZONE booking {row.booking_code} is not going ahead"]  # exactly two, in order
+    assert all(m["From"] == "TTURFZONE <tturfzone@gmail.com>" for m in fake.sent)
+
+    # 6. both sign out
+    assert owner.post("/admin/logout", data={"csrf_token": token(owner, "/admin/")}).status_code == 302
+    assert owner.get("/admin/").status_code == 302
+    assert player.post("/auth/logout", data={"csrf_token": token(player, "/")}).status_code == 302
+    assert player.get("/book").status_code == 302
