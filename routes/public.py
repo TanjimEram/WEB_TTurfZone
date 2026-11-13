@@ -13,7 +13,7 @@ from flask import (
 from extensions import db
 from models import Booking, TurfSettings
 from routes.auth import bp as auth_bp
-from routes.auth import current_customer, customer_login_required
+from routes.auth import current_customer
 from services.bookings import (
     ADVANCE_DEFAULT_BDT,
     BookingValidationError,
@@ -222,12 +222,11 @@ def _advance(settings) -> int:
 
 
 @bp.get("/book")
-@customer_login_required
 def book():
     """Booking page: date + slot picker (preselected from the query), bKash payment box
-    and the details form (CR-9). Signed-in customers only."""
+    and the details form (CR-9). Google sign-in is optional (CR-13): without it, no email."""
     form = {
-        "name": current_customer().get("name", ""),
+        "name": (current_customer() or {}).get("name", ""),
         "phone": "",
         "payer_number": "",
         "trx_id": "",
@@ -239,12 +238,12 @@ def book():
 
 
 @bp.post("/book")
-@customer_login_required
 def book_submit():
     """Create a PENDING booking that waits for the owner to check the bKash payment (CR-9).
 
     The server re-validates everything (D-04). The email is the Google session's, never
-    the form's. The slot is held until the owner confirms or rejects.
+    the form's; a guest (not signed in, CR-13) books with no email. The slot is held until
+    the owner confirms or rejects.
     """
     form = {key: request.form.get(key, "").strip()
             for key in ("name", "phone", "payer_number", "trx_id", "no_refund", "date", "slot")}
@@ -263,7 +262,7 @@ def book_submit():
     try:
         booking = create_booking_request(
             form["name"], form["phone"], booking_date, slot_time,
-            email=current_customer()["email"], payer_number=form["payer_number"], trx_id=form["trx_id"])
+            email=(current_customer() or {}).get("email"), payer_number=form["payer_number"], trx_id=form["trx_id"])
     except BookingValidationError as exc:
         return _render_booking_page(form, exc.errors), 400
     except SlotUnavailableError:

@@ -12,7 +12,7 @@
       <p class="section__label">Booking</p>
       <h1 class="section__title" id="book-title">Book a one-hour slot</h1>
       <p class="muted">Pick a date and a free hour, pay the ৳{{ advance }} advance by bKash, then send us the
-        transaction ID. We check the payment and email you the confirmation. The rest is paid at the ground.</p>
+        transaction ID. We check the payment and confirm your slot. The rest is paid at the ground.</p>
 
       {% set picker_continue = false %}
       {% include "partials/slot_picker.html" %}
@@ -41,7 +41,13 @@
         <input type="hidden" name="slot" value="{{ preselect_slot }}" data-field-slot>
 
         <h2 class="section__title">2. Your details</h2>
+        {% if customer %}
         <p class="muted">Signed in as <strong>{{ customer.email }}</strong>. We'll email your confirmation there.</p>
+        {% else %}
+        <p class="muted">You're not signed in, so you won't get an email: we'll call or WhatsApp you on the phone
+          number below. Want the confirmation by email?
+          <a href="{{ url_for('auth.login', next=request.full_path.rstrip('?')) }}">Sign in with Google</a> first.</p>
+        {% endif %}
 
         {% if errors.slot %}<p class="form-error" id="err-slot" role="alert">{{ errors.slot }}</p>{% endif %}
 

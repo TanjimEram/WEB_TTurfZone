@@ -39,7 +39,7 @@
           {% else %}
             {{ b.customer_name }}<br>
             <a href="tel:{{ b.phone }}">{{ b.phone }}</a>
-            {% if b.customer_email %}<br><span class="cal-slot__who">{{ b.customer_email }}</span>{% endif %}
+            <br><span class="cal-slot__who">{% if b.customer_email %}{{ b.customer_email }}{% else %}No email: call or WhatsApp them{% endif %}</span>
             {% if b.trx_id %}<br><span class="cal-slot__who">bKash {{ b.trx_id }} from {{ b.payer_number }}</span>{% endif %}
             &middot; <a href="https://wa.me/{{ wa_number(b.phone) }}" rel="noopener" target="_blank">WhatsApp</a>
             {% if b.admin_note %}<br><span class="cal-slot__who">Note: {{ b.admin_note }}</span>{% endif %}
@@ -60,7 +60,7 @@
             {% if b.status in ("PENDING", "CONFIRMED") %}
               {% set verb = 'Reject' if b.status == 'PENDING' else 'Cancel' %}
               <form method="post" action="{{ url_for('admin.booking_reject', booking_id=b.id) }}"
-                    onsubmit="return confirm('Free this slot? The customer is emailed that the booking is not going ahead.');">
+                    onsubmit="return confirm('Free this slot? If they signed in, the customer is emailed that the booking is not going ahead.');">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="back" value="{{ request.full_path }}">
                 <label class="sr-only" for="note-{{ b.id }}">Reason (optional, emailed to the customer)</label>

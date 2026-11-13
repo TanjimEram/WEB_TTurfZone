@@ -198,7 +198,7 @@ def booking_confirm(booking_id):
 def _email_result(booking) -> str:
     """Send the status email (never raises) and say what happened, for the flash message."""
     if not booking.customer_email:
-        return ""
+        return "No email on this booking: let the customer know by phone or WhatsApp."
     if not mail_configured():
         return "Email isn't set up yet, so the customer wasn't emailed (developer: Gmail setup)."
     if send_booking_email(booking):

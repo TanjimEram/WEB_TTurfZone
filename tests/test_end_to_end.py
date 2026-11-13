@@ -125,6 +125,11 @@ def sign_in(client, fake, profile, next_path="/book"):
     return client.get(f"/auth/google/callback?state={state}&code=code-{profile['sub']}")
 
 
+def signed_out(client):
+    """The booking page offers a Google sign-in instead of naming the customer (CR-13)."""
+    return "won't get an email" in client.get("/book").get_data(as_text=True)
+
+
 def night(hour, days_ahead=1):
     """(real date, "HH:MM") of an hour in the night period, `days_ahead` operating days from now."""
     day = current_operating_day() + timedelta(days=days_ahead)
@@ -177,7 +182,7 @@ def test_sign_in_with_google_and_sign_out(site):
     alice = app.test_client()
 
     gate = alice.get("/book")
-    assert gate.status_code == 302 and "/login" in gate.location  # booking needs a sign-in
+    assert gate.status_code == 200 and "won't get an email" in gate.get_data(as_text=True)  # sign-in optional (CR-13)
     assert "Continue with Google" in alice.get("/login?next=/book").get_data(as_text=True)
 
     start = alice.get("/auth/google?next=/book")
@@ -192,12 +197,12 @@ def test_sign_in_with_google_and_sign_out(site):
     alice.get("/auth/google?next=/book")
     fake.profiles["code-x"] = ALICE
     assert alice.get("/auth/google/callback?state=forged&code=code-x").status_code == 302
-    assert alice.get("/book").status_code == 302
+    assert signed_out(alice)
     alice.get("/auth/google?next=/book")
     alice.get("/auth/google/callback?error=access_denied&state=x")
-    assert alice.get("/book").status_code == 302
+    assert signed_out(alice)
     sign_in(alice, fake, {**ALICE, "sub": "g-unverified", "email_verified": False})
-    assert alice.get("/book").status_code == 302
+    assert signed_out(alice)
 
     done = sign_in(alice, fake, ALICE)
     assert done.status_code == 302 and done.location.endswith("/book")
@@ -207,7 +212,7 @@ def test_sign_in_with_google_and_sign_out(site):
     assert alice.post("/auth/logout").status_code == 400  # no CSRF token
     out = alice.post("/auth/logout", data={"csrf_token": token(alice, "/book")})
     assert out.status_code == 302
-    assert alice.get("/book").status_code == 302  # signed out
+    assert signed_out(alice)
 
 
 # --- 2. booking: held while the payment is checked --------------------------------------------
@@ -446,10 +451,10 @@ def test_full_pipeline_from_sign_in_to_sign_out(site):
     player, owner = app.test_client(), app.test_client()
     when = night(20)
 
-    # 1. the customer lands on the homepage and opens booking: signed out, so sent to sign in
+    # 1. the customer lands on the homepage and opens booking: signed out, so offered a sign-in
     assert player.get("/").status_code == 200
     gate = player.get(f"/book?date={when[0]}&slot={when[1]}")
-    assert gate.status_code == 302 and "/login" in gate.location
+    assert gate.status_code == 200 and "/login?next=" in gate.get_data(as_text=True)
 
     # 2. signs in with Google and comes back to the booking page with the same slot
     back = sign_in(player, fake, ALICE, next_path=f"/book?date={when[0]}%26slot={when[1]}")
@@ -491,4 +496,39 @@ def test_full_pipeline_from_sign_in_to_sign_out(site):
     assert owner.post("/admin/logout", data={"csrf_token": token(owner, "/admin/")}).status_code == 302
     assert owner.get("/admin/").status_code == 302
     assert player.post("/auth/logout", data={"csrf_token": token(player, "/")}).status_code == 302
-    assert player.get("/book").status_code == 302
+    assert ALICE["email"] not in page_text(player, "/book")
+
+
+# --- 6. a guest books without Google (CR-13) --------------------------------------------------
+
+def test_guest_booking_without_google_no_email(site):
+    """No sign-in: the booking holds the slot, the owner confirms and cancels, nobody is emailed,
+    and the owner is told to call or WhatsApp instead."""
+    app, fake = site
+    guest, owner = app.test_client(), app.test_client()
+    when = night(21)
+
+    sent = book(guest, when, "GUEST0TRX1", phone="01911222333")
+    assert sent.status_code == 302 and sent.location.endswith("/book/success")
+    done = page_text(guest, "/book/success")
+    assert "Payment being checked" in done and "01911222333" in done
+    assert state_of(guest, when) == "pending"
+    row = booking_row(app, "GUEST0TRX1")
+    assert row.status == Booking.PENDING and row.customer_email is None
+
+    assert owner_login(owner).status_code == 302
+    dashboard = page_text(owner, "/admin/")
+    assert "GUEST0TRX1" in dashboard and "No email" in dashboard
+    confirmed = admin_post(owner, f"/admin/bookings/{row.id}/confirm", back="/admin/")
+    assert f"Confirmed {row.booking_code}" in confirmed and "No email on this booking" in confirmed
+    assert state_of(guest, when) == "booked"
+    assert "Resend email" not in page_text(owner, "/admin/bookings")
+
+    cancelled = admin_post(owner, f"/admin/bookings/{row.id}/reject", note="Rain")
+    assert f"{row.booking_code} cancelled" in cancelled and "No email on this booking" in cancelled
+    assert state_of(guest, when) == "available"
+    assert fake.sent == []  # nobody was emailed
+
+    # the same TrxID can't book a second slot, guest or not
+    again = book(guest, night(22), "GUEST0TRX1")
+    assert again.status_code == 400

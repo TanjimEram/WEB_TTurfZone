@@ -7,10 +7,10 @@
 Website and self-sufficient slot-booking system for TTURFZONE, a single turf ground in Bangladesh.
 Flask + Jinja templates + vanilla JS. Production database: MariaDB 11.4 on the cPanel host (CR-4); PostgreSQL stays supported; SQLite for the fast local tests. Built by one developer with Claude Code, then handed to the owner.
 
-**How booking works now (CR-9, built):** the customer signs in with Google, pays a ৳500 advance by bKash
+**How booking works now (CR-9, built; sign-in optional since CR-13):** the customer signs in with Google (optional), pays a ৳500 advance by bKash
 *Payment* to the owner's merchant number, and submits the TrxID and the number paid from. The booking is
 `PENDING` ("payment being checked") and holds its slot until the owner confirms or rejects it in the admin;
-the customer is then emailed from tturfzone@gmail.com through the Gmail API. `PAYMENTS_ENABLED=false` means
+a signed-in customer is then emailed from tturfzone@gmail.com through the Gmail API; a guest gets no email and the owner calls or WhatsApps them. `PAYMENTS_ENABLED=false` means
 this flow.
 
 **Later, if the owner gets bKash Payment Gateway keys (CR-1, not built):** online payment verified
@@ -79,11 +79,11 @@ Customer accounts (CR-3):
 - Never store or log a plain OTP code. Only `code_hash` is stored; never write the code itself to logs, flash messages, or error text.
 - Always rate-limit OTP requests: at most 3 codes per phone per hour and 5 per day; at most 5 wrong verification attempts per code before it is invalidated.
 - A logged-in customer may only ever see their own bookings — never another customer's, by id guessing or otherwise.
-- ~~Guest booking must never be blocked behind login.~~ Superseded by CR-9 (client, 2026-11-11): booking needs a Google sign-in.
+- ~~Guest booking must never be blocked behind login.~~ Superseded by CR-9 (client, 2026-11-11): booking needs a Google sign-in. ~~Booking needs a Google sign-in~~ (CR-13, 2026-11-13): sign-in is optional again; a guest booking has no email (`customer_email` NULL) and is never emailed.
 
 Google sign-in, TrxID booking and email (CR-9):
 
-- The email stored on a booking comes from the Google session (`session["customer"]`), never from a form field.
+- The email stored on a booking comes from the Google session (`session["customer"]`), never from a form field. No session = guest = no email (CR-13).
 - A bKash TrxID can be used for one booking only; the database enforces it (unique index `uq_bookings_trx_id`). Never weaken that to an app-only check.
 - Google redirect URIs are built from `SITE_URL`, never the request Host. `/auth/google` moves visitors to the `SITE_URL` host first (the OAuth state lives in that host's cookie).
 - Booking emails are sent after the status change is committed and never undo it; a failure shows the owner "Resend email".

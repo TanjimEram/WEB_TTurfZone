@@ -44,7 +44,7 @@
 <h2>Payments to check</h2>
 {% if summary.to_check %}
 <p class="muted">Find each TrxID in the bKash merchant app, check the amount and the number it came from, then
-  confirm or reject. The customer is emailed either way.</p>
+  confirm or reject. Customers who signed in with Google are emailed either way; call or WhatsApp the ones marked No email.</p>
 <div class="admin-table--scroll">
   <table class="admin-table">
     <thead><tr><th>When</th><th>Customer</th><th>bKash</th><th>Actions</th></tr></thead>
@@ -53,7 +53,9 @@
       {% set who = (b.customer_name ~ ', ' ~ slot_label(b.slot_time) ~ ' ' ~ b.booking_date.strftime('%d %b')) %}
       <tr>
         <td>{{ b.booking_date.strftime('%a %d %b') }}<br>{{ slot_label(b.slot_time) }}</td>
-        <td>{{ b.customer_name }}<br><a href="tel:{{ b.phone }}">{{ b.phone }}</a></td>
+        <td>{{ b.customer_name }}<br><a href="tel:{{ b.phone }}">{{ b.phone }}</a>
+          &middot; <a href="https://wa.me/{{ wa_number(b.phone) }}" rel="noopener" target="_blank">WhatsApp</a>
+          {% if not b.customer_email %}<br><span class="cal-slot__who">No email: call or WhatsApp them</span>{% endif %}</td>
         <td>TrxID <strong>{{ b.trx_id }}</strong><br>from {{ b.payer_number }}</td>
         <td>
           <div class="admin-actions">
@@ -63,7 +65,7 @@
               <button class="btn btn--primary" type="submit" aria-label="Confirm {{ who }}">Confirm</button>
             </form>
             <form method="post" action="{{ url_for('admin.booking_reject', booking_id=b.id) }}"
-                  onsubmit="return confirm('Reject this booking? The slot is freed and the customer is emailed.');">
+                  onsubmit="return confirm('Reject this booking? The slot is freed and the customer is emailed if they signed in.');">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="back" value="{{ request.full_path }}">
               <label class="sr-only" for="note-{{ b.id }}">Reason (optional, emailed to the customer)</label>

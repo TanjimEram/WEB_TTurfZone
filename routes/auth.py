@@ -4,7 +4,6 @@ Session key `customer` = {"sub", "email", "name"}. Signing out removes only that
 """
 import hmac
 import secrets
-from functools import wraps
 from urllib.parse import urlparse
 
 from flask import Blueprint, current_app, flash, redirect, render_template, request, session, url_for
@@ -19,16 +18,6 @@ SESSION_KEY = "customer"
 def current_customer() -> dict | None:
     """The signed-in customer {"sub", "email", "name"}, or None."""
     return session.get(SESSION_KEY)
-
-
-def customer_login_required(view):
-    """Send signed-out visitors to the sign-in page, then back here."""
-    @wraps(view)
-    def wrapped(*args, **kwargs):
-        if current_customer() is None:
-            return redirect(url_for("auth.login", next=request.full_path.rstrip("?")))
-        return view(*args, **kwargs)
-    return wrapped
 
 
 def safe_next(target: str | None) -> str:

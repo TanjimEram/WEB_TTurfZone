@@ -127,10 +127,21 @@ def test_booking_after_midnight_slot_uses_real_date(client, app, monkeypatch):
         assert (row.booking_date, row.slot_time) == (dt.date(2026, 11, 12), dt.time(1, 0))
 
 
-def test_book_requires_google_sign_in(app):
-    fresh = app.test_client()
-    for resp in (fresh.get("/book?date=2026-11-12&slot=01:00"), fresh.post("/book", data={})):
-        assert resp.status_code == 302 and "/login?next=" in resp.headers["Location"]
+def test_guest_can_book_without_google_and_gets_no_email(app):
+    """CR-13: Google sign-in is optional. A guest booking holds the slot with no email on it."""
+    guest = app.test_client()
+    page = guest.get("/book?date=2026-11-12&slot=01:00")
+    html = page.get_data(as_text=True)
+    assert page.status_code == 200
+    assert "won't get an email" in html and "/login?next=" in html  # optional sign-in offered
+    assert 'name="email"' not in html  # a guest can't type an email in
+
+    assert _post_booking(guest, phone="01911222333").status_code == 302
+    with app.app_context():
+        row = db.session.execute(db.select(Booking)).scalar_one()
+        assert row.status == Booking.PENDING and row.customer_email is None
+    success = guest.get("/book/success").get_data(as_text=True)
+    assert "01911222333" in success and "call or WhatsApp" in success
 
 
 def test_book_page_shows_payment_instructions_and_signed_in_email(client):

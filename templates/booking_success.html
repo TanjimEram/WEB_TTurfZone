@@ -14,8 +14,13 @@
         <path class="success-check__mark" fill="none" d="M14 27l7 7 17-17"/>
       </svg>
       <h1 class="section__title" id="ok-title">Payment being checked</h1>
+      {% if booking.customer_email %}
       <p>Your slot is held. We'll email <strong>{{ booking.customer_email }}</strong> as soon as we've checked
         your bKash payment.</p>
+      {% else %}
+      <p>Your slot is held. We'll call or WhatsApp you on <strong>{{ booking.phone }}</strong> once we've
+        checked your bKash payment. Keep your booking ID.</p>
+      {% endif %}
 
       <div class="card stack success-pop">
         <p class="booking-code">Booking ID: <strong>{{ booking.booking_code }}</strong></p>

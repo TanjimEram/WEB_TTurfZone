@@ -157,7 +157,7 @@ def create_booking_request(name: str, phone: str, booking_date, slot_time, *,
             booking_date=booking_date,
             slot_time=slot_time,
             status=Booking.PENDING,
-            customer_email=(email or "").strip().lower(),
+            customer_email=(email or "").strip().lower() or None,  # None = guest, no email (CR-13)
             payer_number=clean["payer_number"],
             trx_id=clean["trx_id"],
         ))
