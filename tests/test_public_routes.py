@@ -302,3 +302,40 @@ def test_book_now_goes_to_booking_page_off_homepage(client):
     html = client.get("/book").get_data(as_text=True)
     assert 'href="/book">Book now' in html
     assert 'href="/#about"' in html
+
+
+# --- CR-14: the owner hears about a new booking right away ------------------
+
+@pytest.fixture
+def owner_outbox(app, monkeypatch):
+    sent = []
+    monkeypatch.setattr("services.booking_emails.send_email",
+                        lambda to, subject, body: sent.append({"to": to, "subject": subject, "body": body}))
+    app.config.update(GMAIL_REFRESH_TOKEN="test-refresh-token", MAIL_FROM="TTURFZONE <tturfzone@gmail.com>")
+    return sent
+
+
+def test_new_booking_emails_the_owner(client, app, owner_outbox):
+    assert _post_booking(client, trx_id="9Q8W7E6R5T", payer_number="01812345678").status_code == 302
+    (mail,) = owner_outbox
+    assert mail["to"] == "tturfzone@gmail.com"
+    with app.app_context():
+        code = db.session.execute(db.select(Booking)).scalar_one().booking_code
+    assert code in mail["subject"]
+    for text in ("Rafi Ahmed", "01712345678", "9Q8W7E6R5T", "01812345678", CUSTOMER["email"], "/admin/"):
+        assert text in mail["body"]
+
+
+def test_guest_booking_alert_says_no_email(app, owner_outbox):
+    assert _post_booking(app.test_client(), phone="01911222333").status_code == 302
+    assert "No email" in owner_outbox[0]["body"]
+
+
+def test_booking_survives_a_failed_owner_email(client, app, monkeypatch):
+    def boom(*args):
+        raise OSError("network down")
+    monkeypatch.setattr("services.booking_emails.send_email", boom)
+    app.config.update(GMAIL_REFRESH_TOKEN="test-refresh-token", MAIL_FROM="TTURFZONE <tturfzone@gmail.com>")
+    assert _post_booking(client).status_code == 302
+    with app.app_context():
+        assert db.session.execute(db.select(Booking)).scalar_one().status == Booking.PENDING

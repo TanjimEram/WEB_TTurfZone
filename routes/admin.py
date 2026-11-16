@@ -146,8 +146,19 @@ def logout():
 @login_required
 def dashboard():
     settings = TurfSettings.current_or_default()
-    return render_template("admin/dashboard.html", summary=dashboard_summary(current_operating_day()),
+    summary = dashboard_summary(current_operating_day())
+    return render_template("admin/dashboard.html", summary=summary,
+                           latest_pending=max((b.id for b in summary["to_check"]), default=0),
                            missing_prices=missing_prices(settings), missing=missing_content(settings))
+
+
+@bp.get("/pending.json")
+@login_required
+def pending_json():
+    """Upcoming bookings waiting for a payment check, polled by the dashboard alert (CR-14)."""
+    ids = db.session.scalars(db.select(Booking.id).where(
+        Booking.status == Booking.PENDING, Booking.booking_date >= current_operating_day())).all()
+    return {"count": len(ids), "latest": max(ids, default=0)}, 200, {"Cache-Control": "no-store"}
 
 
 @bp.get("/bookings")

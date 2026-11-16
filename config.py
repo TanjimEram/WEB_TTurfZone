@@ -43,6 +43,8 @@ class BaseConfig:
     MAIL_USERNAME = os.environ.get("MAIL_USERNAME", "")
     MAIL_PASSWORD = os.environ.get("MAIL_PASSWORD", "")
     MAIL_FROM = os.environ.get("MAIL_FROM", "")
+    # Where "new booking to check" alerts go (CR-14).
+    OWNER_ALERT_EMAIL = os.environ.get("OWNER_ALERT_EMAIL") or "tturfzone@gmail.com"
     # Google sign-in for customers and the Gmail API for booking emails (CR-9). Secrets: env only.
     GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
     GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")

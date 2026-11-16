@@ -469,6 +469,8 @@ def test_full_pipeline_from_sign_in_to_sign_out(site):
     assert state_of(player, when) == "pending"
     row = booking_row(app, "PIPE0TRX01")
     assert row.status == Booking.PENDING and row.customer_email == ALICE["email"]
+    subject, body = fake.last("tturfzone@gmail.com")  # the owner hears right away (CR-14)
+    assert row.booking_code in subject and "PIPE0TRX01" in body and ALICE["email"] in body
 
     # 4. the owner signs in, sees it under Payments to check, confirms: customer emailed
     assert owner_login(owner).status_code == 302
@@ -527,7 +529,10 @@ def test_guest_booking_without_google_no_email(site):
     cancelled = admin_post(owner, f"/admin/bookings/{row.id}/reject", note="Rain")
     assert f"{row.booking_code} cancelled" in cancelled and "No email on this booking" in cancelled
     assert state_of(guest, when) == "available"
-    assert fake.sent == []  # nobody was emailed
+    # the guest was never emailed; only the owner's new-booking alert went out (CR-14)
+    assert [m["To"] for m in fake.sent] == ["tturfzone@gmail.com"]
+    subject, body = fake.last("tturfzone@gmail.com")
+    assert "New booking to check" in subject and "GUEST0TRX1" in body and "No email" in body
 
     # the same TrxID can't book a second slot, guest or not
     again = book(guest, night(22), "GUEST0TRX1")

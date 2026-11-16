@@ -19,6 +19,13 @@
 {% block content %}
 <h1>Dashboard</h1>
 
+{# CR-14: while this page is open it checks for new bookings every 30 seconds #}
+<div class="stack" data-alerts data-latest="{{ latest_pending }}" data-url="{{ url_for('admin.pending_json') }}">
+  <p class="flash" role="status" aria-live="polite" data-alerts-banner hidden>
+    New booking request. <a href="{{ url_for('admin.dashboard') }}">Show it</a></p>
+  <button type="button" class="btn btn--ghost" data-alerts-sound hidden>Turn on alert sound</button>
+</div>
+
 {# Never let customers see a blank price without the owner knowing (D-53) #}
 {% if missing_prices %}
   <p class="form-error">{{ missing_prices }} period price(s) are not set, so customers see "On request".
@@ -139,3 +146,5 @@
 <p><a class="btn btn--ghost" href="{{ url_for('admin.bookings') }}">All bookings</a>
    <a class="btn btn--ghost" href="{{ url_for('admin.calendar') }}">Open calendar</a></p>
 {% endblock %}
+
+{% block scripts %}<script src="{{ url_for('static', filename='js/admin_alerts.js') }}" defer></script>{% endblock %}

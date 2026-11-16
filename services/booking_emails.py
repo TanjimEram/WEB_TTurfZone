@@ -1,4 +1,5 @@
-"""Emails to the customer when the owner confirms or rejects a bKash payment (CR-9).
+"""Emails to the customer when the owner confirms or rejects a bKash payment (CR-9),
+and to the owner when a new booking arrives (CR-14).
 
 Sent after the status change is committed and never undo it: a failure is logged
 (exception type only) and reported back, so the admin can show "Resend email".
@@ -77,4 +78,38 @@ def send_booking_email(booking: Booking) -> bool:
         return False
     booking.email_sent_at = utcnow()
     db.session.commit()
+    return True
+
+
+def owner_alert_email(booking: Booking, settings: TurfSettings) -> tuple[str, str]:
+    """(subject, body) telling the owner a new booking is waiting for its payment check."""
+    when = (f"{booking.booking_date:%a %d %b}, "
+            f"{slot_label(booking.slot_time)} – {slot_label(slot_end(booking.slot_time))}")
+    advance = settings.advance_bdt or ADVANCE_DEFAULT_BDT
+    lines = [
+        "A new booking is waiting for you to check the bKash payment.",
+        "",
+        f"Booking ID: {booking.booking_code}",
+        f"When: {when}",
+        f"Name: {booking.customer_name}",
+        f"Phone: {booking.phone}",
+        f"Email: {booking.customer_email or 'No email: call or WhatsApp them'}",
+        f"bKash: {_taka(advance)}, TrxID {booking.trx_id}, paid from {booking.payer_number}",
+        "",
+        f"Confirm or reject: {current_app.config['SITE_URL']}/admin/",
+    ]
+    return f"New booking to check: {when} ({booking.booking_code})", "\n".join(lines)
+
+
+def send_owner_alert(booking: Booking) -> bool:
+    """Email OWNER_ALERT_EMAIL about a new booking. Never raises; the booking is already saved."""
+    to = current_app.config.get("OWNER_ALERT_EMAIL")
+    if not to or not mail_configured():
+        return False
+    subject, body = owner_alert_email(booking, TurfSettings.current_or_default())
+    try:
+        send_email(to, subject, body)
+    except Exception as exc:  # never surface to the customer; the dashboard still lists it
+        current_app.logger.warning("Owner alert for %s failed: %s", booking.booking_code, type(exc).__name__)
+        return False
     return True

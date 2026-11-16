@@ -7,6 +7,7 @@ from werkzeug.security import generate_password_hash
 
 from extensions import db
 from models import Admin, Booking, TurfSettings
+from services.bookings import create_booking_request
 from services.slots import TZ, current_operating_day, today_dhaka
 from tests.conftest import open_booking, sign_in
 
@@ -537,3 +538,23 @@ def test_settings_save_why_choose_us_lines(as_admin, app):
 def test_settings_why_choose_us_limits(as_admin, app):
     resp = _save(as_admin, why_text="\n".join(f"Point {n}" for n in range(9)))
     assert resp.status_code == 400 and "up to 8" in resp.get_data(as_text=True)
+
+
+# --- CR-14: dashboard alert for new booking requests ------------------------
+
+def test_pending_json_reports_newest_booking_to_check(as_admin, app):
+    resp = as_admin.get("/admin/pending.json")
+    assert resp.get_json() == {"count": 0, "latest": 0}
+    assert "no-store" in resp.headers["Cache-Control"]
+    day = current_operating_day() + timedelta(days=2)
+    with app.app_context():
+        b = create_booking_request("Rafi Ahmed", "01712345678", day, time(19), email=None,
+                                   payer_number="01812345678", trx_id="7Y6U5I4O3P")
+        bid = b.id
+    assert as_admin.get("/admin/pending.json").get_json() == {"count": 1, "latest": bid}
+    html = as_admin.get("/admin/").get_data(as_text=True)
+    assert f'data-latest="{bid}"' in html and "admin_alerts.js" in html
+
+
+def test_pending_json_requires_login(client):
+    assert client.get("/admin/pending.json").status_code == 302

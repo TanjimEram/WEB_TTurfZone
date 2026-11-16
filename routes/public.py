@@ -14,6 +14,7 @@ from extensions import db
 from models import Booking, TurfSettings
 from routes.auth import bp as auth_bp
 from routes.auth import current_customer
+from services.booking_emails import send_owner_alert
 from services.bookings import (
     ADVANCE_DEFAULT_BDT,
     BookingValidationError,
@@ -270,6 +271,7 @@ def book_submit():
             form, {"slot": "Sorry, that slot was just taken. Please pick another."}
         ), 409
 
+    send_owner_alert(booking)  # after the commit; a failure never touches the booking (CR-14)
     session["booking_request"] = booking.id
     return redirect(url_for("public.booking_success"))
 
